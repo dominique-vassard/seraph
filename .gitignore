@@ -23,4 +23,4 @@ erl_crash.dump
 neo4jex-*.tar
 
 # Vs code artifacts
-.elixr_ls
+.elixir_ls
