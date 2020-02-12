@@ -69,6 +69,13 @@ defmodule Neo4jex.Schema.Node do
         }
 
         Module.put_attribute(__MODULE__, :struct_fields, {:__meta__, metadata})
+        Module.put_attribute(__MODULE__, :struct_fields, {:additional_labels, []})
+
+        Module.put_attribute(
+          __MODULE__,
+          :changeset_properties,
+          {:additional_labels, {:array, :string}}
+        )
 
         try do
           import Neo4jex.Schema.Node
@@ -116,6 +123,10 @@ defmodule Neo4jex.Schema.Node do
         def __schema__(:relationship, searched_type) when is_binary(searched_type) do
           searched_type = searched_type |> String.downcase() |> String.to_atom()
           __schema__(:relationship, searched_type)
+        end
+
+        def __schema__(:type, :additional_labels) do
+          {:array, :string}
         end
 
         def __schema__(:type, prop) do

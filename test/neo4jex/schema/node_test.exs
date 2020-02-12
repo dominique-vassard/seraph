@@ -1,7 +1,7 @@
 defmodule Neo4jex.Schema.NodeTest do
   use ExUnit.Case
 
-  alias Neo4jex.Test.{User, Post}
+  alias Neo4jex.Test.Post
 
   defmodule SimpleSchema do
     use Neo4jex.Schema.Node
@@ -32,6 +32,7 @@ defmodule Neo4jex.Schema.NodeTest do
     assert SimpleSchema.__schema__(:type, :geoloc) == :boolean
 
     assert SimpleSchema.__schema__(:changeset_properties) == [
+             additional_labels: {:array, :string},
              first_name: :string,
              last_name: :string,
              view_count: :integer,

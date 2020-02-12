@@ -32,21 +32,47 @@ defmodule Neo4jex.ChangesetTest do
 
   alias Neo4jex.Changeset
 
-  test "Node: cast/4 produces a valid Ecto.Changeset" do
-    assert %Ecto.Changeset{valid?: true} =
-             Changeset.cast(%User{}, %{name: "John", numeric_id: 5}, [:name, :numeric_id])
+  describe "Node:" do
+    test "cast/4 produces a valid Ecto.Changeset" do
+      assert %Ecto.Changeset{valid?: true} =
+               Changeset.cast(%User{}, %{name: "John", numeric_id: 5}, [:name, :numeric_id])
+    end
+
+    test "change/2 produces a valid Ecto.Changeset" do
+      assert %Ecto.Changeset{} = Changeset.change(%User{name: "User"})
+    end
+
+    test "multiple label valid changeset" do
+      data = %{
+        name: "John",
+        numeric_id: 5,
+        additional_labels: ["Valid", "Label"]
+      }
+
+      assert %Ecto.Changeset{valid?: true} =
+               Changeset.cast(%User{}, data, [:name, :numeric_id, :additional_labels])
+    end
+
+    test "multiple label invalid changeset" do
+      data = %{
+        name: "John",
+        numeric_id: 5,
+        additional_labels: [:invalid]
+      }
+
+      assert %Ecto.Changeset{valid?: false} =
+               Changeset.cast(%User{}, data, [:name, :numeric_id, :additional_labels])
+    end
   end
 
-  test "Node: change/2 produces a valid Ecto.Changeset" do
-    assert %Ecto.Changeset{} = Changeset.change(%User{name: "User"})
-  end
+  describe "Relationship:" do
+    test "cast/4 produces a valid Ecto.Changeset" do
+      assert %Ecto.Changeset{valid?: true} =
+               Changeset.cast(%UserWrotePost{}, %{at: DateTime.utc_now()}, [:at])
+    end
 
-  test "Relationship: cast/4 produces a valid Ecto.Changeset" do
-    assert %Ecto.Changeset{valid?: true} =
-             Changeset.cast(%UserWrotePost{}, %{at: DateTime.utc_now()}, [:at])
-  end
-
-  test "Relationship: change/2 produces a valid Ecto.Changeset" do
-    assert %Ecto.Changeset{} = Changeset.change(%UserWrotePost{})
+    test "change/2 produces a valid Ecto.Changeset" do
+      assert %Ecto.Changeset{} = Changeset.change(%UserWrotePost{})
+    end
   end
 end

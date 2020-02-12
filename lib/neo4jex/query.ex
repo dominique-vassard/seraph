@@ -581,17 +581,38 @@ defmodule Neo4jex.Query do
     |> Enum.join(",\n")
   end
 
-  @spec stringify_match_entity(entity_expr) :: String.t()
-  defp stringify_match_entity(%NodeExpr{variable: variable, labels: [label]}) do
-    "(#{variable}:#{label})"
+  # @spec stringify_match_entity(entity_expr) :: String.t()
+  # defp stringify_match_entity(%NodeExpr{variable: variable, labels: [label]}) do
+  #   "(#{variable}:#{label})"
+  # end
+
+  defp stringify_match_entity(%NodeExpr{variable: variable, labels: labels})
+       when is_list(labels) do
+    labels_str =
+      Enum.map(labels, fn label ->
+        ":#{label}"
+      end)
+      |> Enum.join()
+
+    "(#{variable}#{labels_str})"
   end
 
   defp stringify_match_entity(%NodeExpr{variable: variable}) do
     "(#{variable})"
   end
 
-  defp stringify_match_entity(%NodeExpr{labels: [label]}) do
-    "(:#{label})"
+  # defp stringify_match_entity(%NodeExpr{labels: [label]}) do
+  #   "(:#{label})"
+  # end
+
+  defp stringify_match_entity(%NodeExpr{labels: labels}) when is_list(labels) do
+    labels_str =
+      Enum.map(labels, fn label ->
+        ":#{label}"
+      end)
+      |> Enum.join()
+
+    "(#{labels_str})"
   end
 
   defp stringify_match_entity(%RelationshipExpr{

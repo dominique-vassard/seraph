@@ -13,7 +13,7 @@ defmodule Neo4jex.Test.User do
   use Neo4jex.Schema.Node
   import Neo4jex.Changeset
 
-  node "Test" do
+  node "User" do
     property :first_name, :string
     property :last_name, :string
     property :view_count, :integer, default: 1
@@ -30,7 +30,7 @@ defmodule Neo4jex.Test.User do
     @spec changeset(Neo4jex.Schema.Node.t(), map) :: Ecto.Changeset.t()
     def changeset(user, params \\ %{}) do
       user
-      |> cast(params, [:first_name, :last_name, :view_count])
+      |> cast(params, [:first_name, :last_name, :view_count, :additional_labels])
 
       # |> cast_relationship("WROTE", params[:new_post])
       # |> cast_relationship(Neo4jex.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])

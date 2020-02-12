@@ -67,7 +67,7 @@ defmodule Neo4jex.Repo do
         persisted_properties = schema.__schema__(:persisted_properties)
 
         node_to_insert = %Query.NodeExpr{
-          labels: [schema.__schema__(:primary_label)],
+          labels: [schema.__schema__(:primary_label)] ++ data.additional_labels,
           variable: "n"
         }
 
