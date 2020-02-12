@@ -41,6 +41,7 @@ defmodule Neo4jex.Schema.Node do
   defmacro __using__(_) do
     quote do
       import Neo4jex.Schema.Node
+      @identifier {:uuid, :string, []}
 
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
@@ -48,8 +49,6 @@ defmodule Neo4jex.Schema.Node do
       Module.register_attribute(__MODULE__, :relationships, accumulate: true)
       Module.register_attribute(__MODULE__, :outgoing_relationships, accumulate: true)
       Module.register_attribute(__MODULE__, :incoming_relationships, accumulate: true)
-
-      Module.register_attribute(__MODULE__, :temp_relationships_info, accumulate: true)
     end
   end
 
@@ -57,9 +56,11 @@ defmodule Neo4jex.Schema.Node do
     prelude =
       quote do
         @after_compile Neo4jex.Schema.Node
-        Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
-        Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
-        Module.register_attribute(__MODULE__, :properties, accumulate: true)
+
+        unless @identifier == false do
+          {name, type, opts} = @identifier
+          Neo4jex.Schema.Node.__property__(__MODULE__, name, type, opts ++ [identifier: true])
+        end
 
         primary_label = unquote(primary_label)
 
@@ -68,6 +69,8 @@ defmodule Neo4jex.Schema.Node do
           schema: __MODULE__
         }
 
+        Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
+        Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
         Module.put_attribute(__MODULE__, :struct_fields, {:__meta__, metadata})
         Module.put_attribute(__MODULE__, :struct_fields, {:additional_labels, []})
 
@@ -104,6 +107,7 @@ defmodule Neo4jex.Schema.Node do
         def __schema__(:relationships), do: @relationships
         def __schema__(:outgoing_relationships), do: @outgoing_relationships
         def __schema__(:incoming_relationships), do: @incoming_relationships
+        def __schema__(:identifier), do: @identifier
 
         def __schema__(:relationship, searched_type) when is_atom(searched_type) do
           Enum.reduce(@relationships, [], fn {rel_type, info}, acc ->
@@ -157,23 +161,7 @@ defmodule Neo4jex.Schema.Node do
 
   defmacro property(name, type, opts \\ []) do
     quote do
-      opts = unquote(opts)
-      name = unquote(name)
-      type = unquote(type)
-
-      Neo4jex.Schema.Node.check_property_type!(name, type)
-
-      if List.keyfind(@properties, name, 0) do
-        raise ArgumentError, "[#{inspect(__MODULE__)}] Field #{inspect(name)} already exists."
-      end
-
-      Module.put_attribute(__MODULE__, :properties, {name, type})
-      Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
-      Module.put_attribute(__MODULE__, :struct_fields, {name, Keyword.get(opts, :default)})
-
-      unless Keyword.get(opts, :virtual, false) do
-        Module.put_attribute(__MODULE__, :persisted_properties, name)
-      end
+      Neo4jex.Schema.Node.__property__(__MODULE__, unquote(name), unquote(type), unquote(opts))
     end
   end
 
@@ -204,6 +192,25 @@ defmodule Neo4jex.Schema.Node do
         unquote(name),
         unquote(opts)
       )
+    end
+  end
+
+  def __property__(module, name, type, opts) do
+    Neo4jex.Schema.Node.check_property_type!(name, type)
+
+    if List.keyfind(Module.get_attribute(module, :properties), name, 0) do
+      raise ArgumentError, "[#{inspect(module)}] Field #{inspect(name)} already exists."
+    end
+
+    unless name == :uuid and type == :string and Keyword.get(opts, :identifier, true) do
+      Module.put_attribute(module, :changeset_properties, {name, type})
+    end
+
+    Module.put_attribute(module, :properties, {name, type})
+    Module.put_attribute(module, :struct_fields, {name, Keyword.get(opts, :default)})
+
+    unless Keyword.get(opts, :virtual, false) do
+      Module.put_attribute(module, :persisted_properties, name)
     end
   end
 

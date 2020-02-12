@@ -23,19 +23,9 @@ defmodule Neo4jex.Repo do
 
       @spec query(String.t(), map, Keyword.t()) :: {:ok, list | map} | {:error, any}
       def query(statement, params \\ %{}, opts \\ []) do
-        case Bolt.Sips.query(get_conn(opts), statement, params) do
+        case raw_query(statement, params, opts) do
           {:ok, results} ->
-            case Keyword.get(opts, :with_stats, false) do
-              true ->
-                {:ok,
-                 %{
-                   results: results.results,
-                   stats: results.stats
-                 }}
-
-              false ->
-                {:ok, results.results}
-            end
+            {:ok, format_results(results, opts)}
 
           error ->
             error
@@ -44,10 +34,19 @@ defmodule Neo4jex.Repo do
 
       @spec query(String.t(), map, Keyword.t()) :: list | map
       def query!(statement, params \\ %{}, opts \\ []) do
-        case query(statement, params, opts) do
-          {:ok, results} -> results
-          {:error, error} -> raise error
-        end
+        raw_query!(statement, params, opts)
+        |> format_results(opts)
+      end
+
+      defp format_results(results, with_stats: true) do
+        %{
+          results: results.results,
+          stats: results.stats
+        }
+      end
+
+      defp format_results(results, _opts) do
+        results.results
       end
 
       @doc false
@@ -65,6 +64,15 @@ defmodule Neo4jex.Repo do
               {:ok, Neo4jex.Schema.t()} | {:error, Ecto.Changeset.t()}
       def create(%{__struct__: schema, __meta__: %Neo4jex.Schema.Node.Metadata{}} = data) do
         persisted_properties = schema.__schema__(:persisted_properties)
+
+        data =
+          case schema.__schema__(:identifier) do
+            {:uuid, :string, _} ->
+              Map.put(data, :uuid, UUID.uuid4())
+
+            _ ->
+              data
+          end
 
         node_to_insert = %Query.NodeExpr{
           labels: [schema.__schema__(:primary_label)] ++ data.additional_labels,

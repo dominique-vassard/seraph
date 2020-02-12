@@ -19,6 +19,7 @@ defmodule Neo4jex.Schema.NodeTest do
     assert SimpleSchema.__schema__(:primary_label) == "SimpleSchema"
 
     assert SimpleSchema.__schema__(:properties) == [
+             :uuid,
              :first_name,
              :last_name,
              :view_count,
@@ -41,6 +42,7 @@ defmodule Neo4jex.Schema.NodeTest do
            ]
 
     assert SimpleSchema.__schema__(:persisted_properties) == [
+             :uuid,
              :first_name,
              :last_name,
              :view_count,
