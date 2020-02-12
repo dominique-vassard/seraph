@@ -30,7 +30,7 @@ defmodule Neo4jex.Schema.Node do
   alias Neo4jex.Schema.Relationship
   defstruct [:__meta__, :__id__, :labels, :properties, :outgoing, :incoming]
 
-  @type schema :: %{
+  @type t :: %{
           optional(atom) => any,
           __struct__: atom,
           __meta__: Metadata.t(),
@@ -58,6 +58,7 @@ defmodule Neo4jex.Schema.Node do
       quote do
         @after_compile Neo4jex.Schema.Node
         Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
+        Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
         Module.register_attribute(__MODULE__, :properties, accumulate: true)
 
         primary_label = unquote(primary_label)
