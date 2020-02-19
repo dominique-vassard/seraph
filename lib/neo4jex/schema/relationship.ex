@@ -51,14 +51,14 @@ defmodule Neo4jex.Schema.Relationship do
     :cardinality
   ]
 
-  @type schema :: %{
+  @type t :: %{
           __struct__: atom,
           __meta__: Metadata.t(),
           __id__: integer,
           type: String.t(),
           direction: :outgoing | :incoming,
-          start_node: Neo4jex.Schema.Node.schema(),
-          end_node: Neo4jex.Schema.Node.schema(),
+          start_node: Neo4jex.Schema.Node.t(),
+          end_node: Neo4jex.Schema.Node.t(),
           properties: Ecto.Schema.t(),
           cardinality: :one | :many
         }

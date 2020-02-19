@@ -52,13 +52,14 @@ defmodule Neo4jex.Query do
       %{user_uuid: "my-user-uid"}
   """
   defmodule NodeExpr do
-    defstruct [:index, :variable, :labels, :alias]
+    defstruct [:index, :variable, :labels, :alias, properties: %{}]
 
     @type t :: %__MODULE__{
             index: nil | integer(),
             variable: String.t(),
             labels: nil | [String.t()],
-            alias: nil | String.t()
+            alias: nil | String.t(),
+            properties: map
           }
   end
 
@@ -83,6 +84,16 @@ defmodule Neo4jex.Query do
             alias: String.t(),
             variable: String.t(),
             name: atom()
+          }
+  end
+
+  defmodule LabelOperationExpr do
+    defstruct [:variable, :set, :remove]
+
+    @type t :: %__MODULE__{
+            variable: String.t(),
+            set: [String.t()],
+            remove: [String.t()]
           }
   end
 
@@ -154,12 +165,12 @@ defmodule Neo4jex.Query do
   end
 
   defmodule MergeExpr do
-    defstruct [:expr, on_create: [], on_update: []]
+    defstruct [:expr, on_create: [], on_match: []]
 
     @type t :: %__MODULE__{
             expr: Neo4jex.Query.entity_expr(),
             on_create: [SetExpr.t()],
-            on_update: [SetExpr.t()]
+            on_match: [SetExpr.t()]
           }
   end
 
@@ -194,6 +205,7 @@ defmodule Neo4jex.Query do
     :where,
     :return,
     :set,
+    :label_ops,
     :params,
     :order_by,
     :skip,
@@ -210,6 +222,7 @@ defmodule Neo4jex.Query do
           delete: [entity_expr],
           where: nil | Neo4jex.Condition.t(),
           set: [SetExpr.t()],
+          label_ops: [LabelOperationExpr.t()],
           return: nil | ReturnExpr.t(),
           params: map(),
           order_by: [OrderExpr.t()],
@@ -238,6 +251,7 @@ defmodule Neo4jex.Query do
       merge: [],
       where: nil,
       set: [],
+      label_ops: [],
       delete: [],
       return: nil,
       params: %{},
@@ -299,8 +313,38 @@ defmodule Neo4jex.Query do
   Adds MERGE data
   """
   @spec merge(Query.t(), [MergeExpr.t()]) :: Query.t()
-  def merge(query, merge) when is_list(merge) do
-    %{query | merge: query.merge ++ merge}
+  def merge(query, merges) when is_list(merges) do
+    {merge_list, params} =
+      Enum.reduce(merges, {[], %{}}, fn merge, {treated_merges, params} ->
+        {expr, new_params} = parameterize_expr(merge.expr)
+        new_merge = %{merge | expr: expr}
+        {[new_merge | treated_merges], Map.merge(params, new_params)}
+      end)
+
+    query
+    |> params(params)
+    |> Map.put(:merge, query.merge ++ merge_list)
+  end
+
+  defp parameterize_expr(%NodeExpr{properties: props} = node) do
+    data =
+      Enum.reduce(props, %{properties: %{}, params: %{}}, fn {prop, value}, acc ->
+        bound_name = node.variable <> "_" <> Atom.to_string(prop)
+
+        %{
+          acc
+          | properties: Map.put(acc.properties, prop, bound_name),
+            params: Map.put(acc.params, String.to_atom(bound_name), value)
+        }
+      end)
+
+    node = Map.put(node, :properties, data.properties)
+
+    {node, data.params}
+  end
+
+  defp parameterize_expr(expr) do
+    {expr, %{}}
   end
 
   @doc """
@@ -345,6 +389,11 @@ defmodule Neo4jex.Query do
 
   def set(query, nil) do
     query
+  end
+
+  @spec label_ops(Query.t(), [LabelOperationExpr.t()]) :: Query.t()
+  def label_ops(query, label_ops) when is_list(label_ops) do
+    %{query | label_ops: query.label_ops ++ label_ops}
   end
 
   @doc """
@@ -519,6 +568,13 @@ defmodule Neo4jex.Query do
         """
       end
 
+    cql_label_op =
+      if length(query.label_ops) > 0 do
+        query.label_ops
+        |> Enum.map(&stringify_label_ops/1)
+        |> Enum.join("\n")
+      end
+
     cql_where =
       if String.length(where) > 0 do
         """
@@ -566,6 +622,7 @@ defmodule Neo4jex.Query do
     #{cql_batch}
     #{cql_delete}
     #{cql_set}
+    #{cql_label_op}
     #{cql_return}
     #{cql_order_by}
     #{cql_skip}
@@ -586,7 +643,11 @@ defmodule Neo4jex.Query do
   #   "(#{variable}:#{label})"
   # end
 
-  defp stringify_match_entity(%NodeExpr{variable: variable, labels: labels})
+  defp stringify_match_entity(%NodeExpr{
+         variable: variable,
+         labels: labels,
+         properties: properties
+       })
        when is_list(labels) do
     labels_str =
       Enum.map(labels, fn label ->
@@ -594,16 +655,14 @@ defmodule Neo4jex.Query do
       end)
       |> Enum.join()
 
-    "(#{variable}#{labels_str})"
+    props = stringify_entity_props(properties)
+
+    "(#{variable}#{labels_str}#{props})"
   end
 
   defp stringify_match_entity(%NodeExpr{variable: variable}) do
     "(#{variable})"
   end
-
-  # defp stringify_match_entity(%NodeExpr{labels: [label]}) do
-  #   "(:#{label})"
-  # end
 
   defp stringify_match_entity(%NodeExpr{labels: labels}) when is_list(labels) do
     labels_str =
@@ -630,6 +689,16 @@ defmodule Neo4jex.Query do
       "-[#{variable}#{cql_type}]->" <> stringify_match_entity(end_node)
   end
 
+  defp stringify_entity_props(properties) do
+    props_str =
+      Enum.map(properties, fn {prop, bound_name} ->
+        "#{Atom.to_string(prop)}: $#{bound_name}"
+      end)
+      |> Enum.join(",")
+
+    " {#{props_str}}"
+  end
+
   @spec stringify_merges([MergeExpr.t()]) :: String.t()
   defp stringify_merges(merges) do
     merges
@@ -638,7 +707,7 @@ defmodule Neo4jex.Query do
   end
 
   @spec stringify_merge(nil | MergeExpr.t()) :: String.t()
-  defp stringify_merge(%MergeExpr{expr: entity, on_create: create_sets, on_update: update_sets}) do
+  defp stringify_merge(%MergeExpr{expr: entity, on_create: create_sets, on_match: match_sets}) do
     cql_create =
       if length(create_sets) > 0 do
         sets =
@@ -652,15 +721,15 @@ defmodule Neo4jex.Query do
         """
       end
 
-    cql_update =
-      if length(update_sets) > 0 do
+    cql_match_set =
+      if length(match_sets) > 0 do
         sets =
-          update_sets
+          match_sets
           |> Enum.map(&stringify_set/1)
           |> Enum.join(",\n  ")
 
         """
-        ON UPDATE SET
+        ON MATCH SET
           #{sets}
         """
       end
@@ -669,7 +738,7 @@ defmodule Neo4jex.Query do
     MERGE
       #{stringify_match_entity(entity)}
     #{cql_create}
-    #{cql_update}
+    #{cql_match_set}
     """
   end
 
@@ -731,11 +800,42 @@ defmodule Neo4jex.Query do
 
   @spec stringify_set(SetExpr.t()) :: String.t()
   defp stringify_set(%SetExpr{field: field, increment: increment}) when not is_nil(increment) do
-    "#{stringify_field(field)} = #{stringify_field(field)} + {#{increment}}"
+    "#{stringify_field(field)} = #{stringify_field(field)} + $#{increment}"
   end
 
   defp stringify_set(%SetExpr{field: field, value: value}) do
-    "#{stringify_field(field)} = {#{value}}"
+    "#{stringify_field(field)} = $#{value}"
+  end
+
+  @spec stringify_label_ops(LabelOperationExpr.t()) :: String.t()
+  defp stringify_label_ops(%LabelOperationExpr{variable: variable} = label_op) do
+    stringify_label_ops_set(variable, Map.get(label_op, :set, [])) <>
+      "\n" <>
+      stringify_label_ops_remove(variable, Map.get(label_op, :remove, []))
+  end
+
+  @spec stringify_label_ops_set(String.t(), [String.t()]) :: String.t()
+  defp stringify_label_ops_set(_, []) do
+    ""
+  end
+
+  defp stringify_label_ops_set(variable, labels) do
+    "SET " <> do_stringify_label_ops(variable, labels)
+  end
+
+  @spec stringify_label_ops_remove(String.t(), [String.t()]) :: String.t()
+
+  defp stringify_label_ops_remove(_, []) do
+    ""
+  end
+
+  defp stringify_label_ops_remove(variable, labels) do
+    "REMOVE " <> do_stringify_label_ops(variable, labels)
+  end
+
+  defp do_stringify_label_ops(variable, labels) do
+    Enum.map(labels, fn label -> "#{variable}:#{label}" end)
+    |> Enum.join(", ")
   end
 
   @spec stringify_batch(Batch.t()) :: String.t()
@@ -861,4 +961,29 @@ defmodule Neo4jex.Query do
     |> Atom.to_string()
     |> String.upcase()
   end
+
+  # defp parameterize_expr(%NodeExpr{properties: props} = node, acc) do
+  #   data =
+  #     Enum.reduce(props, %{properties: %{}, params: %{}}, fn {prop, value}, acc ->
+  #       bound_name = node.variable <> "_" <> Atom.to_string(prop)
+
+  #       %{
+  #         acc
+  #         | properties: Map.put(acc.properties, prop, bound_name),
+  #           params: Map.put(acc.params, String.to_atom(bound_name), value)
+  #       }
+  #     end)
+
+  #   node = Map.put(node, :properties, data.properties)
+
+  #   %{
+  #     acc
+  #     | expr: [node | acc.expr],
+  #       params: data.params
+  #   }
+  # end
+
+  # defp parameterize_expr(expr, acc) do
+  #   %{acc | expr: [expr | acc.expr]}
+  # end
 end

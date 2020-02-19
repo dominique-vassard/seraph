@@ -42,7 +42,9 @@ defmodule Neo4jex.Schema.Node do
     quote do
       import Neo4jex.Schema.Node
       @identifier {:uuid, :string, []}
+      @merge_keys nil
 
+      Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
       Module.register_attribute(__MODULE__, :persisted_properties, accumulate: true)
@@ -69,7 +71,6 @@ defmodule Neo4jex.Schema.Node do
           schema: __MODULE__
         }
 
-        Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
         Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
         Module.put_attribute(__MODULE__, :struct_fields, {:__meta__, metadata})
         Module.put_attribute(__MODULE__, :struct_fields, {:additional_labels, []})
@@ -97,6 +98,8 @@ defmodule Neo4jex.Schema.Node do
         cs_prop_list = @changeset_properties |> Enum.reverse()
         persisted_prop_list = @persisted_properties |> Enum.reverse()
 
+        manage_merge_keys(__MODULE__, @merge_keys, @identifier, @properties)
+
         defstruct @struct_fields
 
         def __schema__(:schema), do: __MODULE__
@@ -108,6 +111,8 @@ defmodule Neo4jex.Schema.Node do
         def __schema__(:outgoing_relationships), do: @outgoing_relationships
         def __schema__(:incoming_relationships), do: @incoming_relationships
         def __schema__(:identifier), do: @identifier
+        def __schema__(:merge_keys), do: @merge_keys
+        def __schema__(:struct_fields), do: @struct_fields
 
         def __schema__(:relationship, searched_type) when is_atom(searched_type) do
           Enum.reduce(@relationships, [], fn {rel_type, info}, acc ->
@@ -195,6 +200,29 @@ defmodule Neo4jex.Schema.Node do
     end
   end
 
+  @spec manage_merge_keys(module, nil | [:atom], false | {atom, atom, list}, Keyword.t()) :: :ok
+  def manage_merge_keys(module, merge_keys, identifier, properties) do
+    if is_nil(merge_keys) and identifier == false do
+      raise ArgumentError,
+            "[#{inspect(module)}] At least one these attributes [@identifier, @merge_keys] must have a value."
+    end
+
+    merge_keys =
+      if is_nil(merge_keys) do
+        {identifier_prop, _, _} = identifier
+        [identifier_prop]
+      else
+        merge_keys
+      end
+
+    unless Enum.all?(merge_keys, &List.keyfind(properties, &1, 0, false)) do
+      raise ArgumentError, "[#{inspect(module)}] :merge_keys must be exisitng properties."
+    end
+
+    Module.put_attribute(module, :merge_keys, merge_keys)
+  end
+
+  @spec __property__(module, atom, atom, Keyword.t()) :: nil | :ok
   def __property__(module, name, type, opts) do
     Neo4jex.Schema.Node.check_property_type!(name, type)
 
@@ -214,6 +242,8 @@ defmodule Neo4jex.Schema.Node do
     end
   end
 
+  @spec add_relationship(module, :incoming | :outgoing, String.t(), module, atom, Keyword.t()) ::
+          :ok
   def add_relationship(module, direction, type, related_node, name, opts) do
     type = String.upcase(type)
     type_field = type |> String.downcase() |> String.to_atom()
