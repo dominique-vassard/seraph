@@ -232,231 +232,139 @@ defmodule Neo4jex.RepoTest do
     end
   end
 
-  describe "merge_on_create/1" do
-    test "simple merge_on_create successful creation" do
-      params = %{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 24
-      }
+  describe "get/2" do
+    test "ok" do
+      data = add_fixtures()
+      uuid = data.uuid
 
-      {:ok, created_user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.merge_on_create()
+      retrieved_user = TestRepo.get(User, uuid)
 
-      assert %Neo4jex.Test.User{
-               additional_labels: [],
+      assert %User{
+               uuid: ^uuid,
                first_name: "John",
                last_name: "Doe",
-               view_count: 24
-             } = created_user
+               view_count: 5
+             } = retrieved_user
 
-      refute is_nil(created_user.uuid)
-      refute is_nil(created_user.__id__)
-
-      cql = """
-      MATCH
-        (u:User)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
-      RETURN
-        COUNT(u) AS nb_result
-      """
-
-      params = Map.merge(params, %{uuid: created_user.uuid})
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+      refute is_nil(retrieved_user.__id__)
     end
 
-    test "when creating an already created node don't do anything" do
-      params = %{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
-      }
-
-      {:ok, user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.create()
-
-      assert {:ok, user} ==
-               User.changeset(user, %{last_name: "New name"})
-               |> TestRepo.merge_on_create()
-
-      cql = """
-      MATCH
-        (u:User)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.view_count = $view_count
-      RETURN
-        u.last_name As last_name
-      """
-
-      params = Map.merge(params, %{uuid: user.uuid})
-      assert [%{"last_name" => "Doe"}] = TestRepo.query!(cql, params)
+    test "no result returns nil" do
+      assert is_nil(TestRepo.get(User, "non-existent"))
     end
 
-    test "succesful with multiple label" do
-      params = %{
-        additional_labels: ["Admin", "Director"],
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 24
-      }
+    defmodule NoIdentifier do
+      use Neo4jex.Schema.Node
+      @identifier false
+      @merge_keys [:id]
 
-      {:ok, created_user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.merge_on_create()
+      node "NoIdentifier" do
+        property :id, :string
+      end
+    end
 
-      assert %Neo4jex.Test.User{
-               additional_labels: ["Admin", "Director"],
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 24
-             } = created_user
-
-      refute is_nil(created_user.uuid)
-      refute is_nil(created_user.__id__)
-
-      cql = """
-      MATCH
-        (u:User:Admin:Director)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
-      RETURN
-        COUNT(u) AS nb_result
-      """
-
-      params = Map.merge(params, %{uuid: created_user.uuid})
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    test "raise with queryable without identifier" do
+      assert_raise ArgumentError, fn ->
+        TestRepo.get(NoIdentifier, "none")
+      end
     end
   end
 
-  describe "merge_on_match/1" do
-    test "succesful" do
-      params = %{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
-      }
+  describe "set/2" do
+    test "ok" do
+      data = add_fixtures()
+      data_uuid = data.uuid
+      user = TestRepo.get(User, data.uuid)
 
-      {:ok, created_user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.create()
-
-      assert {:ok, merged_user} =
-               User.changeset(created_user, %{last_name: "New name"})
-               |> TestRepo.merge_on_match()
+      changeset = User.changeset(user, %{last_name: "New name", view_count: 3})
 
       assert %Neo4jex.Test.User{
                additional_labels: [],
                first_name: "John",
                last_name: "New name",
+               uuid: ^data_uuid,
+               view_count: 3
+             } = TestRepo.set(User, changeset)
+    end
+
+    test "ok with multiple labels (add only)" do
+      data = add_fixtures(%{additional_labels: ["Buyer"]})
+      data_uuid = data.uuid
+      user = TestRepo.get(User, data.uuid)
+
+      changeset = User.changeset(user, %{additional_labels: ["Buyer", "New"]})
+
+      assert %Neo4jex.Test.User{
+               additional_labels: ["Buyer", "New"],
+               first_name: "John",
+               last_name: "Doe",
+               uuid: ^data_uuid,
                view_count: 5
-             } = merged_user
-
-      cql = """
-      MATCH
-        (u:User)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
-      RETURN
-        COUNT(u) AS nb_result
-      """
-
-      params = Map.merge(params, %{uuid: created_user.uuid, last_name: "New name"})
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+             } = TestRepo.set(User, changeset)
     end
 
-    test "succesful with new additional labels" do
-      params = %{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
-      }
+    test "ok with multiple labels (remove only)" do
+      data = add_fixtures(%{additional_labels: ["Buyer", "Old"]})
+      data_uuid = data.uuid
+      user = TestRepo.get(User, data.uuid)
 
-      {:ok, created_user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.create()
-
-      assert {:ok, merged_user} =
-               User.changeset(created_user, %{additional_labels: ["New", "Buyer"]})
-               |> TestRepo.merge_on_match()
+      changeset = User.changeset(user, %{additional_labels: ["Old"]})
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["New", "Buyer"]
-             } = merged_user
-
-      cql = """
-      MATCH
-        (u:User:New:Buyer)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
-      RETURN
-        COUNT(u) AS nb_result
-      """
-
-      params = Map.merge(params, %{uuid: created_user.uuid})
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+               additional_labels: ["Old"],
+               first_name: "John",
+               last_name: "Doe",
+               uuid: ^data_uuid,
+               view_count: 5
+             } = TestRepo.set(User, changeset)
     end
 
-    test "succesful with new additional labels and old ones removed" do
-      params = %{
-        additional_labels: ["Admin", "Director"],
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
-      }
+    test "ok with multiple labels (add + remove only)" do
+      data = add_fixtures(%{additional_labels: ["Buyer", "Old"]})
+      data_uuid = data.uuid
+      user = TestRepo.get(User, data.uuid)
 
-      {:ok, created_user} =
-        %User{}
-        |> User.changeset(params)
-        |> TestRepo.create()
-
-      assert {:ok, merged_user} =
-               User.changeset(created_user, %{
-                 additional_labels: ["Admin", "Buyer"],
-                 view_count: 25
-               })
-               |> TestRepo.merge_on_match()
+      changeset = User.changeset(user, %{additional_labels: ["Old", "Client"]})
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Admin", "Buyer"],
-               view_count: 25
-             } = merged_user
-
-      cql = """
-        MATCH
-        (u:User:Admin:Buyer)
-      WHERE
-        u.uuid = $uuid
-        AND u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
-      RETURN
-        COUNT(u) AS nb_result
-      """
-
-      params = Map.merge(params, %{uuid: created_user.uuid, view_count: 25})
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+               additional_labels: ["Old", "Client"],
+               first_name: "John",
+               last_name: "Doe",
+               uuid: ^data_uuid,
+               view_count: 5
+             } = TestRepo.set(User, changeset)
     end
+
+    test "invalid changeset" do
+      data = add_fixtures()
+      user = TestRepo.get(User, data.uuid)
+
+      changeset = User.changeset(user, %{view_count: :invalid})
+      assert {:error, %Ecto.Changeset{valid?: false}} = TestRepo.set(User, changeset)
+    end
+  end
+
+  defp add_fixtures(data \\ %{}) do
+    default_data = %{
+      uuid: UUID.uuid4(),
+      first_name: "John",
+      last_name: "Doe",
+      view_count: 5
+    }
+
+    cql = """
+    CREATE
+     (u:User)
+    SET
+      u.uuid = $uuid,
+      u.first_name = $first_name,
+      u.last_name = $last_name,
+      u.view_count = $view_count
+    """
+
+    params = Map.merge(default_data, data)
+    TestRepo.query!(cql, params)
+
+    params
   end
 end

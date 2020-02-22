@@ -1,11 +1,11 @@
-defmodule Neo4jex.Condition do
+defmodule Neo4jex.Query.Condition do
   @moduledoc """
   Reprensents an atomix WHERE clause
   """
   @fields [:source, :field, :operator, :value, :conditions, join_operator: :and]
   defstruct @fields
 
-  alias Neo4jex.Condition
+  alias Neo4jex.Query.Condition
 
   @type t :: %__MODULE__{
           source: String.t(),

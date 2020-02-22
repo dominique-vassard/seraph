@@ -20,7 +20,7 @@ defmodule Neo4jex.Query do
         labels: ["User"]
       }
 
-      condition = %Neo4jex.Condition{
+      condition = %Neo4jex.Query.Condition{
         source: node.variable,
         field: :uuid,
         operator: :==,
@@ -87,6 +87,15 @@ defmodule Neo4jex.Query do
           }
   end
 
+  defmodule Fragment do
+    defstruct [:expr, :alias]
+
+    @type t :: %__MODULE__{
+            expr: String.t(),
+            alias: String.t()
+          }
+  end
+
   defmodule LabelOperationExpr do
     defstruct [:variable, :set, :remove]
 
@@ -149,6 +158,7 @@ defmodule Neo4jex.Query do
               | RelationshipExpr.t()
               | CollectExpr.t()
               | ValueExpr.t()
+              | Fragment.t()
             ],
             distinct?: boolean()
           }
@@ -220,7 +230,7 @@ defmodule Neo4jex.Query do
           create: [entity_expr],
           merge: [MergeExpr.t()],
           delete: [entity_expr],
-          where: nil | Neo4jex.Condition.t(),
+          where: nil | Neo4jex.Query.Condition.t(),
           set: [SetExpr.t()],
           label_ops: [LabelOperationExpr.t()],
           return: nil | ReturnExpr.t(),
@@ -358,13 +368,13 @@ defmodule Neo4jex.Query do
   @doc """
   Adds WHERE data
   """
-  @spec where(Query.t(), nil | Neo4jex.Condition.t()) :: Query.t()
-  def where(%Query{where: nil} = query, %Neo4jex.Condition{} = condition) do
+  @spec where(Query.t(), nil | Neo4jex.Query.Condition.t()) :: Query.t()
+  def where(%Query{where: nil} = query, %Neo4jex.Query.Condition{} = condition) do
     %{query | where: condition}
   end
 
-  def where(%Query{where: query_cond} = query, %Neo4jex.Condition{} = condition) do
-    new_condition = %Neo4jex.Condition{
+  def where(%Query{where: query_cond} = query, %Neo4jex.Query.Condition{} = condition) do
+    new_condition = %Neo4jex.Query.Condition{
       operator: :and,
       conditions: [
         query_cond,
@@ -754,9 +764,9 @@ defmodule Neo4jex.Query do
     |> Enum.join(", ")
   end
 
-  @spec stringify_where(nil | Neo4jex.Condition.t()) :: String.t()
+  @spec stringify_where(nil | Neo4jex.Query.Condition.t()) :: String.t()
   defp stringify_where(condition) do
-    Neo4jex.Condition.stringify_condition(condition)
+    Neo4jex.Query.Condition.stringify_condition(condition)
   end
 
   @spec stringify_return(ReturnExpr.t()) :: String.t()
@@ -788,6 +798,9 @@ defmodule Neo4jex.Query do
 
         %ValueExpr{} = value ->
           stringify_value(value)
+
+        %Fragment{} = fragment ->
+          stringify_fragment(fragment)
       end)
       |> Enum.join(", ")
 
@@ -953,6 +966,15 @@ defmodule Neo4jex.Query do
   @spec stringify_value(ValueExpr.t()) :: String.t()
   defp stringify_value(%ValueExpr{variable: variable, name: name, value: value}) do
     "#{inspect(value)} AS #{variable}_#{Atom.to_string(name)}"
+  end
+
+  @spec stringify_fragment(Fragment.t()) :: String.t()
+  defp stringify_fragment(%Fragment{expr: expr, alias: nil}) do
+    expr
+  end
+
+  defp stringify_fragment(%Fragment{expr: expr, alias: fragment_alias}) do
+    "#{expr} AS #{fragment_alias}"
   end
 
   @spec format_operator(atom()) :: String.t()
