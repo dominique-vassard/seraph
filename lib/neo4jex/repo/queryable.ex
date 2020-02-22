@@ -1,11 +1,9 @@
 defmodule Neo4jex.Repo.Queryable do
-  alias Neo4jex.Query
-  alias Neo4jex.Query.Condition
-  alias Neo4jex.Query.Planner
+  alias Neo4jex.Query.{Builder, Condition, Planner}
 
   @type queryable :: module
   @type sets_data :: %{
-          sets: [Query.SetExpr.t()],
+          sets: [Builder.SetExpr.t()],
           params: map
         }
 
@@ -18,7 +16,7 @@ defmodule Neo4jex.Repo.Queryable do
   def get(repo, queryable, id_value) do
     id_field = identifier_field(queryable)
 
-    node_to_get = %Query.NodeExpr{
+    node_to_get = %Builder.NodeExpr{
       variable: "n",
       labels: [queryable.__schema__(:primary_label)]
     }
@@ -34,25 +32,25 @@ defmodule Neo4jex.Repo.Queryable do
 
     fields =
       Enum.map(queryable.__schema__(:properties), fn property ->
-        %Query.FieldExpr{
+        %Builder.FieldExpr{
           variable: node_to_get.variable,
           name: property,
           alias: Atom.to_string(property)
         }
       end)
 
-    id_expr = %Query.Fragment{
+    id_expr = %Builder.Fragment{
       expr: "id(#{node_to_get.variable})",
       alias: "__id__"
     }
 
     {statement, params} =
-      Query.new()
-      |> Query.match([node_to_get])
-      |> Query.where(condition)
-      |> Query.params(params)
-      |> Query.return(%Query.ReturnExpr{fields: [id_expr | fields]})
-      |> Query.to_string()
+      Builder.new()
+      |> Builder.match([node_to_get])
+      |> Builder.where(condition)
+      |> Builder.params(params)
+      |> Builder.return(%Builder.ReturnExpr{fields: [id_expr | fields]})
+      |> Builder.to_string()
 
     {:ok, results} = Planner.query(repo, statement, params)
 
@@ -67,7 +65,7 @@ defmodule Neo4jex.Repo.Queryable do
 
   @spec set(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
   def set(repo, queryable, %Ecto.Changeset{valid?: true} = changeset) do
-    node_to_set = %Query.NodeExpr{
+    node_to_set = %Builder.NodeExpr{
       variable: "n",
       labels: [queryable.__schema__(:primary_label)]
     }
@@ -79,27 +77,27 @@ defmodule Neo4jex.Repo.Queryable do
 
     return_fields =
       Enum.map(changes, fn {property, _} ->
-        %Query.FieldExpr{
+        %Builder.FieldExpr{
           variable: node_to_set.variable,
           name: property,
           alias: Atom.to_string(property)
         }
       end)
 
-    label_field = %Query.Fragment{
+    label_field = %Builder.Fragment{
       expr: "labels(#{node_to_set.variable})",
       alias: "additional_labels"
     }
 
     {statement, params} =
-      Query.new()
-      |> Query.match([node_to_set])
-      |> Query.set(sets.sets)
-      |> Query.label_ops(label_ops)
-      |> Query.where(merge_keys_data.where)
-      |> Query.return(%Query.ReturnExpr{fields: [label_field | return_fields]})
-      |> Query.params(Map.merge(merge_keys_data.params, sets.params))
-      |> Query.to_string()
+      Builder.new()
+      |> Builder.match([node_to_set])
+      |> Builder.set(sets.sets)
+      |> Builder.label_ops(label_ops)
+      |> Builder.where(merge_keys_data.where)
+      |> Builder.return(%Builder.ReturnExpr{fields: [label_field | return_fields]})
+      |> Builder.params(Map.merge(merge_keys_data.params, sets.params))
+      |> Builder.to_string()
 
     {:ok, results} = Planner.query(repo, statement, params)
 
@@ -135,13 +133,13 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec build_set(Query.NodeExpr.t(), Neo4jex.Schema.Node.t()) :: sets_data()
+  @spec build_set(Builder.NodeExpr.t(), Neo4jex.Schema.Node.t()) :: sets_data()
   defp build_set(entity, data) do
     Enum.reduce(data, %{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
       bound_name = entity.variable <> "_" <> Atom.to_string(prop_name)
 
-      set = %Query.SetExpr{
-        field: %Query.FieldExpr{
+      set = %Builder.SetExpr{
+        field: %Builder.FieldExpr{
           variable: entity.variable,
           name: prop_name
         },
@@ -156,7 +154,7 @@ defmodule Neo4jex.Repo.Queryable do
     end)
   end
 
-  @spec build_where_from_merge_keys(Query.NodeExpr.t(), queryable, Neo4jex.Schema.Node.t()) ::
+  @spec build_where_from_merge_keys(Builder.NodeExpr.t(), queryable, Neo4jex.Schema.Node.t()) ::
           merge_keys_data()
   defp build_where_from_merge_keys(entity, queryable, data) do
     merge_keys = queryable.__schema__(:merge_keys)
@@ -181,15 +179,15 @@ defmodule Neo4jex.Repo.Queryable do
     end)
   end
 
-  @spec build_label_operation(Query.NodeExpr.t(), queryable, Ecto.Changeset.t()) :: [
-          Query.LabelOperationExpr.t()
+  @spec build_label_operation(Builder.NodeExpr.t(), queryable, Ecto.Changeset.t()) :: [
+          Builder.LabelOperationExpr.t()
         ]
   defp build_label_operation(entity, queryable, %{changes: %{additional_labels: _}} = changeset) do
     additional_labels =
       changeset.changes[:additional_labels] -- [queryable.__schema__(:primary_label)]
 
     [
-      %Query.LabelOperationExpr{
+      %Builder.LabelOperationExpr{
         variable: entity.variable,
         set: additional_labels -- changeset.data.additional_labels,
         remove: changeset.data.additional_labels -- additional_labels

@@ -1,6 +1,5 @@
 defmodule Neo4jex.Repo.Schema do
-  alias Neo4jex.Query
-  alias Neo4jex.Query.Planner
+  alias Neo4jex.Query.{Builder, Planner}
 
   @type merge_options :: [on_create: Ecto.Changeset.t(), on_match: Ecto.Changeset.t()]
 
@@ -18,7 +17,7 @@ defmodule Neo4jex.Repo.Schema do
           data
       end
 
-    node_to_insert = %Query.NodeExpr{
+    node_to_insert = %Builder.NodeExpr{
       labels: [schema.__schema__(:primary_label)] ++ data.additional_labels,
       variable: "n"
     }
@@ -32,8 +31,8 @@ defmodule Neo4jex.Repo.Schema do
       |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
         bound_name = node_to_insert.variable <> "_" <> Atom.to_string(prop_name)
 
-        set = %Query.SetExpr{
-          field: %Query.FieldExpr{
+        set = %Builder.SetExpr{
+          field: %Builder.FieldExpr{
             variable: node_to_insert.variable,
             name: prop_name
           },
@@ -48,13 +47,13 @@ defmodule Neo4jex.Repo.Schema do
       end)
 
     {cql, params} =
-      Query.new()
-      |> Query.create([node_to_insert])
-      |> Query.set(sets.sets)
-      |> Query.return(%Query.ReturnExpr{
+      Builder.new()
+      |> Builder.create([node_to_insert])
+      |> Builder.set(sets.sets)
+      |> Builder.return(%Builder.ReturnExpr{
         fields: [node_to_insert]
       })
-      |> Query.to_string()
+      |> Builder.to_string()
 
     {:ok, [%{"n" => created_node}]} = Planner.query(repo, cql, Map.merge(params, sets.params))
 

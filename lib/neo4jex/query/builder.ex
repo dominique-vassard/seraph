@@ -1,7 +1,7 @@
-defmodule Neo4jex.Query do
+defmodule Neo4jex.Query.Builder do
   @moduledoc """
-  `Neo4jex.Query` is designed to build Cypher queries programmatically.
-  It has functions to build essential parts of a Cypher Query and its `to_string` returns a valid
+  `Neo4jex.Builder` is designed to build Cypher queries programmatically.
+  It has functions to build essential parts of a Cypher Builder and its `to_string` returns a valid
   cypher query.
 
   ## Example
@@ -12,9 +12,9 @@ defmodule Neo4jex.Query do
       #   n.uuid = "my-user-uid"
       # RETURN
       # n
-      alias Neo4jex.Query
+      alias Neo4jex.Builder
 
-      node = %Query.NodeExpr{
+      node = %Builder.NodeExpr{
         index: 0,
         variable: "n",
         labels: ["User"]
@@ -31,7 +31,7 @@ defmodule Neo4jex.Query do
         user_uuid: "my-user-uid"
       }
 
-      return = %Query.ReturnExpr{
+      return = %Builder.ReturnExpr{
         distinct?: false,
         fields: [
           node
@@ -39,11 +39,11 @@ defmodule Neo4jex.Query do
       }
 
       {cql, params} =
-      Query.new()
-      |> Query.match([node])
-      |> Query.where(condition)
-      |> Query.return(return)
-      |> Query.params(params)
+      Builder.new()
+      |> Builder.match([node])
+      |> Builder.where(condition)
+      |> Builder.return(return)
+      |> Builder.params(params)
 
       IO.puts(cql)
       "MATCH\\n  (n:User)\\n\\nWHERE\\n  n.uuid = {user_uuid}\\n\\n\\n\\n\\n\\nRETURN\\n  n\\n\\n\\n\\n\\n"
@@ -178,7 +178,7 @@ defmodule Neo4jex.Query do
     defstruct [:expr, on_create: [], on_match: []]
 
     @type t :: %__MODULE__{
-            expr: Neo4jex.Query.entity_expr(),
+            expr: Neo4jex.Builder.entity_expr(),
             on_create: [SetExpr.t()],
             on_match: [SetExpr.t()]
           }
@@ -241,7 +241,7 @@ defmodule Neo4jex.Query do
           batch: Batch.t()
         }
 
-  alias Neo4jex.Query
+  alias Neo4jex.Query.Builder
 
   @chunk_size Application.get_env(:ecto_neo4j, Neo4jex, chunk_size: 10_000)
               |> Keyword.get(:chunk_size)
@@ -249,11 +249,11 @@ defmodule Neo4jex.Query do
              |> Keyword.get(:batch)
 
   @doc """
-  Initilaize the Query struct
+  Initilaize the Builder struct
   """
-  @spec new(atom()) :: Query.t()
+  @spec new(atom()) :: Builder.t()
   def new(operation \\ :match) do
-    %Query{
+    %Builder{
       operation: operation,
       match: [],
       optional_match: [],
@@ -281,7 +281,7 @@ defmodule Neo4jex.Query do
 
   See `Neo4jex.batch_query\4` for more info about batch queries.
   """
-  @spec batch(Query.t(), Batch.t()) :: Query.t()
+  @spec batch(Builder.t(), Batch.t()) :: Builder.t()
   def batch(query, %Batch{} = batch_opt) do
     batch =
       case query.operation in [:update, :update_all] do
@@ -298,7 +298,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds MATCH data
   """
-  @spec match(Query.t(), [entity_expr]) :: Query.t()
+  @spec match(Builder.t(), [entity_expr]) :: Builder.t()
   def match(query, match) when is_list(match) do
     %{query | match: query.match ++ match}
   end
@@ -306,7 +306,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds CREATE data
   """
-  @spec create(Query.t(), [entity_expr]) :: Query.t()
+  @spec create(Builder.t(), [entity_expr]) :: Builder.t()
   def create(query, create) when is_list(create) do
     %{query | create: query.create ++ create}
   end
@@ -314,7 +314,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds OPTIONAL MATCH data
   """
-  @spec optional_match(Query.t(), [entity_expr]) :: Query.t()
+  @spec optional_match(Builder.t(), [entity_expr]) :: Builder.t()
   def optional_match(query, optional_match) when is_list(optional_match) do
     %{query | optional_match: query.optional_match ++ optional_match}
   end
@@ -322,7 +322,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds MERGE data
   """
-  @spec merge(Query.t(), [MergeExpr.t()]) :: Query.t()
+  @spec merge(Builder.t(), [MergeExpr.t()]) :: Builder.t()
   def merge(query, merges) when is_list(merges) do
     {merge_list, params} =
       Enum.reduce(merges, {[], %{}}, fn merge, {treated_merges, params} ->
@@ -360,7 +360,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds DELETE data
   """
-  @spec delete(Query.t(), [entity_expr]) :: Query.t()
+  @spec delete(Builder.t(), [entity_expr]) :: Builder.t()
   def delete(query, delete) when is_list(delete) do
     %{query | delete: query.delete ++ delete}
   end
@@ -368,12 +368,12 @@ defmodule Neo4jex.Query do
   @doc """
   Adds WHERE data
   """
-  @spec where(Query.t(), nil | Neo4jex.Query.Condition.t()) :: Query.t()
-  def where(%Query{where: nil} = query, %Neo4jex.Query.Condition{} = condition) do
+  @spec where(Builder.t(), nil | Neo4jex.Query.Condition.t()) :: Builder.t()
+  def where(%Builder{where: nil} = query, %Neo4jex.Query.Condition{} = condition) do
     %{query | where: condition}
   end
 
-  def where(%Query{where: query_cond} = query, %Neo4jex.Query.Condition{} = condition) do
+  def where(%Builder{where: query_cond} = query, %Neo4jex.Query.Condition{} = condition) do
     new_condition = %Neo4jex.Query.Condition{
       operator: :and,
       conditions: [
@@ -392,7 +392,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds SET data
   """
-  @spec set(Query.t(), nil | [SetExpr.t()]) :: Query.t()
+  @spec set(Builder.t(), nil | [SetExpr.t()]) :: Builder.t()
   def set(query, sets) when is_list(sets) do
     %{query | set: query.set ++ sets}
   end
@@ -401,7 +401,7 @@ defmodule Neo4jex.Query do
     query
   end
 
-  @spec label_ops(Query.t(), [LabelOperationExpr.t()]) :: Query.t()
+  @spec label_ops(Builder.t(), [LabelOperationExpr.t()]) :: Builder.t()
   def label_ops(query, label_ops) when is_list(label_ops) do
     %{query | label_ops: query.label_ops ++ label_ops}
   end
@@ -409,7 +409,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds RETLURN data
   """
-  @spec return(Query.t(), ReturnExpr.t()) :: Query.t()
+  @spec return(Builder.t(), ReturnExpr.t()) :: Builder.t()
   def return(query, %ReturnExpr{} = return) do
     %{query | return: return}
   end
@@ -417,7 +417,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds params
   """
-  @spec params(Query.t(), map) :: Query.t()
+  @spec params(Builder.t(), map) :: Builder.t()
   def params(query, %{} = params) do
     %{query | params: Map.merge(query.params, params)}
   end
@@ -425,7 +425,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds ORDER BY data
   """
-  @spec order_by(Query.t(), [OrderExpr.t()]) :: Query.t()
+  @spec order_by(Builder.t(), [OrderExpr.t()]) :: Builder.t()
   def order_by(query, order_by) do
     %{query | order_by: order_by}
   end
@@ -433,7 +433,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds LIMIT data
   """
-  @spec limit(Query.t(), nil | integer()) :: Query.t()
+  @spec limit(Builder.t(), nil | integer()) :: Builder.t()
   def limit(query, nil) do
     query
   end
@@ -445,7 +445,7 @@ defmodule Neo4jex.Query do
   @doc """
   Adds SKIP data
   """
-  @spec skip(Query.t(), nil | integer() | atom()) :: Query.t()
+  @spec skip(Builder.t(), nil | integer() | atom()) :: Builder.t()
   def skip(query, nil) do
     query
   end
@@ -454,8 +454,8 @@ defmodule Neo4jex.Query do
     %{query | skip: skip}
   end
 
-  @spec batchify_query(Query.t()) :: Query.t()
-  defp batchify_query(%Query{batch: %{is_batch?: true}, operation: operation} = query)
+  @spec batchify_query(Builder.t()) :: Builder.t()
+  defp batchify_query(%Builder{batch: %{is_batch?: true}, operation: operation} = query)
        when operation in [:update, :update_all, :delete, :delete_all] do
     node = List.first(query.match)
 
@@ -490,19 +490,19 @@ defmodule Neo4jex.Query do
     }
 
     query
-    |> Query.return(return)
-    |> Query.skip(nil)
-    |> Query.limit(nil)
-    |> Query.order_by([])
-    |> Query.params(%{limit: query.batch.chunk_size})
-    |> Query.batch(%{query.batch | __expr: batch_expr})
+    |> Builder.return(return)
+    |> Builder.skip(nil)
+    |> Builder.limit(nil)
+    |> Builder.order_by([])
+    |> Builder.params(%{limit: query.batch.chunk_size})
+    |> Builder.batch(%{query.batch | __expr: batch_expr})
   end
 
   defp batchify_query(query) do
     query
   end
 
-  @spec to_string(Query.t()) :: {String.t(), map}
+  @spec to_string(Builder.t()) :: {String.t(), map}
   def to_string(bare_query) do
     query = batchify_query(bare_query)
 
