@@ -9,7 +9,7 @@ defmodule Neo4jex.Query.Condition do
 
   @type t :: %__MODULE__{
           source: String.t(),
-          field: atom() | Neo4jex.Query.RelationshipExpr.t(),
+          field: atom() | Neo4jex.Query.Builder.RelationshipExpr.t(),
           operator: atom(),
           value: any(),
           conditions: nil | [Condition.t()],
@@ -67,7 +67,7 @@ defmodule Neo4jex.Query.Condition do
 
   def stringify_condition(%Condition{
         operator: operator,
-        field: %Neo4jex.Query.RelationshipExpr{} = relationship
+        field: %Neo4jex.Query.Builder.RelationshipExpr{} = relationship
       }) do
     %{start: %{variable: start_variable}, end: %{variable: end_variable}, type: rel_type} =
       relationship

@@ -51,6 +51,14 @@ defmodule Neo4jex.Repo do
         Schema.create!(__MODULE__, data)
       end
 
+      def delete(struct_or_changeset) do
+        Schema.delete(__MODULE__, struct_or_changeset)
+      end
+
+      def delete!(struct_or_changeset) do
+        Schema.delete!(__MODULE__, struct_or_changeset)
+      end
+
       # Queryable
       def get(queryable, identifier_value) do
         Queryable.get(__MODULE__, queryable, identifier_value)

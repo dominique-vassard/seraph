@@ -1,7 +1,7 @@
 defmodule Neo4jex.Repo.Queryable do
-  alias Neo4jex.Query.{Builder, Condition, Planner}
+  alias Neo4jex.Query.{Builder, Condition, Helper, Planner}
 
-  @type queryable :: module
+  @type t :: module
   @type sets_data :: %{
           sets: [Builder.SetExpr.t()],
           params: map
@@ -12,7 +12,7 @@ defmodule Neo4jex.Repo.Queryable do
           params: map
         }
 
-  @spec get(Neo4jex.Repo.t(), queryable, any) :: nil | Neo4jex.Schema.Node.t()
+  @spec get(Neo4jex.Repo.t(), Queryable.t(), any) :: nil | Neo4jex.Schema.Node.t()
   def get(repo, queryable, id_value) do
     id_field = identifier_field(queryable)
 
@@ -75,7 +75,7 @@ defmodule Neo4jex.Repo.Queryable do
 
     changes = Map.drop(changeset.changes, [:additionalLabels])
     sets = build_set(node_to_set, changes)
-    merge_keys_data = build_where_from_merge_keys(node_to_set, queryable, changeset.data)
+    merge_keys_data = Helper.build_where_from_merge_keys(node_to_set, queryable, changeset.data)
     label_ops = build_label_operation(node_to_set, queryable, changeset)
 
     return_fields =
@@ -128,7 +128,7 @@ defmodule Neo4jex.Repo.Queryable do
     {:error, changeset}
   end
 
-  @spec get!(Neo4jex.Repo.t(), queryable(), any) :: Neo4jex.Schema.Node.t()
+  @spec get!(Neo4jex.Repo.t(), Queryable.t(), any) :: Neo4jex.Schema.Node.t()
   def get!(repo, queryable, id_value) do
     case get(repo, queryable, id_value) do
       nil -> raise Neo4jex.NoResultsError, queryable: queryable, function: :get!, params: id_value
@@ -147,7 +147,7 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec identifier_field(queryable) :: atom
+  @spec identifier_field(Queryable.t()) :: atom
   defp identifier_field(queryable) do
     case queryable.__schema__(:identifier) do
       {field, _, _} ->
@@ -179,32 +179,7 @@ defmodule Neo4jex.Repo.Queryable do
     end)
   end
 
-  @spec build_where_from_merge_keys(Builder.NodeExpr.t(), queryable, Neo4jex.Schema.Node.t()) ::
-          merge_keys_data()
-  defp build_where_from_merge_keys(entity, queryable, data) do
-    merge_keys = queryable.__schema__(:merge_keys)
-
-    Enum.reduce(merge_keys, %{where: nil, params: %{}}, fn property, clauses ->
-      value = Map.fetch!(data, property)
-
-      bound_name = entity.variable <> "_" <> Atom.to_string(property)
-
-      condition = %Condition{
-        source: entity.variable,
-        field: property,
-        operator: :==,
-        value: bound_name
-      }
-
-      %{
-        clauses
-        | where: Condition.join_conditions(clauses.where, condition),
-          params: Map.put(clauses.params, String.to_atom(bound_name), value)
-      }
-    end)
-  end
-
-  @spec build_label_operation(Builder.NodeExpr.t(), queryable, Ecto.Changeset.t()) :: [
+  @spec build_label_operation(Builder.NodeExpr.t(), Queryable.t(), Ecto.Changeset.t()) :: [
           Builder.LabelOperationExpr.t()
         ]
   defp build_label_operation(entity, queryable, %{changes: %{additionalLabels: _}} = changeset) do

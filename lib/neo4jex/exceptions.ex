@@ -23,3 +23,19 @@ defmodule Neo4jex.NoResultsError do
     %__MODULE__{message: msg}
   end
 end
+
+defmodule Neo4jex.DeletionError do
+  defexception [:message]
+
+  def exception(opts) do
+    queryable = Keyword.fetch!(opts, :queryable)
+    data = Keyword.fetch!(opts, :data)
+
+    msg = """
+    Failed attempt to delete #{Atom.to_string(queryable)}
+    #{inspect(data)}
+    """
+
+    %__MODULE__{message: msg}
+  end
+end

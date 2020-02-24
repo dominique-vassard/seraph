@@ -178,7 +178,7 @@ defmodule Neo4jex.Query.Builder do
     defstruct [:expr, on_create: [], on_match: []]
 
     @type t :: %__MODULE__{
-            expr: Neo4jex.Builder.entity_expr(),
+            expr: Neo4jex.Query.Builder.entity_expr(),
             on_create: [SetExpr.t()],
             on_match: [SetExpr.t()]
           }

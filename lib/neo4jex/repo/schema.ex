@@ -1,5 +1,5 @@
 defmodule Neo4jex.Repo.Schema do
-  alias Neo4jex.Query.{Builder, Planner}
+  alias Neo4jex.Query.{Builder, Helper, Planner}
 
   @type merge_options :: [on_create: Ecto.Changeset.t(), on_match: Ecto.Changeset.t()]
 
@@ -80,6 +80,68 @@ defmodule Neo4jex.Repo.Schema do
 
       {:error, changeset} ->
         raise Neo4jex.InvalidChangesetError, action: :update, changeset: changeset
+    end
+  end
+
+  @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t() | Neo4jex.Schema.Node.t()) ::
+          {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
+  def delete(repo, %Ecto.Changeset{} = changeset) do
+    do_delete(repo, changeset)
+  end
+
+  def delete(repo, struct) do
+    changeset = Neo4jex.Changeset.change(struct)
+
+    do_delete(repo, changeset)
+  end
+
+  defp do_delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
+    data =
+      changeset
+      |> Map.put(:changes, %{})
+      |> Neo4jex.Changeset.apply_changes()
+
+    queryable = data.__struct__
+
+    node_to_del = %Builder.NodeExpr{
+      variable: "n",
+      labels: [queryable.__schema__(:primary_label)]
+    }
+
+    merge_keys_data = Helper.build_where_from_merge_keys(node_to_del, queryable, data)
+
+    {statement, params} =
+      Builder.new(:delete)
+      |> Builder.match([node_to_del])
+      |> Builder.delete([node_to_del])
+      |> Builder.where(merge_keys_data.where)
+      |> Builder.params(merge_keys_data.params)
+      |> Builder.to_string()
+
+    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
+
+    case stats do
+      %{"nodes-deleted" => 1} ->
+        {:ok, data}
+
+      [] ->
+        raise Neo4jex.DeletionError, queryable: queryable, data: data
+    end
+  end
+
+  defp do_delete(_, changeset) do
+    {:error, changeset}
+  end
+
+  @spec delete!(Neo4jex.Repo.t(), Neo4jex.Schema.Node.t() | Ecto.Changeset.t()) ::
+          Neo4jex.Schema.Node.t()
+  def delete!(repo, struct_or_changeset) do
+    case delete(repo, struct_or_changeset) do
+      {:ok, data} ->
+        data
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :delete, changeset: changeset
     end
   end
 end

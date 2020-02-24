@@ -378,6 +378,97 @@ defmodule Neo4jex.RepoTest do
     end
   end
 
+  describe "delete/1" do
+    test "ok with struct" do
+      data = add_fixtures()
+      data_uuid = data.uuid
+
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: [],
+                firstName: "John",
+                lastName: "Doe",
+                uuid: ^data_uuid,
+                viewCount: 5
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> TestRepo.delete()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN COUNT(u) AS nb_result
+      """
+
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, data)
+    end
+
+    test "ok with changeset" do
+      data = add_fixtures()
+      data_uuid = data.uuid
+
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: [],
+                firstName: "John",
+                lastName: "Doe",
+                uuid: ^data_uuid,
+                viewCount: 5
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{viewCount: 34})
+               |> TestRepo.delete()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN COUNT(u) AS nb_result
+      """
+
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, data)
+    end
+
+    test "invalid changeset" do
+      data = add_fixtures()
+
+      assert {:error, %Ecto.Changeset{valid?: false}} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{viewCount: :invalid})
+               |> TestRepo.delete()
+    end
+
+    test "raise when deleting a non exisitng node" do
+      data = add_fixtures()
+
+      user_to_del = TestRepo.get(User, data.uuid)
+      TestRepo.delete(user_to_del)
+
+      assert_raise Neo4jex.DeletionError, fn ->
+        TestRepo.delete(user_to_del)
+      end
+    end
+
+    test "raise when used with !" do
+      data = add_fixtures()
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        TestRepo.get(User, data.uuid)
+        |> User.changeset(%{viewCount: :invalid})
+        |> TestRepo.delete!()
+      end
+    end
+  end
+
   defp add_fixtures(data \\ %{}) do
     default_data = %{
       uuid: UUID.uuid4(),
