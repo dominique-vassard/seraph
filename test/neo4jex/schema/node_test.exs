@@ -7,9 +7,9 @@ defmodule Neo4jex.Schema.NodeTest do
     use Neo4jex.Schema.Node
 
     node "SimpleSchema" do
-      property :first_name, :string
-      property :last_name, :string
-      property :view_count, :integer, default: 1
+      property :firstName, :string
+      property :lastName, :string
+      property :viewCount, :integer, default: 1
       property :geoloc, :boolean
       property :virtual, :string, virtual: true
     end
@@ -20,39 +20,39 @@ defmodule Neo4jex.Schema.NodeTest do
 
     assert SimpleSchema.__schema__(:properties) == [
              :uuid,
-             :first_name,
-             :last_name,
-             :view_count,
+             :firstName,
+             :lastName,
+             :viewCount,
              :geoloc,
              :virtual
            ]
 
-    assert SimpleSchema.__schema__(:type, :first_name) == :string
-    assert SimpleSchema.__schema__(:type, :last_name) == :string
-    assert SimpleSchema.__schema__(:type, :view_count) == :integer
+    assert SimpleSchema.__schema__(:type, :firstName) == :string
+    assert SimpleSchema.__schema__(:type, :lastName) == :string
+    assert SimpleSchema.__schema__(:type, :viewCount) == :integer
     assert SimpleSchema.__schema__(:type, :geoloc) == :boolean
 
     assert SimpleSchema.__schema__(:changeset_properties) == [
-             additional_labels: {:array, :string},
-             first_name: :string,
-             last_name: :string,
-             view_count: :integer,
+             additionalLabels: {:array, :string},
+             firstName: :string,
+             lastName: :string,
+             viewCount: :integer,
              geoloc: :boolean,
              virtual: :string
            ]
 
     assert SimpleSchema.__schema__(:persisted_properties) == [
              :uuid,
-             :first_name,
-             :last_name,
-             :view_count,
+             :firstName,
+             :lastName,
+             :viewCount,
              :geoloc
            ]
   end
 
   test "defaults" do
-    assert %SimpleSchema{}.first_name == nil
-    assert %SimpleSchema{}.view_count == 1
+    assert %SimpleSchema{}.firstName == nil
+    assert %SimpleSchema{}.viewCount == 1
   end
 
   defmodule InPlaceRelatedSchema do
@@ -142,7 +142,7 @@ defmodule Neo4jex.Schema.NodeTest do
   defmodule UserFollowsUser do
     use Neo4jex.Schema.Relationship
 
-    relationship cardinality: :one do
+    relationship "FOLLOWS", cardinality: :one do
       start_node Neo4jex.Test.User
       end_node Neo4jex.Test.User
 
@@ -348,5 +348,53 @@ defmodule Neo4jex.Schema.NodeTest do
     #     end
     #   end
     # end
+  end
+
+  describe "Naming convention enforcement" do
+    test "Invalid node name" do
+      assert_raise ArgumentError, fn ->
+        defmodule WrongNodeName do
+          use Neo4jex.Schema.Node
+
+          node "invalid_label" do
+            property :name, :string
+          end
+        end
+      end
+
+      assert_raise ArgumentError, fn ->
+        defmodule WrongNodeName do
+          use Neo4jex.Schema.Node
+
+          node "INVALIDLABEL" do
+            property :name, :string
+          end
+        end
+      end
+    end
+
+    test "invalid property name" do
+      assert_raise ArgumentError, fn ->
+        defmodule WrongProperyName do
+          use Neo4jex.Schema.Node
+
+          node "WrongProperyName" do
+            property :invalid_name, :string
+          end
+        end
+      end
+    end
+
+    test "invalid relationship type" do
+      assert_raise ArgumentError, fn ->
+        defmodule WrongRelName do
+          use Neo4jex.Schema.Node
+
+          node "WrongRelName" do
+            outgoing_relationship("wrongType", Post, :invalid_rel)
+          end
+        end
+      end
+    end
   end
 end

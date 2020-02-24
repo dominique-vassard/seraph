@@ -1,12 +1,7 @@
 defmodule Neo4jex.Schema.RelationshipTest do
   use ExUnit.Case, async: true
 
-  alias Neo4jex.Test.WrotePost
-
-  test "first" do
-    %WrotePost{}
-    |> IO.inspect()
-  end
+  alias Neo4jex.Test.UserToPost.Wrote
 
   defmodule WroteSimpleSchema do
     use Neo4jex.Schema.Relationship
@@ -34,5 +29,18 @@ defmodule Neo4jex.Schema.RelationshipTest do
            ]
 
     assert WroteSimpleSchema.__schema__(:persisted_properties) == [:at]
+  end
+
+  test "Enforce naming convention" do
+    assert_raise ArgumentError, fn ->
+      defmodule InvalidRelType do
+        use Neo4jex.Schema.Relationship
+
+        relationship "invalid" do
+          start_node Neo4jex.Test.Post
+          end_node Neo4jex.Test.User
+        end
+      end
+    end
   end
 end

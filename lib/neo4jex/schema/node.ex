@@ -66,6 +66,14 @@ defmodule Neo4jex.Schema.Node do
 
         primary_label = unquote(primary_label)
 
+        if not Regex.match?(~r/^([A-Z]{1}[a-z]*)+$/, primary_label) or
+             String.upcase(primary_label) == primary_label do
+          raise ArgumentError,
+                "[#{Atom.to_string(__MODULE__)}] node label must be CamelCased. Received: #{
+                  primary_label
+                }."
+        end
+
         metadata = %Metadata{
           primary_label: primary_label,
           schema: __MODULE__
@@ -73,12 +81,12 @@ defmodule Neo4jex.Schema.Node do
 
         Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
         Module.put_attribute(__MODULE__, :struct_fields, {:__meta__, metadata})
-        Module.put_attribute(__MODULE__, :struct_fields, {:additional_labels, []})
+        Module.put_attribute(__MODULE__, :struct_fields, {:additionalLabels, []})
 
         Module.put_attribute(
           __MODULE__,
           :changeset_properties,
-          {:additional_labels, {:array, :string}}
+          {:additionalLabels, {:array, :string}}
         )
 
         try do
@@ -134,7 +142,7 @@ defmodule Neo4jex.Schema.Node do
           __schema__(:relationship, searched_type)
         end
 
-        def __schema__(:type, :additional_labels) do
+        def __schema__(:type, :additionalLabels) do
           {:array, :string}
         end
 
@@ -226,6 +234,13 @@ defmodule Neo4jex.Schema.Node do
   def __property__(module, name, type, opts) do
     Neo4jex.Schema.Node.check_property_type!(name, type)
 
+    name_str = Atom.to_string(name)
+
+    if not Regex.match?(~r/^(?:[a-z]{1,}[A-Z]{1}[a-z]*)+$|^([a-z]*)$/, name_str) do
+      raise ArgumentError,
+            "[#{Atom.to_string(module)}] property must be camelCased. Received: #{name_str}."
+    end
+
     if List.keyfind(Module.get_attribute(module, :properties), name, 0) do
       raise ArgumentError, "[#{inspect(module)}] Field #{inspect(name)} already exists."
     end
@@ -245,7 +260,13 @@ defmodule Neo4jex.Schema.Node do
   @spec add_relationship(module, :incoming | :outgoing, String.t(), module, atom, Keyword.t()) ::
           :ok
   def add_relationship(module, direction, type, related_node, name, opts) do
-    type = String.upcase(type)
+    if not Regex.match?(~r/^[A-Z_]*$/, type) do
+      raise ArgumentError,
+            "[#{inspect(module)}] Relationship type must conform the format [A-Z_]* [Received: #{
+              type
+            }]"
+    end
+
     type_field = type |> String.downcase() |> String.to_atom()
 
     rel_not_loaded = %Relationship.NotLoaded{

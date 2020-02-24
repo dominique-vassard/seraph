@@ -25,17 +25,17 @@ defmodule Neo4jex.RepoTest do
   describe "create/1" do
     test "Node alone (bare, no changeset)" do
       user = %User{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
       }
 
       assert {:ok, created_user} = TestRepo.create(user)
 
       assert %Neo4jex.Test.User{
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 5
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
              } = created_user
 
       refute is_nil(created_user.__id__)
@@ -45,9 +45,9 @@ defmodule Neo4jex.RepoTest do
       MATCH
         (u:User)
       WHERE
-        u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
         AND id(u) = $id
         AND u.uuid = $uuid
       RETURN
@@ -56,9 +56,9 @@ defmodule Neo4jex.RepoTest do
 
       params = %{
         uuid: created_user.uuid,
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
         id: created_user.__id__
       }
 
@@ -67,7 +67,7 @@ defmodule Neo4jex.RepoTest do
 
     test "Node alone (changeset invalid)" do
       params = %{
-        first_name: :invalid
+        firstName: :invalid
       }
 
       assert {:error, %Ecto.Changeset{valid?: false}} =
@@ -78,9 +78,9 @@ defmodule Neo4jex.RepoTest do
 
     test "Node alone (changeset valid)" do
       params = %{
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
       }
 
       assert {:ok, created_user} =
@@ -89,9 +89,9 @@ defmodule Neo4jex.RepoTest do
                |> TestRepo.create()
 
       assert %Neo4jex.Test.User{
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 5
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
              } = created_user
 
       refute is_nil(created_user.__id__)
@@ -100,9 +100,9 @@ defmodule Neo4jex.RepoTest do
       MATCH
         (u:User)
       WHERE
-        u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
         AND id(u) = $id
         AND u.uuid = $uuid
       RETURN
@@ -111,9 +111,9 @@ defmodule Neo4jex.RepoTest do
 
       params = %{
         uuid: created_user.uuid,
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
         id: created_user.__id__
       }
 
@@ -122,19 +122,19 @@ defmodule Neo4jex.RepoTest do
 
     test "multi label Node (direct)" do
       user = %User{
-        additional_labels: ["Buyer", "Regular"],
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
+        additionalLabels: ["Buyer", "Regular"],
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
       }
 
       assert {:ok, created_user} = TestRepo.create(user)
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Buyer", "Regular"],
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 5
+               additionalLabels: ["Buyer", "Regular"],
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
              } = created_user
 
       refute is_nil(created_user.__id__)
@@ -143,9 +143,9 @@ defmodule Neo4jex.RepoTest do
       MATCH
         (u:User:Buyer:Regular)
       WHERE
-        u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
         AND id(u) = $id
         AND u.uuid = $uuid
       RETURN
@@ -154,9 +154,9 @@ defmodule Neo4jex.RepoTest do
 
       params = %{
         uuid: created_user.uuid,
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
         id: created_user.__id__
       }
 
@@ -194,10 +194,10 @@ defmodule Neo4jex.RepoTest do
 
     test "multi label Node (via changeset)" do
       params = %{
-        additional_labels: ["Buyer", "Irregular"],
-        first_name: "John",
-        last_name: "Doe",
-        view_count: 5
+        additionalLabels: ["Buyer", "Irregular"],
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
       }
 
       assert {:ok, created_user} =
@@ -206,10 +206,10 @@ defmodule Neo4jex.RepoTest do
                |> TestRepo.create()
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Buyer", "Irregular"],
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 5
+               additionalLabels: ["Buyer", "Irregular"],
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
              } = created_user
 
       refute is_nil(created_user.__id__)
@@ -218,15 +218,15 @@ defmodule Neo4jex.RepoTest do
       MATCH
         (u:User:Irregular:Buyer)
       WHERE
-        u.first_name = $first_name
-        AND u.last_name = $last_name
-        AND u.view_count = $view_count
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
         AND id(u) = $id
       RETURN
         COUNT(u) AS nb_result
       """
 
-      params = %{first_name: "John", last_name: "Doe", view_count: 5, id: created_user.__id__}
+      params = %{firstName: "John", lastName: "Doe", viewCount: 5, id: created_user.__id__}
 
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
@@ -241,9 +241,9 @@ defmodule Neo4jex.RepoTest do
 
       assert %User{
                uuid: ^uuid,
-               first_name: "John",
-               last_name: "Doe",
-               view_count: 5
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
              } = retrieved_user
 
       refute is_nil(retrieved_user.__id__)
@@ -276,62 +276,62 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
       user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{last_name: "New name", view_count: 3})
+      changeset = User.changeset(user, %{lastName: "New name", viewCount: 3})
 
       assert %Neo4jex.Test.User{
-               additional_labels: [],
-               first_name: "John",
-               last_name: "New name",
+               additionalLabels: [],
+               firstName: "John",
+               lastName: "New name",
                uuid: ^data_uuid,
-               view_count: 3
+               viewCount: 3
              } = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (add only)" do
-      data = add_fixtures(%{additional_labels: ["Buyer"]})
+      data = add_fixtures(%{additionalLabels: ["Buyer"]})
       data_uuid = data.uuid
       user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{additional_labels: ["Buyer", "New"]})
+      changeset = User.changeset(user, %{additionalLabels: ["Buyer", "New"]})
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Buyer", "New"],
-               first_name: "John",
-               last_name: "Doe",
+               additionalLabels: ["Buyer", "New"],
+               firstName: "John",
+               lastName: "Doe",
                uuid: ^data_uuid,
-               view_count: 5
+               viewCount: 5
              } = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (remove only)" do
-      data = add_fixtures(%{additional_labels: ["Buyer", "Old"]})
+      data = add_fixtures(%{additionalLabels: ["Buyer", "Old"]})
       data_uuid = data.uuid
       user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{additional_labels: ["Old"]})
+      changeset = User.changeset(user, %{additionalLabels: ["Old"]})
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Old"],
-               first_name: "John",
-               last_name: "Doe",
+               additionalLabels: ["Old"],
+               firstName: "John",
+               lastName: "Doe",
                uuid: ^data_uuid,
-               view_count: 5
+               viewCount: 5
              } = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (add + remove only)" do
-      data = add_fixtures(%{additional_labels: ["Buyer", "Old"]})
+      data = add_fixtures(%{additionalLabels: ["Buyer", "Old"]})
       data_uuid = data.uuid
       user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{additional_labels: ["Old", "Client"]})
+      changeset = User.changeset(user, %{additionalLabels: ["Old", "Client"]})
 
       assert %Neo4jex.Test.User{
-               additional_labels: ["Old", "Client"],
-               first_name: "John",
-               last_name: "Doe",
+               additionalLabels: ["Old", "Client"],
+               firstName: "John",
+               lastName: "Doe",
                uuid: ^data_uuid,
-               view_count: 5
+               viewCount: 5
              } = TestRepo.set(User, changeset)
     end
 
@@ -339,7 +339,7 @@ defmodule Neo4jex.RepoTest do
       data = add_fixtures()
       user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{view_count: :invalid})
+      changeset = User.changeset(user, %{viewCount: :invalid})
       assert {:error, %Ecto.Changeset{valid?: false}} = TestRepo.set(User, changeset)
     end
   end
@@ -347,9 +347,9 @@ defmodule Neo4jex.RepoTest do
   defp add_fixtures(data \\ %{}) do
     default_data = %{
       uuid: UUID.uuid4(),
-      first_name: "John",
-      last_name: "Doe",
-      view_count: 5
+      firstName: "John",
+      lastName: "Doe",
+      viewCount: 5
     }
 
     cql = """
@@ -357,9 +357,9 @@ defmodule Neo4jex.RepoTest do
      (u:User)
     SET
       u.uuid = $uuid,
-      u.first_name = $first_name,
-      u.last_name = $last_name,
-      u.view_count = $view_count
+      u.firstName = $firstName,
+      u.lastName = $lastName,
+      u.viewCount = $viewCount
     """
 
     params = Map.merge(default_data, data)

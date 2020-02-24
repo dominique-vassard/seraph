@@ -82,6 +82,13 @@ defmodule Neo4jex.Schema.Relationship do
 
         rel_type = unquote(rel_type)
 
+        if not Regex.match?(~r/^[A-Z_]*$/, rel_type) do
+          raise ArgumentError,
+                "[#{Atom.to_string(__MODULE__)}] Relationship type must conform the format [A-Z_]* [Received: #{
+                  rel_type
+                }]"
+        end
+
         metadata = %Metadata{
           type: rel_type,
           schema: __MODULE__

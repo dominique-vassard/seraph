@@ -70,7 +70,7 @@ defmodule Neo4jex.Repo.Queryable do
       labels: [queryable.__schema__(:primary_label)]
     }
 
-    changes = Map.drop(changeset.changes, [:additional_labels])
+    changes = Map.drop(changeset.changes, [:additionalLabels])
     sets = build_set(node_to_set, changes)
     merge_keys_data = build_where_from_merge_keys(node_to_set, queryable, changeset.data)
     label_ops = build_label_operation(node_to_set, queryable, changeset)
@@ -86,7 +86,7 @@ defmodule Neo4jex.Repo.Queryable do
 
     label_field = %Builder.Fragment{
       expr: "labels(#{node_to_set.variable})",
-      alias: "additional_labels"
+      alias: "additionalLabels"
     }
 
     {statement, params} =
@@ -108,8 +108,8 @@ defmodule Neo4jex.Repo.Queryable do
       result ->
         Enum.reduce(result, changeset.data, fn {property, value}, data ->
           case property do
-            "additional_labels" ->
-              Map.put(data, :additional_labels, value -- [queryable.__schema__(:primary_label)])
+            "additionalLabels" ->
+              Map.put(data, :additionalLabels, value -- [queryable.__schema__(:primary_label)])
 
             prop ->
               Map.put(data, String.to_atom(prop), value)
@@ -182,15 +182,15 @@ defmodule Neo4jex.Repo.Queryable do
   @spec build_label_operation(Builder.NodeExpr.t(), queryable, Ecto.Changeset.t()) :: [
           Builder.LabelOperationExpr.t()
         ]
-  defp build_label_operation(entity, queryable, %{changes: %{additional_labels: _}} = changeset) do
-    additional_labels =
-      changeset.changes[:additional_labels] -- [queryable.__schema__(:primary_label)]
+  defp build_label_operation(entity, queryable, %{changes: %{additionalLabels: _}} = changeset) do
+    additionalLabels =
+      changeset.changes[:additionalLabels] -- [queryable.__schema__(:primary_label)]
 
     [
       %Builder.LabelOperationExpr{
         variable: entity.variable,
-        set: additional_labels -- changeset.data.additional_labels,
-        remove: changeset.data.additional_labels -- additional_labels
+        set: additionalLabels -- changeset.data.additionalLabels,
+        remove: changeset.data.additionalLabels -- additionalLabels
       }
     ]
   end

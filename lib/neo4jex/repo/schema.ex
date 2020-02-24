@@ -18,7 +18,7 @@ defmodule Neo4jex.Repo.Schema do
       end
 
     node_to_insert = %Builder.NodeExpr{
-      labels: [schema.__schema__(:primary_label)] ++ data.additional_labels,
+      labels: [schema.__schema__(:primary_label)] ++ data.additionalLabels,
       variable: "n"
     }
 

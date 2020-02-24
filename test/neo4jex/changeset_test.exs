@@ -6,7 +6,7 @@ defmodule Neo4jex.ChangesetTest do
 
     node "User" do
       property :name, :string
-      property :numeric_id, :integer
+      property :numericId, :integer
     end
   end
 
@@ -35,7 +35,7 @@ defmodule Neo4jex.ChangesetTest do
   describe "Node:" do
     test "cast/4 produces a valid Ecto.Changeset" do
       assert %Ecto.Changeset{valid?: true} =
-               Changeset.cast(%User{}, %{name: "John", numeric_id: 5}, [:name, :numeric_id])
+               Changeset.cast(%User{}, %{name: "John", numericId: 5}, [:name, :numericId])
     end
 
     test "change/2 produces a valid Ecto.Changeset" do
@@ -45,23 +45,23 @@ defmodule Neo4jex.ChangesetTest do
     test "multiple label valid changeset" do
       data = %{
         name: "John",
-        numeric_id: 5,
-        additional_labels: ["Valid", "Label"]
+        numericId: 5,
+        additionalLabels: ["Valid", "Label"]
       }
 
       assert %Ecto.Changeset{valid?: true} =
-               Changeset.cast(%User{}, data, [:name, :numeric_id, :additional_labels])
+               Changeset.cast(%User{}, data, [:name, :numericId, :additionalLabels])
     end
 
     test "multiple label invalid changeset" do
       data = %{
         name: "John",
-        numeric_id: 5,
-        additional_labels: [:invalid]
+        numericId: 5,
+        additionalLabels: [:invalid]
       }
 
       assert %Ecto.Changeset{valid?: false} =
-               Changeset.cast(%User{}, data, [:name, :numeric_id, :additional_labels])
+               Changeset.cast(%User{}, data, [:name, :numericId, :additionalLabels])
     end
   end
 
