@@ -63,9 +63,11 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) ::
+  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t()) ::
           {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
-  def set(repo, queryable, %Ecto.Changeset{valid?: true} = changeset) do
+  def set(repo, %Ecto.Changeset{valid?: true} = changeset) do
+    %{__struct__: queryable} = changeset.data
+
     node_to_set = %Builder.NodeExpr{
       variable: "n",
       labels: [queryable.__schema__(:primary_label)]
@@ -122,7 +124,7 @@ defmodule Neo4jex.Repo.Queryable do
     {:ok, formated_res}
   end
 
-  def set(_, _, %Ecto.Changeset{valid?: false} = changeset) do
+  def set(_, %Ecto.Changeset{valid?: false} = changeset) do
     {:error, changeset}
   end
 
@@ -134,9 +136,9 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set!(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
-  def set!(repo, queryable, changeset) do
-    case set(repo, queryable, changeset) do
+  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
+  def set!(repo, changeset) do
+    case set(repo, changeset) do
       {:ok, result} ->
         result
 

@@ -293,9 +293,6 @@ defmodule Neo4jex.RepoTest do
     test "ok" do
       data = add_fixtures()
       data_uuid = data.uuid
-      user = TestRepo.get(User, data.uuid)
-
-      changeset = User.changeset(user, %{lastName: "New name", viewCount: 3})
 
       assert {:ok,
               %Neo4jex.Test.User{
@@ -304,15 +301,15 @@ defmodule Neo4jex.RepoTest do
                 lastName: "New name",
                 uuid: ^data_uuid,
                 viewCount: 3
-              }} = TestRepo.set(User, changeset)
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{lastName: "New name", viewCount: 3})
+               |> TestRepo.set()
     end
 
     test "ok with multiple labels (add only)" do
       data = add_fixtures(%{additionalLabels: ["Buyer"]})
       data_uuid = data.uuid
-      user = TestRepo.get(User, data.uuid)
-
-      changeset = User.changeset(user, %{additionalLabels: ["Buyer", "New"]})
 
       assert {:ok,
               %Neo4jex.Test.User{
@@ -321,15 +318,15 @@ defmodule Neo4jex.RepoTest do
                 lastName: "Doe",
                 uuid: ^data_uuid,
                 viewCount: 5
-              }} = TestRepo.set(User, changeset)
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{additionalLabels: ["Buyer", "New"]})
+               |> TestRepo.set()
     end
 
     test "ok with multiple labels (remove only)" do
       data = add_fixtures(%{additionalLabels: ["Buyer", "Old"]})
       data_uuid = data.uuid
-      user = TestRepo.get(User, data.uuid)
-
-      changeset = User.changeset(user, %{additionalLabels: ["Old"]})
 
       assert {:ok,
               %Neo4jex.Test.User{
@@ -338,15 +335,15 @@ defmodule Neo4jex.RepoTest do
                 lastName: "Doe",
                 uuid: ^data_uuid,
                 viewCount: 5
-              }} = TestRepo.set(User, changeset)
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{additionalLabels: ["Old"]})
+               |> TestRepo.set()
     end
 
     test "ok with multiple labels (add + remove only)" do
       data = add_fixtures(%{additionalLabels: ["Buyer", "Old"]})
       data_uuid = data.uuid
-      user = TestRepo.get(User, data.uuid)
-
-      changeset = User.changeset(user, %{additionalLabels: ["Old", "Client"]})
 
       assert {:ok,
               %Neo4jex.Test.User{
@@ -355,25 +352,28 @@ defmodule Neo4jex.RepoTest do
                 lastName: "Doe",
                 uuid: ^data_uuid,
                 viewCount: 5
-              }} = TestRepo.set(User, changeset)
+              }} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{additionalLabels: ["Old", "Client"]})
+               |> TestRepo.set()
     end
 
     test "invalid changeset" do
       data = add_fixtures()
-      user = TestRepo.get(User, data.uuid)
 
-      changeset = User.changeset(user, %{viewCount: :invalid})
-      assert {:error, %Ecto.Changeset{valid?: false}} = TestRepo.set(User, changeset)
+      assert {:error, %Ecto.Changeset{valid?: false}} =
+               TestRepo.get(User, data.uuid)
+               |> User.changeset(%{viewCount: :invalid})
+               |> TestRepo.set()
     end
 
     test "raise when used with !" do
       data = add_fixtures()
-      user = TestRepo.get(User, data.uuid)
-
-      changeset = User.changeset(user, %{lastName: :invalid})
 
       assert_raise Neo4jex.InvalidChangesetError, fn ->
-        TestRepo.set!(User, changeset)
+        TestRepo.get(User, data.uuid)
+        |> User.changeset(%{lastName: :invalid})
+        |> TestRepo.set!()
       end
     end
   end
