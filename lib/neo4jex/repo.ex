@@ -47,13 +47,25 @@ defmodule Neo4jex.Repo do
         Schema.create(__MODULE__, data)
       end
 
+      def create!(data) do
+        Schema.create!(__MODULE__, data)
+      end
+
       # Queryable
       def get(queryable, identifier_value) do
         Queryable.get(__MODULE__, queryable, identifier_value)
       end
 
+      def get!(queryable, identifier_value) do
+        Queryable.get!(__MODULE__, queryable, identifier_value)
+      end
+
       def set(queryable, changeset) do
         Queryable.set(__MODULE__, queryable, changeset)
+      end
+
+      def set!(queryable, changeset) do
+        Queryable.set!(__MODULE__, queryable, changeset)
       end
     end
   end

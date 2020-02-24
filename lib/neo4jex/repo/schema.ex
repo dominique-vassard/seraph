@@ -71,4 +71,15 @@ defmodule Neo4jex.Repo.Schema do
   def create(_, %Ecto.Changeset{valid?: false} = changeset) do
     {:error, changeset}
   end
+
+  @spec create!(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
+  def create!(repo, changeset) do
+    case create(repo, changeset) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :update, changeset: changeset
+    end
+  end
 end

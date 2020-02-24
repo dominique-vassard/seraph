@@ -63,7 +63,8 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
+  @spec set(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) ::
+          {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
   def set(repo, queryable, %Ecto.Changeset{valid?: true} = changeset) do
     node_to_set = %Builder.NodeExpr{
       variable: "n",
@@ -101,25 +102,47 @@ defmodule Neo4jex.Repo.Queryable do
 
     {:ok, results} = Planner.query(repo, statement, params)
 
-    case List.first(results) do
-      nil ->
-        changeset.data
+    formated_res =
+      case List.first(results) do
+        nil ->
+          changeset.data
 
-      result ->
-        Enum.reduce(result, changeset.data, fn {property, value}, data ->
-          case property do
-            "additionalLabels" ->
-              Map.put(data, :additionalLabels, value -- [queryable.__schema__(:primary_label)])
+        result ->
+          Enum.reduce(result, changeset.data, fn {property, value}, data ->
+            case property do
+              "additionalLabels" ->
+                Map.put(data, :additionalLabels, value -- [queryable.__schema__(:primary_label)])
 
-            prop ->
-              Map.put(data, String.to_atom(prop), value)
-          end
-        end)
-    end
+              prop ->
+                Map.put(data, String.to_atom(prop), value)
+            end
+          end)
+      end
+
+    {:ok, formated_res}
   end
 
   def set(_, _, %Ecto.Changeset{valid?: false} = changeset) do
     {:error, changeset}
+  end
+
+  @spec get!(Neo4jex.Repo.t(), queryable(), any) :: Neo4jex.Schema.Node.t()
+  def get!(repo, queryable, id_value) do
+    case get(repo, queryable, id_value) do
+      nil -> raise Neo4jex.NoResultsError, queryable: queryable, function: :get!, params: id_value
+      result -> result
+    end
+  end
+
+  @spec set!(Neo4jex.Repo.t(), queryable, Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
+  def set!(repo, queryable, changeset) do
+    case set(repo, queryable, changeset) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :set, changeset: changeset
+    end
   end
 
   @spec identifier_field(queryable) :: atom

@@ -1,8 +1,7 @@
 defmodule Neo4jex.RepoTest do
   use ExUnit.Case, async: true
   alias Neo4jex.TestRepo
-  alias Neo4jex.Test.{User, Post}
-  alias Neo4jex.Test.UserToPost.Wrote
+  alias Neo4jex.Test.User
 
   setup do
     TestRepo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
@@ -230,6 +229,20 @@ defmodule Neo4jex.RepoTest do
 
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
+
+    test "raise when using !" do
+      params = %{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        %User{}
+        |> User.changeset(params)
+        |> TestRepo.create!()
+      end
+    end
   end
 
   describe "get/2" do
@@ -268,6 +281,12 @@ defmodule Neo4jex.RepoTest do
         TestRepo.get(NoIdentifier, "none")
       end
     end
+
+    test "raise when used with !" do
+      assert_raise Neo4jex.NoResultsError, fn ->
+        TestRepo.get!(User, "unknown")
+      end
+    end
   end
 
   describe "set/2" do
@@ -278,13 +297,14 @@ defmodule Neo4jex.RepoTest do
 
       changeset = User.changeset(user, %{lastName: "New name", viewCount: 3})
 
-      assert %Neo4jex.Test.User{
-               additionalLabels: [],
-               firstName: "John",
-               lastName: "New name",
-               uuid: ^data_uuid,
-               viewCount: 3
-             } = TestRepo.set(User, changeset)
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: [],
+                firstName: "John",
+                lastName: "New name",
+                uuid: ^data_uuid,
+                viewCount: 3
+              }} = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (add only)" do
@@ -294,13 +314,14 @@ defmodule Neo4jex.RepoTest do
 
       changeset = User.changeset(user, %{additionalLabels: ["Buyer", "New"]})
 
-      assert %Neo4jex.Test.User{
-               additionalLabels: ["Buyer", "New"],
-               firstName: "John",
-               lastName: "Doe",
-               uuid: ^data_uuid,
-               viewCount: 5
-             } = TestRepo.set(User, changeset)
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: ["Buyer", "New"],
+                firstName: "John",
+                lastName: "Doe",
+                uuid: ^data_uuid,
+                viewCount: 5
+              }} = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (remove only)" do
@@ -310,13 +331,14 @@ defmodule Neo4jex.RepoTest do
 
       changeset = User.changeset(user, %{additionalLabels: ["Old"]})
 
-      assert %Neo4jex.Test.User{
-               additionalLabels: ["Old"],
-               firstName: "John",
-               lastName: "Doe",
-               uuid: ^data_uuid,
-               viewCount: 5
-             } = TestRepo.set(User, changeset)
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: ["Old"],
+                firstName: "John",
+                lastName: "Doe",
+                uuid: ^data_uuid,
+                viewCount: 5
+              }} = TestRepo.set(User, changeset)
     end
 
     test "ok with multiple labels (add + remove only)" do
@@ -326,13 +348,14 @@ defmodule Neo4jex.RepoTest do
 
       changeset = User.changeset(user, %{additionalLabels: ["Old", "Client"]})
 
-      assert %Neo4jex.Test.User{
-               additionalLabels: ["Old", "Client"],
-               firstName: "John",
-               lastName: "Doe",
-               uuid: ^data_uuid,
-               viewCount: 5
-             } = TestRepo.set(User, changeset)
+      assert {:ok,
+              %Neo4jex.Test.User{
+                additionalLabels: ["Old", "Client"],
+                firstName: "John",
+                lastName: "Doe",
+                uuid: ^data_uuid,
+                viewCount: 5
+              }} = TestRepo.set(User, changeset)
     end
 
     test "invalid changeset" do
@@ -341,6 +364,17 @@ defmodule Neo4jex.RepoTest do
 
       changeset = User.changeset(user, %{viewCount: :invalid})
       assert {:error, %Ecto.Changeset{valid?: false}} = TestRepo.set(User, changeset)
+    end
+
+    test "raise when used with !" do
+      data = add_fixtures()
+      user = TestRepo.get(User, data.uuid)
+
+      changeset = User.changeset(user, %{lastName: :invalid})
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        TestRepo.set!(User, changeset)
+      end
     end
   end
 
