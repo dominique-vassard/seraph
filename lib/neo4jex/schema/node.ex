@@ -111,6 +111,7 @@ defmodule Neo4jex.Schema.Node do
         defstruct @struct_fields
 
         def __schema__(:schema), do: __MODULE__
+        def __schema__(:entity_type), do: :node
         def __schema__(:primary_label), do: unquote(primary_label)
         def __schema__(:properties), do: unquote(prop_list)
         def __schema__(:changeset_properties), do: unquote(cs_prop_list)

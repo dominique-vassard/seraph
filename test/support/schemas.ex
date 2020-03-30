@@ -1,11 +1,17 @@
 defmodule Neo4jex.Test.UserToPost.Wrote do
   use Neo4jex.Schema.Relationship
+  import Neo4jex.Changeset
 
   relationship "WROTE" do
     start_node Neo4jex.Test.User
     end_node Neo4jex.Test.Post
 
     property :at, :utc_datetime
+  end
+
+  def changeset(wrote, params \\ %{}) do
+    wrote
+    |> cast(params, [:start_node, :end_node, :at])
   end
 end
 
@@ -41,9 +47,15 @@ end
 
 defmodule Neo4jex.Test.Post do
   use Neo4jex.Schema.Node
+  import Neo4jex.Changeset
 
   node "Post" do
     property :title, :string
     property :text, :string
+  end
+
+  def changeset(post, params \\ %{}) do
+    post
+    |> cast(params, [:title, :text])
   end
 end

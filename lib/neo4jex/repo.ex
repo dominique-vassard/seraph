@@ -1,4 +1,19 @@
 defmodule Neo4jex.Repo do
+  @moduledoc """
+  Available functions:
+    - query/1, query/2, query/3
+    - query!/1, query!/2, query!/3
+    - raw_query/1, raw_query/2, raw_query/3
+    - raw_query!/1, raw_query!/2, raw_query!/3
+    - create/1
+    - create!/1
+    - delete/1
+    - delete!/1
+    - get/2
+    - get!/2
+    - set/1
+    - set!/1
+  """
   @type t :: module
 
   alias Neo4jex.Repo.{Queryable, Schema}
@@ -43,12 +58,12 @@ defmodule Neo4jex.Repo do
       end
 
       # Schema
-      def create(data) do
-        Schema.create(__MODULE__, data)
+      def create(data, opts \\ []) do
+        Schema.create(__MODULE__, data, opts)
       end
 
-      def create!(data) do
-        Schema.create!(__MODULE__, data)
+      def create!(data, opts \\ []) do
+        Schema.create!(__MODULE__, data, opts)
       end
 
       def delete(struct_or_changeset) do

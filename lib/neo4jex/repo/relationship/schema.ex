@@ -1,0 +1,114 @@
+defmodule Neo4jex.Repo.Relationship.Schema do
+  alias Neo4jex.Query.{Builder, Planner}
+
+  @spec create(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Relationship.t(),
+          Neo4jex.Repo.Schema.create_options()
+        ) ::
+          {:ok, Neo4jex.Schema.Relationship.t()}
+  def create(repo, rel_data, [node_creation: true] = opts) do
+    start_node =
+      repo.create!(rel_data.start_node, opts)
+      |> IO.inspect()
+
+    end_node = repo.create!(rel_data.end_node, opts)
+
+    new_rel_data =
+      rel_data
+      |> Map.put(:start_node, start_node)
+      |> Map.put(:end_node, end_node)
+
+    create(repo, new_rel_data, Keyword.drop(opts, [:node_creation]))
+  end
+
+  def create(repo, %{__struct__: queryable} = rel_data, _opts) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    {start_node, start_params} = build_node_match("start", rel_data.start_node)
+    {end_node, end_params} = build_node_match("end", rel_data.end_node)
+
+    relationship_to_create = %Builder.RelationshipExpr{
+      start: %Builder.NodeExpr{
+        variable: start_node.variable
+      },
+      end: %Builder.NodeExpr{
+        variable: end_node.variable
+      },
+      type: rel_data.type,
+      variable: "rel"
+    }
+
+    sets =
+      rel_data
+      |> Map.from_struct()
+      |> Enum.filter(fn {k, _} ->
+        k in persisted_properties
+      end)
+      |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
+        bound_name = relationship_to_create.variable <> "_" <> Atom.to_string(prop_name)
+
+        set = %Builder.SetExpr{
+          field: %Builder.FieldExpr{
+            variable: relationship_to_create.variable,
+            name: prop_name
+          },
+          value: bound_name
+        }
+
+        %{
+          sets_data
+          | sets: [set | sets_data.sets],
+            params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
+        }
+      end)
+
+    relationship_params =
+      start_params
+      |> Map.merge(end_params)
+      |> Map.merge(sets.params)
+
+    {statement, params} =
+      Builder.new()
+      |> Builder.match([start_node, end_node])
+      |> Builder.create([relationship_to_create])
+      |> Builder.set(sets.sets)
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [relationship_to_create]
+      })
+      |> Builder.params(relationship_params)
+      |> Builder.to_string()
+
+    IO.inspect(statement, label: "QUERY")
+
+    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
+
+    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
+  end
+
+  @spec build_node_match(String.t(), Neo4jex.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
+  defp build_node_match(_, %Ecto.Changeset{}) do
+    raise ArgumentError, "start node and end node should be Queryable, not Changeset"
+  end
+
+  defp build_node_match(variable, node_data) do
+    %{__struct__: queryable} = node_data
+    identifier = Neo4jex.Repo.Node.Helper.identifier_field(queryable)
+    id_value = Map.fetch!(node_data, identifier)
+
+    bound_name = variable <> "_" <> Atom.to_string(identifier)
+
+    match = %Builder.NodeExpr{
+      variable: variable,
+      labels: [
+        queryable.__schema__(:primary_label)
+        | Map.get(node_data, :additional_labels, [])
+      ],
+      properties: Map.put(%{}, identifier, bound_name)
+    }
+
+    params = Map.put(%{}, String.to_atom(bound_name), id_value)
+
+    {match, params}
+  end
+end

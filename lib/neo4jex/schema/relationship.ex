@@ -94,7 +94,9 @@ defmodule Neo4jex.Schema.Relationship do
           schema: __MODULE__
         }
 
+        Module.put_attribute(__MODULE__, :struct_fields, {:__id__, nil})
         Module.put_attribute(__MODULE__, :struct_fields, {:__meta__, metadata})
+        Module.put_attribute(__MODULE__, :struct_fields, {:type, rel_type})
 
         try do
           import Neo4jex.Schema.Relationship
@@ -116,6 +118,7 @@ defmodule Neo4jex.Schema.Relationship do
         defstruct @struct_fields
 
         def __schema__(:schema), do: __MODULE__
+        def __schema__(:entity_type), do: :relationship
         def __schema__(:type), do: unquote(rel_type)
         def __schema__(:start_node), do: @start_node
         def __schema__(:end_node), do: @end_node
@@ -159,6 +162,9 @@ defmodule Neo4jex.Schema.Relationship do
     quote do
       Module.put_attribute(__MODULE__, :start_node, unquote(node))
 
+      # Module.put_attribute(__MODULE__, :changeset_properties, {:start_node, unquote(node)})
+      Module.put_attribute(__MODULE__, :changeset_properties, {:start_node, :map})
+
       Module.put_attribute(
         __MODULE__,
         :struct_fields,
@@ -175,6 +181,8 @@ defmodule Neo4jex.Schema.Relationship do
 
     quote do
       Module.put_attribute(__MODULE__, :end_node, unquote(node))
+      # Module.put_attribute(__MODULE__, :changeset_properties, {:end_node, unquote(node)})
+      Module.put_attribute(__MODULE__, :changeset_properties, {:end_node, :map})
 
       Module.put_attribute(
         __MODULE__,
