@@ -3,6 +3,7 @@ defmodule Neo4jex.Repo.Schema do
   alias Neo4jex.Repo.{Node, Relationship}
 
   @type create_options :: Keyword.t()
+  @type merge_options :: Keyword.t()
 
   @spec create(
           Neo4jex.Repo.t(),
@@ -35,6 +36,42 @@ defmodule Neo4jex.Repo.Schema do
           Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()
   def create!(repo, changeset, opts) do
     case create(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :insert, changeset: changeset
+    end
+  end
+
+  @spec merge(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
+          merge_options
+        ) :: {:ok, Neo4jex.Schema.Relationship.t()} | {:error, Ecto.Changeset.t()}
+  def merge(repo, %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}} = data, opts) do
+    Relationship.Schema.merge(repo, data, opts)
+  end
+
+  def merge(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
+    cs =
+      changeset
+      |> Ecto.Changeset.apply_changes()
+
+    merge(repo, cs, opts)
+  end
+
+  def merge(_, %Ecto.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
+  end
+
+  @spec merge!(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
+          merge_options
+        ) :: Neo4jex.Schema.Relationship.t()
+  def merge!(repo, changeset, opts) do
+    case merge(repo, changeset, opts) do
       {:ok, result} ->
         result
 

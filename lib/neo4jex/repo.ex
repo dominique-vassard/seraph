@@ -66,6 +66,14 @@ defmodule Neo4jex.Repo do
         Schema.create!(__MODULE__, data, opts)
       end
 
+      def merge(struct_or_changeset, opts \\ []) do
+        Schema.merge(__MODULE__, struct_or_changeset, opts)
+      end
+
+      def merge!(struct_or_changeset, opts \\ []) do
+        Schema.merge!(__MODULE__, struct_or_changeset, opts)
+      end
+
       def delete(struct_or_changeset) do
         Schema.delete(__MODULE__, struct_or_changeset)
       end
