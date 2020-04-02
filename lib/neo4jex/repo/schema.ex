@@ -89,6 +89,14 @@ defmodule Neo4jex.Repo.Schema do
     Node.Schema.delete(repo, changeset)
   end
 
+  def delete(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}}} =
+          changeset
+      ) do
+    Relationship.Schema.delete(repo, changeset)
+  end
+
   def delete(_repo, %Ecto.Changeset{valid?: false} = changeset) do
     {:error, changeset}
   end

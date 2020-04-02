@@ -1009,6 +1009,123 @@ defmodule Neo4jex.RepoRelationshipTest do
     end
   end
 
+  describe "delete/1" do
+    test "ok: with struct" do
+      relationship = add_fixtures(:relationship)
+
+      assert {:ok,
+              %Neo4jex.Test.UserToPost.Wrote{
+                end_node: %Neo4jex.Test.Post{
+                  additionalLabels: [],
+                  text: "This is the first post of all times.",
+                  title: "First post"
+                },
+                start_node: %Neo4jex.Test.User{
+                  additionalLabels: [],
+                  firstName: "John",
+                  lastName: "Doe",
+                  viewCount: 5
+                },
+                type: "WROTE"
+              }} = TestRepo.delete(relationship)
+
+      cql = """
+      MATCH
+        (start:User {uuid: $start_uuid}),
+        (end:Post {uuid: $end_uuid}),
+        (start)-[rel:WROTE]->(end)
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        start_uuid: relationship.start_node.uuid,
+        end_uuid: relationship.end_node.uuid
+      }
+
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: with changeset" do
+      relationship = add_fixtures(:relationship)
+
+      {:ok, new_rel_date_long, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+
+      new_rel_date = DateTime.truncate(new_rel_date_long, :second)
+
+      assert {:ok,
+              %Neo4jex.Test.UserToPost.Wrote{
+                end_node: %Neo4jex.Test.Post{
+                  additionalLabels: [],
+                  text: "This is the first post of all times.",
+                  title: "First post"
+                },
+                start_node: %Neo4jex.Test.User{
+                  additionalLabels: [],
+                  firstName: "John",
+                  lastName: "Doe",
+                  viewCount: 5
+                },
+                type: "WROTE"
+              }} =
+               relationship
+               |> Wrote.changeset(%{at: new_rel_date})
+               |> TestRepo.delete()
+
+      cql = """
+      MATCH
+        (start:User {uuid: $start_uuid}),
+        (end:Post {uuid: $end_uuid}),
+        (start)-[rel:WROTE]->(end)
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        start_uuid: relationship.start_node.uuid,
+        end_uuid: relationship.end_node.uuid
+      }
+
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
+    end
+
+    test "fail: invalid changeset" do
+      relationship = add_fixtures(:relationship)
+
+      assert {:error, %Ecto.Changeset{valid?: false}} =
+               relationship
+               |> Wrote.changeset(%{at: :invalid})
+               |> TestRepo.delete()
+    end
+
+    test "raise: deleting non existing relationship" do
+      relationship = add_fixtures(:relationship)
+
+      new_post_data = %{
+        text: "This is the new post.",
+        title: "New post"
+      }
+
+      new_post = add_fixtures(:end_node, new_post_data)
+
+      assert_raise Neo4jex.DeletionError, fn ->
+        relationship
+        |> Map.put(:end_node, new_post)
+        |> TestRepo.delete()
+      end
+    end
+
+    test "raise: used with !" do
+      relationship = add_fixtures(:relationship)
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        relationship
+        |> Wrote.changeset(%{at: :invalid})
+        |> TestRepo.delete!()
+      end
+    end
+  end
+
   defp add_fixtures(fixture_type, data \\ %{})
 
   defp add_fixtures(:start_node, data) do

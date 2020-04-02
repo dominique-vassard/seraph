@@ -120,6 +120,43 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
+  @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: {:ok, Neo4jex.Schema.Relationship.t()}
+  def delete(repo, changeset) do
+    data =
+      changeset
+      |> Map.put(:changes, %{})
+      |> Neo4jex.Changeset.apply_changes()
+
+    queryable = data.__struct__
+
+    {start_node, start_params} = build_node_match("start", data.start_node)
+    {end_node, end_params} = build_node_match("end", data.end_node)
+
+    relationship = %Builder.RelationshipExpr{
+      start: start_node,
+      end: end_node,
+      variable: "rel",
+      type: data.type
+    }
+
+    {statement, params} =
+      Builder.new(:delete)
+      |> Builder.match([relationship])
+      |> Builder.delete([relationship])
+      |> Builder.params(Map.merge(start_params, end_params))
+      |> Builder.to_string()
+
+    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
+
+    case stats do
+      %{"relationships-deleted" => 1} ->
+        {:ok, data}
+
+      [] ->
+        raise Neo4jex.DeletionError, queryable: queryable, data: data
+    end
+  end
+
   @spec build_node_match(String.t(), Neo4jex.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
   defp build_node_match(_, %Ecto.Changeset{}) do
     raise ArgumentError, "start node and end node should be Queryable, not Changeset"

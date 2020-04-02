@@ -92,8 +92,4 @@ defmodule Neo4jex.Repo.Node.Schema do
         raise Neo4jex.DeletionError, queryable: queryable, data: data
     end
   end
-
-  def delete(_, changeset) do
-    {:error, changeset}
-  end
 end
