@@ -1,8 +1,6 @@
 defmodule Neo4jex.Schema.RelationshipTest do
   use ExUnit.Case, async: true
 
-  alias Neo4jex.Test.UserToPost.Wrote
-
   defmodule WroteSimpleSchema do
     use Neo4jex.Schema.Relationship
 
@@ -24,6 +22,8 @@ defmodule Neo4jex.Schema.RelationshipTest do
     assert WroteSimpleSchema.__schema__(:type, :virtual) == :boolean
 
     assert WroteSimpleSchema.__schema__(:changeset_properties) == [
+             start_node: :map,
+             end_node: :map,
              at: :utc_datetime,
              virtual: :boolean
            ]

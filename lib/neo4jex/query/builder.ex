@@ -64,14 +64,15 @@ defmodule Neo4jex.Query.Builder do
   end
 
   defmodule RelationshipExpr do
-    defstruct [:index, :variable, :start, :end, :type]
+    defstruct [:index, :variable, :start, :end, :type, :alias]
 
     @type t :: %__MODULE__{
             index: nil | integer(),
             variable: String.t(),
             start: NodeExpr.t(),
             end: NodeExpr.t(),
-            type: String.t()
+            type: String.t(),
+            alias: nil | String.t()
           }
   end
 
@@ -927,6 +928,12 @@ defmodule Neo4jex.Query.Builder do
   end
 
   @spec stringify_relationship(RelationshipExpr.t()) :: String.t()
+
+  defp stringify_relationship(%RelationshipExpr{alias: rel_alias, variable: variable})
+       when not is_nil(rel_alias) do
+    "#{variable} AS #{rel_alias}"
+  end
+
   defp stringify_relationship(%RelationshipExpr{variable: variable}) do
     variable
   end

@@ -91,12 +91,12 @@ defmodule Neo4jex.Repo do
         Queryable.get!(__MODULE__, queryable, identifier_value)
       end
 
-      def set(changeset) do
-        Queryable.set(__MODULE__, changeset)
+      def set(changeset, opts \\ []) do
+        Queryable.set(__MODULE__, changeset, opts)
       end
 
-      def set!(changeset) do
-        Queryable.set!(__MODULE__, changeset)
+      def set!(changeset, opts \\ []) do
+        Queryable.set!(__MODULE__, changeset, opts)
       end
     end
   end

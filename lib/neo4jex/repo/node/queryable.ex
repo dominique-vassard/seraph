@@ -1,8 +1,8 @@
 defmodule Neo4jex.Repo.Node.Queryable do
   alias Neo4jex.Query.{Builder, Helper, Planner}
 
-  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: {:ok, Neo4jex.Schema.Node.t()}
-  def set(repo, changeset) do
+  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Neo4jex.Schema.Node.t()}
+  def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
 
     node_to_set = %Builder.NodeExpr{

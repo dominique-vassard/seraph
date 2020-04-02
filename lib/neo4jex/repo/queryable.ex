@@ -63,19 +63,29 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t()) ::
+  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
           {:ok, Neo4jex.Schema.Node.t()}
           | {:ok, Neo4jex.Schema.Relationship.t()}
           | {:error, Ecto.Changeset.t()}
   def set(
         repo,
         %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
-          changeset
+          changeset,
+        opts
       ) do
-    Neo4jex.Repo.Node.Queryable.set(repo, changeset)
+    Neo4jex.Repo.Node.Queryable.set(repo, changeset, opts)
   end
 
-  def set(_, %Ecto.Changeset{valid?: false} = changeset) do
+  def set(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Neo4jex.Repo.Relationship.Queryable.set(repo, changeset, opts)
+  end
+
+  def set(_, %Ecto.Changeset{valid?: false} = changeset, _opts) do
     {:error, changeset}
   end
 
@@ -87,9 +97,9 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
-  def set!(repo, changeset) do
-    case set(repo, changeset) do
+  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: Neo4jex.Schema.Node.t()
+  def set!(repo, changeset, opts) do
+    case set(repo, changeset, opts) do
       {:ok, result} ->
         result
 

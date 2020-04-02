@@ -2,15 +2,7 @@ defmodule Neo4jex.Changeset do
   def cast(%{__struct__: entity} = data, params, permitted, opts \\ []) do
     types = changeset_properties_types(entity)
 
-    cs_data = Map.drop(data, [:start_node, :end_node])
-    cs_params = Map.drop(params, [:start_node, :end_node])
-
-    cs_permitted =
-      permitted
-      |> List.delete(:start_node)
-      |> List.delete(:end_node)
-
-    changeset = Ecto.Changeset.cast({cs_data, types}, cs_params, cs_permitted, opts)
+    changeset = Ecto.Changeset.cast({data, types}, params, permitted, opts)
 
     case entity.__schema__(:entity_type) do
       :node ->
@@ -22,12 +14,6 @@ defmodule Neo4jex.Changeset do
         |> cast_linked_node(entity, :end_node, Map.get(params, :end_node), permitted)
     end
   end
-
-  # def cast(%{__struct__: entity} = data, params, permitted, opts \\ []) do
-  #   types = entity.__schema__(:changeset_properties) |> Keyword.to_list() |> Enum.into(%{})
-
-  #   Ecto.Changeset.cast({data, types}, params, permitted, opts)
-  # end
 
   def change(%{__struct__: entity} = data, changes \\ %{}) do
     types = entity.__schema__(:changeset_properties) |> Keyword.to_list() |> Enum.into(%{})
@@ -75,15 +61,24 @@ defmodule Neo4jex.Changeset do
   defp cast_linked_node(changeset, relationship, linked_node, node_data, permitted) do
     case linked_node in permitted do
       true ->
-        queryable = extract_queryable(node_data)
-        # %{__struct__: queryable} = node_data
+        case extract_queryable(node_data) do
+          {:ok, queryable} ->
+            case queryable == relationship.__schema__(linked_node) do
+              true ->
+                changeset
+                |> put_change(linked_node, node_data)
 
-        case queryable == relationship.__schema__(linked_node) do
-          true ->
-            changeset
-            |> put_change(linked_node, node_data)
+              false ->
+                changeset
+                |> add_error(
+                  linked_node,
+                  "#{inspect(linked_node)} must be a #{
+                    Atom.to_string(relationship.__schema__(linked_node))
+                  }."
+                )
+            end
 
-          false ->
+          {:error, _} ->
             changeset
             |> add_error(
               linked_node,
@@ -106,8 +101,11 @@ defmodule Neo4jex.Changeset do
     do_extract_queryable(data)
   end
 
-  defp do_extract_queryable(data) do
-    %{__struct__: queryable} = data
-    queryable
+  defp do_extract_queryable(%{__struct__: queryable}) do
+    {:ok, queryable}
+  end
+
+  defp do_extract_queryable(_) do
+    {:error, :invalid_type}
   end
 end
