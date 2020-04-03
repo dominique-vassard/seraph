@@ -79,6 +79,43 @@ defmodule Neo4jex.Repo.Schema do
     end
   end
 
+  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Node.t()}
+          | {:ok, Neo4jex.Schema.Relationship.t()}
+          | {:error, Ecto.Changeset.t()}
+  def set(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Neo4jex.Repo.Node.Schema.set(repo, changeset, opts)
+  end
+
+  def set(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Neo4jex.Repo.Relationship.Schema.set(repo, changeset, opts)
+  end
+
+  def set(_, %Ecto.Changeset{valid?: false} = changeset, _opts) do
+    {:error, changeset}
+  end
+
+  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: Neo4jex.Schema.Node.t()
+  def set!(repo, changeset, opts) do
+    case set(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :set, changeset: changeset
+    end
+  end
+
   @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t() | Neo4jex.Schema.Node.t()) ::
           {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
   def delete(

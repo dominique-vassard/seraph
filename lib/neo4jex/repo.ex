@@ -74,6 +74,14 @@ defmodule Neo4jex.Repo do
         Schema.merge!(__MODULE__, struct_or_changeset, opts)
       end
 
+      def set(changeset, opts \\ []) do
+        Schema.set(__MODULE__, changeset, opts)
+      end
+
+      def set!(changeset, opts \\ []) do
+        Schema.set!(__MODULE__, changeset, opts)
+      end
+
       def delete(struct_or_changeset) do
         Schema.delete(__MODULE__, struct_or_changeset)
       end
@@ -89,14 +97,6 @@ defmodule Neo4jex.Repo do
 
       def get!(queryable, identifier_value) do
         Queryable.get!(__MODULE__, queryable, identifier_value)
-      end
-
-      def set(changeset, opts \\ []) do
-        Queryable.set(__MODULE__, changeset, opts)
-      end
-
-      def set!(changeset, opts \\ []) do
-        Queryable.set!(__MODULE__, changeset, opts)
       end
     end
   end
