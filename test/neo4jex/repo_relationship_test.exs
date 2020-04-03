@@ -569,6 +569,162 @@ defmodule Neo4jex.RepoRelationshipTest do
     end
   end
 
+  describe "get/3" do
+    test "ok: with structs only" do
+      relationship = add_fixtures(:relationship)
+
+      retrieved = TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               end_node: %Neo4jex.Test.Post{
+                 additionalLabels: [],
+                 text: "This is the first post of all times.",
+                 title: "First post"
+               },
+               start_node: %Neo4jex.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 5
+               },
+               type: "WROTE"
+             } = retrieved
+
+      refute is_nil(retrieved.__id__)
+      refute is_nil(retrieved.at)
+      refute is_nil(retrieved.start_node.__id__)
+      refute is_nil(retrieved.start_node.uuid)
+      refute is_nil(retrieved.end_node.__id__)
+      refute is_nil(retrieved.end_node.uuid)
+    end
+
+    test "ok: with data only" do
+      relationship = add_fixtures(:relationship)
+
+      start_data = %{
+        firstName: relationship.start_node.firstName,
+        lastName: relationship.start_node.lastName
+      }
+
+      end_data = %{
+        title: relationship.end_node.title
+      }
+
+      retrieved = TestRepo.get(Wrote, start_data, end_data)
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               end_node: %Neo4jex.Test.Post{
+                 additionalLabels: [],
+                 text: "This is the first post of all times.",
+                 title: "First post"
+               },
+               start_node: %Neo4jex.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 5
+               },
+               type: "WROTE"
+             } = retrieved
+
+      refute is_nil(retrieved.__id__)
+      refute is_nil(retrieved.at)
+      refute is_nil(retrieved.start_node.__id__)
+      refute is_nil(retrieved.start_node.uuid)
+      refute is_nil(retrieved.end_node.__id__)
+      refute is_nil(retrieved.end_node.uuid)
+    end
+
+    test "ok: mixed struct and data" do
+      relationship = add_fixtures(:relationship)
+
+      end_data = %{
+        title: relationship.end_node.title
+      }
+
+      retrieved = TestRepo.get(Wrote, relationship.start_node, end_data)
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               end_node: %Neo4jex.Test.Post{
+                 additionalLabels: [],
+                 text: "This is the first post of all times.",
+                 title: "First post"
+               },
+               start_node: %Neo4jex.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 5
+               },
+               type: "WROTE"
+             } = retrieved
+
+      refute is_nil(retrieved.__id__)
+      refute is_nil(retrieved.at)
+      refute is_nil(retrieved.start_node.__id__)
+      refute is_nil(retrieved.start_node.uuid)
+      refute is_nil(retrieved.end_node.__id__)
+      refute is_nil(retrieved.end_node.uuid)
+    end
+
+    test "ok: return nil when no relationship found" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      start_data = %{
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
+
+      end_data = %{
+        title: post.title
+      }
+
+      assert nil == TestRepo.get(Wrote, start_data, end_data)
+    end
+
+    test "raise: when more than one result" do
+      relationship = add_fixtures(:relationship)
+
+      cql = """
+      MATCH
+        (user:User {uuid: $user_uuid}),
+        (post:Post {uuid: $post_uuid})
+      CREATE
+        (user)-[:WROTE]->(post)
+      """
+
+      params = %{
+        user_uuid: relationship.start_node.uuid,
+        post_uuid: relationship.end_node.uuid
+      }
+
+      TestRepo.query!(cql, params)
+
+      assert_raise Neo4jex.MultipleRelationshipsError, fn ->
+        TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
+      end
+    end
+
+    test "raise: when used with !" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      start_data = %{
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
+
+      end_data = %{
+        title: post.title
+      }
+
+      assert_raise Neo4jex.NoResultsError, fn ->
+        TestRepo.get!(Wrote, start_data, end_data)
+      end
+    end
+  end
+
   describe "set/2" do
     test "ok with data" do
       relationship = add_fixtures(:relationship)

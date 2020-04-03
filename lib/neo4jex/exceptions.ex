@@ -16,8 +16,29 @@ defmodule Neo4jex.NoResultsError do
     msg = """
     Expected at least one result, got none for:
     > #{Atom.to_string(queryable)}.#{Atom.to_string(function)}
-    params: #{params}
+    params: #{inspect(params)}
 
+    """
+
+    %__MODULE__{message: msg}
+  end
+end
+
+defmodule Neo4jex.MultipleRelationshipsError do
+  defexception [:message]
+
+  def exception(opts) do
+    queryable = Keyword.fetch!(opts, :queryable)
+    count = Keyword.fetch!(opts, :count)
+    start_node = Keyword.fetch!(opts, :start_node)
+    end_node = Keyword.fetch!(opts, :end_node)
+    params = Keyword.get(opts, :params)
+
+    msg = """
+    expected at most one relationship but got #{count} when retrieving:
+    (#{inspect(start_node)})-[:#{inspect(queryable)}]->(#{inspect(end_node)})
+    params:
+    #{inspect(params)}
     """
 
     %__MODULE__{message: msg}

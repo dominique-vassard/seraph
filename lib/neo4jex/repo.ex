@@ -95,8 +95,16 @@ defmodule Neo4jex.Repo do
         Queryable.get(__MODULE__, queryable, identifier_value)
       end
 
+      def get(queryable, start_struct_or_data, end_struct_or_data) do
+        Queryable.get(__MODULE__, queryable, start_struct_or_data, end_struct_or_data)
+      end
+
       def get!(queryable, identifier_value) do
         Queryable.get!(__MODULE__, queryable, identifier_value)
+      end
+
+      def get!(queryable, start_struct_or_data, end_struct_or_data) do
+        Queryable.get!(__MODULE__, queryable, start_struct_or_data, end_struct_or_data)
       end
     end
   end

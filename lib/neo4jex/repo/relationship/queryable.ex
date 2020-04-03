@@ -1,200 +1,126 @@
 defmodule Neo4jex.Repo.Relationship.Queryable do
-  # alias Neo4jex.Query.{Builder, Planner}
+  alias Neo4jex.Query.{Builder, Planner}
 
-  # @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
-  #         {:ok, Neo4jex.Schema.Relationship.t()}
+  @spec get(
+          Neo4jex.Repo.t(),
+          Neo4jex.Repo.Queryable.t(),
+          Neo4jex.Schema.Node.t() | map,
+          Neo4jex.Schema.Node.t() | map
+        ) :: nil | Neo4jex.Schema.Relationship.t()
+  def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
+    queryable.__schema__(:start_node)
 
-  # def set(repo, changeset, [node_creation: true] = opts) do
-  #   new_changeset =
-  #     changeset
-  #     |> pre_create_nodes(repo, :start_node, opts)
-  #     |> pre_create_nodes(repo, :end_node, opts)
+    {start_node, start_params} =
+      node_data("start", queryable.__schema__(:start_node), start_struct_or_data)
 
-  #   set(repo, new_changeset, Keyword.drop(opts, [:node_creation]))
-  # end
+    {end_node, end_params} = node_data("end", queryable.__schema__(:end_node), end_struct_or_data)
 
-  # def set(repo, changeset, _opts) do
-  #   %{__struct__: queryable} = changeset.data
-  #   persisted_properties = queryable.__schema__(:persisted_properties)
-  #   {start_node, start_params} = build_node_match("start", changeset.data.start_node)
-  #   {end_node, end_params} = build_node_match("end", changeset.data.end_node)
+    relationship = %Builder.RelationshipExpr{
+      variable: "rel",
+      start: start_node,
+      end: end_node,
+      type: queryable.__schema__(:type)
+    }
 
-  #   relationship = %Builder.RelationshipExpr{
-  #     variable: "rel",
-  #     start: Map.drop(start_node, [:properties]),
-  #     end: Map.drop(end_node, [:properties]),
-  #     type: changeset.data.type,
-  #     alias: "updated_rel"
-  #   }
+    {statement, params} =
+      Builder.new()
+      |> Builder.match([relationship])
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [relationship, start_node, end_node]
+      })
+      |> Builder.params(Map.merge(start_params, end_params))
+      |> Builder.to_string()
 
-  #   sets = build_sets(relationship.variable, changeset.changes, persisted_properties)
+    {:ok, result} = Planner.query(repo, statement, params)
 
-  #   {new_start, new_start_params} =
-  #     case Map.get(changeset.changes, :start_node) do
-  #       nil ->
-  #         {nil, %{}}
+    case length(result) do
+      0 ->
+        nil
 
-  #       new_start_node ->
-  #         build_node_match("new_start", new_start_node)
-  #     end
+      1 ->
+        format_result(queryable, List.first(result))
 
-  #   {new_end, new_end_params} =
-  #     case Map.get(changeset.changes, :end_node) do
-  #       nil ->
-  #         {nil, %{}}
+      count ->
+        raise Neo4jex.MultipleRelationshipsError,
+          queryable: queryable,
+          count: count,
+          start_node: queryable.__schema__(:start_node),
+          end_node: queryable.__schema__(:end_node),
+          params: %{
+            start: start_struct_or_data,
+            end: end_struct_or_data
+          }
+    end
+  end
 
-  #       new_end_node ->
-  #         build_node_match("new_end", new_end_node)
-  #     end
+  @spec node_data(String.t(), Neo4jex.Repo.Queryable.t(), Neo4jex.Schema.Node.t() | map) ::
+          {Builder.NodeExpr.t(), map}
+  def node_data(node_var, queryable, %{__struct__: _} = data) do
+    id_field = Neo4jex.Repo.Node.Helper.identifier_field(queryable)
 
-  #   new_relationship = build_new_relationship(relationship, new_start, new_end)
+    bound_name = node_var <> "_" <> Atom.to_string(id_field)
+    props = Map.put(%{}, id_field, bound_name)
+    params = Map.put(%{}, String.to_atom(bound_name), Map.fetch!(data, id_field))
 
-  #   matches =
-  #     [start_node, end_node, relationship, new_start, new_end]
-  #     |> Enum.reject(&is_nil/1)
+    node = %Builder.NodeExpr{
+      variable: node_var,
+      labels: [queryable.__schema__(:primary_label) | data.additionalLabels],
+      properties: props
+    }
 
-  #   rel_params =
-  #     sets.params
-  #     |> Map.merge(start_params)
-  #     |> Map.merge(end_params)
-  #     |> Map.merge(new_start_params)
-  #     |> Map.merge(new_end_params)
+    {node, params}
+  end
 
-  #   pre_query =
-  #     Builder.new(:set)
-  #     |> Builder.match(matches)
-  #     |> Builder.set(sets.sets)
-  #     |> Builder.return(%Builder.ReturnExpr{
-  #       fields: [new_relationship || relationship]
-  #     })
-  #     |> Builder.params(rel_params)
+  def node_data(node_var, queryable, data) do
+    query_node_data =
+      Enum.reduce(data, %{properties: %{}, params: %{}}, fn {prop_name, prop_value}, node_data ->
+        bound_name = node_var <> "_" <> Atom.to_string(prop_name)
 
-  #   query =
-  #     if new_relationship do
-  #       pre_query
-  #       |> Builder.delete([relationship])
-  #       |> Builder.merge([
-  #         %Builder.MergeExpr{
-  #           expr: new_relationship
-  #         }
-  #       ])
-  #     else
-  #       pre_query
-  #     end
+        %{
+          node_data
+          | properties: Map.put(node_data.properties, prop_name, bound_name),
+            params: Map.put(node_data.params, String.to_atom(bound_name), prop_value)
+        }
+      end)
 
-  #   {statement, params} = Builder.to_string(query)
+    node = %Builder.NodeExpr{
+      variable: node_var,
+      labels: [queryable.__schema__(:primary_label)],
+      properties: query_node_data.properties
+    }
 
-  #   {:ok, [%{"updated_rel" => updated_rel}]} = Planner.query(repo, statement, params)
+    {node, query_node_data.params}
+  end
 
-  #   result =
-  #     Ecto.Changeset.apply_changes(changeset)
-  #     |> Map.put(:__id__, updated_rel.id)
+  @spec format_result(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Relationship.t()
+  defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
+    props =
+      rel_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
+      |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
 
-  #   {:ok, result}
-  # end
+    struct(queryable, props)
+  end
 
-  # @spec build_node_match(String.t(), Neo4jex.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
-  # defp build_node_match(_, %Ecto.Changeset{}) do
-  #   raise ArgumentError, "start node and end node should be Queryable, not Changeset"
-  # end
+  @spec build_node(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Node.t()
+  defp build_node(queryable, node_data) do
+    props =
+      node_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, node_data.id)
+      |> Map.put(:additionalLabels, node_data.labels -- [queryable.__schema__(:primary_label)])
 
-  # defp build_node_match(variable, node_data) do
-  #   %{__struct__: queryable} = node_data
-  #   identifier = Neo4jex.Repo.Node.Helper.identifier_field(queryable)
-  #   id_value = Map.fetch!(node_data, identifier)
+    struct(queryable, props)
+  end
 
-  #   bound_name = variable <> "_" <> Atom.to_string(identifier)
-
-  #   match = %Builder.NodeExpr{
-  #     variable: variable,
-  #     labels: [
-  #       queryable.__schema__(:primary_label)
-  #       | Map.get(node_data, :additional_labels, [])
-  #     ],
-  #     properties: Map.put(%{}, identifier, bound_name)
-  #   }
-
-  #   params = Map.put(%{}, String.to_atom(bound_name), id_value)
-
-  #   {match, params}
-  # end
-
-  # defp build_sets(variable, changes, persisted_properties) do
-  #   changes
-  #   # |> Map.from_struct()
-  #   |> Enum.filter(fn {k, _} ->
-  #     k in persisted_properties
-  #   end)
-  #   |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-  #     bound_name = variable <> "_" <> Atom.to_string(prop_name)
-
-  #     set = %Builder.SetExpr{
-  #       field: %Builder.FieldExpr{
-  #         variable: variable,
-  #         name: prop_name
-  #       },
-  #       value: bound_name
-  #     }
-
-  #     %{
-  #       sets_data
-  #       | sets: [set | sets_data.sets],
-  #         params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
-  #     }
-  #   end)
-  # end
-
-  # defp build_new_relationship(_, nil, nil) do
-  #   nil
-  # end
-
-  # defp build_new_relationship(relationship, new_start, nil) do
-  #   %Builder.RelationshipExpr{
-  #     variable: "new_rel",
-  #     start: new_start |> Map.drop([:properties, :labels]),
-  #     end: relationship.end |> Map.drop([:properties, :labels]),
-  #     type: relationship.type,
-  #     alias: "updated_rel"
-  #   }
-  # end
-
-  # defp build_new_relationship(relationship, nil, new_end) do
-  #   %Builder.RelationshipExpr{
-  #     variable: "new_rel",
-  #     start: relationship.start |> Map.drop([:properties, :labels]),
-  #     end: new_end |> Map.drop([:properties, :labels]),
-  #     type: relationship.type,
-  #     alias: "updated_rel"
-  #   }
-  # end
-
-  # defp build_new_relationship(relationship, new_start, new_end) do
-  #   %Builder.RelationshipExpr{
-  #     variable: "new_rel",
-  #     start: new_start |> Map.drop([:properties, :labels]),
-  #     end: new_end |> Map.drop([:properties, :labels]),
-  #     type: relationship.type,
-  #     alias: "updated_rel"
-  #   }
-  # end
-
-  # @spec pre_create_nodes(
-  #         Ecto.Changeset.t(),
-  #         Neo4jex.Repo.t(),
-  #         :start_node | :end_node,
-  #         Keyword.t()
-  #       ) :: Ecto.Changeset.t()
-  # defp pre_create_nodes(changeset, repo, changeset_key, opts) do
-  #   case Ecto.Changeset.fetch_change(changeset, changeset_key) do
-  #     {:ok, %Ecto.Changeset{} = start_cs} ->
-  #       new_start = repo.create!(start_cs, opts)
-  #       Ecto.Changeset.put_change(changeset, changeset_key, new_start)
-
-  #     {:ok, _} ->
-  #       changeset
-
-  #     :error ->
-  #       changeset
-  #   end
-  # end
+  @spec atom_map(map) :: map
+  defp atom_map(string_map) do
+    string_map
+    |> Enum.map(fn {k, v} ->
+      {String.to_atom(k), v}
+    end)
+    |> Enum.into(%{})
+  end
 end
