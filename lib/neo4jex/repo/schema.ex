@@ -81,6 +81,15 @@ defmodule Neo4jex.Repo.Schema do
     raise ArgumentError, "merge/3 requires a Ecto.Changeset or a Queryable struct."
   end
 
+  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()} | {:error, any}
+  def merge(repo, queryable, merge_keys_data, opts) do
+    case queryable.__schema__(:entity_type) do
+      :node -> Node.Schema.merge(repo, queryable, merge_keys_data, opts)
+      _ -> {:error, "not supported"}
+    end
+  end
+
   @spec merge!(
           Neo4jex.Repo.t(),
           Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
@@ -93,6 +102,21 @@ defmodule Neo4jex.Repo.Schema do
 
       {:error, changeset} ->
         raise Neo4jex.InvalidChangesetError, action: :update, changeset: changeset
+    end
+  end
+
+  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+          Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()
+  def merge!(repo, queryable, merge_keys_data, opts) do
+    case merge(repo, queryable, merge_keys_data, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, [on_create: %Ecto.Changeset{} = changeset]} ->
+        raise Neo4jex.InvalidChangesetError, action: :on_create, changeset: changeset
+
+      {:error, [on_match: %Ecto.Changeset{} = changeset]} ->
+        raise Neo4jex.InvalidChangesetError, action: :on_match, changeset: changeset
     end
   end
 

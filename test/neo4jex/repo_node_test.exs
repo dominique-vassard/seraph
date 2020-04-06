@@ -482,6 +482,337 @@ defmodule Neo4jex.RepoTest do
     end
   end
 
+  describe "merge/3 (on_create, on_match)" do
+    test "ok: on_create opt (not existing -> creation)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &User.changeset/2})
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_create opt (existing -> no change)" do
+      user = add_fixtures()
+
+      data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: 25
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: user.uuid}, on_create: {data, &User.changeset/2})
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_match opt (not existing -> no 'merge' data)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        NOT EXISTS(u.firstName)
+        AND NOT EXISTS(u.lastName)
+        AND NOT EXISTS(u.viewCount)
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_match opt (existing -> update)" do
+      user = add_fixtures()
+
+      data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: 25
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: user.uuid}, on_match: {data, &User.changeset/2})
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "James",
+        lastName: "What",
+        viewCount: 25,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_create + on_match opts (not existing -> creation)" do
+      on_create_data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      on_match_data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: 25
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: "some-uuid"},
+                 on_create: {on_create_data, &User.changeset/2},
+                 on_match: {on_match_data, &User.update_viewcount_changeset/2}
+               )
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_create + on_match opts (existing -> update)" do
+      user = add_fixtures()
+
+      on_create_data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      on_match_data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: 25
+      }
+
+      assert {:ok, merged_node} =
+               TestRepo.merge(User, %{uuid: user.uuid},
+                 on_create: {on_create_data, &User.changeset/2},
+                 on_match: {on_match_data, &User.update_viewcount_changeset/2}
+               )
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 25,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "fail: on_create invalid changeset" do
+      on_create_data = %{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, [on_create: %Ecto.Changeset{valid?: false}]} =
+               TestRepo.merge(User, %{uuid: "uuid-1"},
+                 on_create: {on_create_data, &User.changeset/2}
+               )
+    end
+
+    test "fail: on_match invalid changeset" do
+      on_match_data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: :invalid
+      }
+
+      assert {:error, [on_match: %Ecto.Changeset{valid?: false}]} =
+               TestRepo.merge(User, %{uuid: "uuid-1"},
+                 on_match: {on_match_data, &User.update_viewcount_changeset/2}
+               )
+    end
+
+    test "fail: with bad args for on_create (data is not map)" do
+      data = :invalid
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &User.changeset/2})
+      end
+    end
+
+    test "fail: with bad args for on_create (changeset fn is not a function)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, :invalid})
+      end
+    end
+
+    test "fail: with bad args for on_create (changeset fn is not a function of arity 2)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &is_nil/1})
+      end
+    end
+
+    test "fail: with bad args for on_match (data is not map)" do
+      data = :invalid
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
+      end
+    end
+
+    test "fail: with bad args for on_match (changeset fn is not a function)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, :invalid})
+      end
+    end
+
+    test "fail: with bad args for on_match (changeset fn is not a function of arity 2)" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &is_nil/1})
+      end
+    end
+
+    test "raise: when used with !" do
+      on_match_data = %{
+        firstName: "James",
+        lastName: "What",
+        viewCount: :invalid
+      }
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        TestRepo.merge!(User, %{uuid: "uuid-1"},
+          on_match: {on_match_data, &User.update_viewcount_changeset/2}
+        )
+      end
+    end
+  end
+
   describe "set/2" do
     test "ok" do
       data = add_fixtures()

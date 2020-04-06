@@ -70,8 +70,16 @@ defmodule Neo4jex.Repo do
         Schema.merge(__MODULE__, struct_or_changeset, opts)
       end
 
+      def merge(queryable, merge_keys_data, opts) do
+        Schema.merge(__MODULE__, queryable, merge_keys_data, opts)
+      end
+
       def merge!(struct_or_changeset, opts \\ []) do
         Schema.merge!(__MODULE__, struct_or_changeset, opts)
+      end
+
+      def merge!(queryable, merge_keys_data, opts) do
+        Schema.merge!(__MODULE__, queryable, merge_keys_data, opts)
       end
 
       def set(changeset, opts \\ []) do

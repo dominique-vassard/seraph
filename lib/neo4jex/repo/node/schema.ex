@@ -1,6 +1,8 @@
 defmodule Neo4jex.Repo.Node.Schema do
   alias Neo4jex.Query.{Builder, Helper, Planner}
 
+  @type create_match_merge_opts :: Keyword.t()
+
   @spec create(Neo4jex.Repo.t(), Neo4jex.Schema.Node.t(), Neo4jex.Repo.Schema.create_options()) ::
           {:ok, Neo4jex.Schema.Node.t()}
   def create(repo, %{__struct__: queryable} = data, _opts) do
@@ -94,6 +96,11 @@ defmodule Neo4jex.Repo.Node.Schema do
     end
   end
 
+  def merge(repo, queryable, merge_keys_data, opts) do
+    merge_opts = create_match_merge_opts(opts)
+    do_create_match_merge(repo, queryable, merge_keys_data, merge_opts)
+  end
+
   @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Neo4jex.Schema.Node.t()}
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
@@ -154,11 +161,144 @@ defmodule Neo4jex.Repo.Node.Schema do
     {:ok, formated_res}
   end
 
+  defp do_create_match_merge(_, _, _, {:error, error}) do
+    raise ArgumentError, error
+  end
+
+  defp do_create_match_merge(repo, queryable, merge_keys_data, merge_opts) do
+    merge_keys = queryable.__schema__(:merge_keys)
+
+    if MapSet.new(merge_keys) != MapSet.new(Map.keys(merge_keys_data)) do
+      msg = """
+      merge_keys: All merge keys must be provided (#{inspect(merge_keys)}).
+      Received:
+      #{inspect(merge_keys_data)}
+      """
+
+      raise ArgumentError, msg
+    end
+
+    merge_keys_query_data =
+      Enum.reduce(merge_keys_data, %{properties: %{}, params: %{}}, fn {prop_key, prop_value},
+                                                                       data ->
+        bound_name = "n_" <> Atom.to_string(prop_key)
+
+        %{
+          data
+          | properties: Map.put(data.properties, prop_key, bound_name),
+            params: Map.put(data.params, String.to_atom(bound_name), prop_value)
+        }
+      end)
+
+    node_to_merge = %Builder.NodeExpr{
+      variable: "n",
+      labels: [queryable.__schema__(:primary_label)],
+      properties: merge_keys_query_data.properties
+    }
+
+    with {:ok, %{sets: on_create_set, params: on_create_params}} <-
+           build_merge_sets(
+             queryable,
+             node_to_merge,
+             :on_create,
+             Keyword.get(merge_opts, :on_create)
+           ),
+         {:ok, %{sets: on_match_set, params: on_match_params}} <-
+           build_merge_sets(
+             queryable,
+             node_to_merge,
+             :on_match,
+             Keyword.get(merge_opts, :on_match)
+           ) do
+      merge = %Builder.MergeExpr{
+        expr: node_to_merge,
+        on_create: on_create_set,
+        on_match: on_match_set
+      }
+
+      pre_params =
+        merge_keys_query_data.params
+        |> Map.merge(on_create_params)
+        |> Map.merge(on_match_params)
+
+      {statement, params} =
+        Builder.new(:merge)
+        |> Builder.merge([merge])
+        |> Builder.return(%Builder.ReturnExpr{
+          fields: [node_to_merge]
+        })
+        |> Builder.params(pre_params)
+        |> Builder.to_string()
+
+      {:ok, [%{"n" => merged_node}]} = Planner.query(repo, statement, params)
+
+      {:ok, Neo4jex.Repo.Node.Helper.build_node(queryable, merged_node)}
+    else
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp build_merge_sets(queryable, node_to_merge, operation, {data, changeset_fn}) do
+    case changeset_fn.(struct(queryable, %{}), data) do
+      %Ecto.Changeset{valid?: false} = changeset ->
+        {:error, [{operation, changeset}]}
+
+      %Ecto.Changeset{valid?: true} = changeset ->
+        sets = build_set(node_to_merge, changeset.changes, Atom.to_string(operation))
+        {:ok, sets}
+    end
+  end
+
+  defp build_merge_sets(_, _, _, _) do
+    {:ok, %{sets: [], params: %{}}}
+  end
+
+  @spec create_match_merge_opts(create_match_merge_opts(), create_match_merge_opts) ::
+          create_match_merge_opts | {:error, String.t()}
+  defp create_match_merge_opts(opts, final_opts \\ [])
+
+  defp create_match_merge_opts([{:on_create, {data, changeset_fn} = on_create_opts} | rest], opts)
+       when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_create, on_create_opts))
+  end
+
+  defp create_match_merge_opts([{:on_create, on_create_opts} | _], _opts) do
+    msg = """
+    on_create: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_create_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  defp create_match_merge_opts([{:on_match, {data, changeset_fn} = on_match_opts} | rest], opts)
+       when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_match, on_match_opts))
+  end
+
+  defp create_match_merge_opts([{:on_match, on_match_opts} | _], _opts) do
+    msg = """
+    on_match: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_match_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  defp create_match_merge_opts(_, opts) do
+    opts
+  end
+
   @spec build_set(Builder.NodeExpr.t(), Neo4jex.Schema.Node.t()) ::
           Neo4jex.Repo.Queryable.sets_data()
-  defp build_set(entity, data) do
+  defp build_set(entity, data, prop_prefix \\ "") do
     Enum.reduce(data, %{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-      bound_name = entity.variable <> "_" <> Atom.to_string(prop_name)
+      bound_name = entity.variable <> "_" <> prop_prefix <> "_" <> Atom.to_string(prop_name)
 
       set = %Builder.SetExpr{
         field: %Builder.FieldExpr{
