@@ -117,6 +117,10 @@ defmodule Neo4jex.Schema.Relationship do
 
         defstruct @struct_fields
 
+        def __changeset__ do
+          %{unquote_splicing(Macro.escape(cs_prop_list))}
+        end
+
         def __schema__(:schema), do: __MODULE__
         def __schema__(:entity_type), do: :relationship
         def __schema__(:type), do: unquote(rel_type)

@@ -58,6 +58,42 @@ defmodule Neo4jex.Repo.Node.Schema do
     {:ok, Map.put(data, :__id__, created_node.id)}
   end
 
+  @spec merge(Neo4jex.Repo.t(), Ecto.Changeset.t() | Neo4jex.Schema.Node.t(), Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Node.t()}
+  def merge(repo, %Ecto.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
+    queryable.__schema__(:merge_keys)
+    |> Enum.map(&Ecto.Changeset.fetch_field(changeset, &1))
+    |> Enum.reject(fn {_, value} -> is_nil(value) end)
+    |> case do
+      [] -> create(repo, Ecto.Changeset.apply_changes(changeset), opts)
+      _ -> set(repo, changeset, opts)
+    end
+  end
+
+  def merge(repo, %{__struct__: queryable} = data, opts) do
+    queryable.__schema__(:merge_keys)
+    |> Enum.map(&Map.get(data, &1))
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] ->
+        create(repo, data, opts)
+
+      _ ->
+        persisted_properties = queryable.__schema__(:persisted_properties)
+
+        changeset =
+          data
+          |> Map.from_struct()
+          |> Enum.filter(fn {k, _} -> k in persisted_properties end)
+          |> Enum.into(%{})
+          |> Enum.reduce(Ecto.Changeset.change(data), fn {prop_key, prop_value}, changeset ->
+            Ecto.Changeset.force_change(changeset, prop_key, prop_value)
+          end)
+
+        set(repo, changeset, opts)
+    end
+  end
+
   @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Neo4jex.Schema.Node.t()}
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data

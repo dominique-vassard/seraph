@@ -289,6 +289,199 @@ defmodule Neo4jex.RepoTest do
     end
   end
 
+  describe "merge/2" do
+    test "ok with changeset: node creation" do
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:ok, merged_node} =
+               %User{}
+               |> User.changeset(params)
+               |> TestRepo.merge()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok with data: node creation" do
+      data = %{
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:ok, merged_node} =
+               %User{}
+               |> User.changeset(data)
+               |> Ecto.Changeset.apply_changes()
+               |> TestRepo.merge()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "John",
+        lastName: "Doe",
+        viewCount: 5,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok with changeset: node update" do
+      user_data = add_fixtures()
+
+      user = TestRepo.get(User, user_data.uuid)
+
+      params = %{
+        firstName: "James",
+        lastName: "Who",
+        viewCount: 0
+      }
+
+      assert {:ok, merged_node} =
+               user
+               |> User.changeset(params)
+               |> TestRepo.merge()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "James",
+        lastName: "Who",
+        viewCount: 0,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok with data: node update" do
+      user_data = add_fixtures()
+
+      user = TestRepo.get(User, user_data.uuid)
+
+      params = %{
+        firstName: "James",
+        lastName: "Who",
+        viewCount: 0
+      }
+
+      assert {:ok, merged_node} =
+               user
+               |> User.changeset(params)
+               |> Ecto.Changeset.apply_changes()
+               |> TestRepo.merge()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        firstName: "James",
+        lastName: "Who",
+        viewCount: 0,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
+    test "fail: when a basic map is given" do
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(%{firstName: "test"})
+      end
+    end
+
+    test "fail: invalid changeset" do
+      user_data = add_fixtures()
+
+      user = TestRepo.get(User, user_data.uuid)
+
+      params = %{
+        firstName: :invalid
+      }
+
+      assert {:error, %Ecto.Changeset{valid?: false}} =
+               user
+               |> User.changeset(params)
+               |> TestRepo.merge()
+    end
+
+    test "raise: when used with !" do
+      user_data = add_fixtures()
+
+      user = TestRepo.get(User, user_data.uuid)
+
+      params = %{
+        firstName: :invalid
+      }
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        user
+        |> User.changeset(params)
+        |> TestRepo.merge!()
+      end
+    end
+  end
+
   describe "set/2" do
     test "ok" do
       data = add_fixtures()

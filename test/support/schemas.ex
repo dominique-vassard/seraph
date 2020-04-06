@@ -42,6 +42,11 @@ defmodule Neo4jex.Test.User do
       # |> cast_relationship(Neo4jex.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])
       # |> put_related_nodes(:wrote, [])
     end
+
+    def update_viewcount_changeset(user, params \\ %{}) do
+      user
+      |> cast(params, [:viewCount])
+    end
   end
 end
 

@@ -52,6 +52,19 @@ defmodule Neo4jex.Repo.Schema do
     Relationship.Schema.merge(repo, data, opts)
   end
 
+  def merge(repo, %{__meta__: %Neo4jex.Schema.Node.Metadata{}} = data, opts) do
+    Node.Schema.merge(repo, data, opts)
+  end
+
+  def merge(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Node.Schema.merge(repo, changeset, opts)
+  end
+
   def merge(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
     cs =
       changeset
@@ -62,6 +75,10 @@ defmodule Neo4jex.Repo.Schema do
 
   def merge(_, %Ecto.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
+  end
+
+  def merge(_, _, _) do
+    raise ArgumentError, "merge/3 requires a Ecto.Changeset or a Queryable struct."
   end
 
   @spec merge!(
