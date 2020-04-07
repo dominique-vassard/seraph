@@ -1,12 +1,12 @@
-defmodule Neo4jex.Schema.RelationshipTest do
+defmodule Seraph.Schema.RelationshipTest do
   use ExUnit.Case, async: true
 
   defmodule WroteSimpleSchema do
-    use Neo4jex.Schema.Relationship
+    use Seraph.Schema.Relationship
 
     relationship "WROTE", cardinality: :one do
-      start_node Neo4jex.Test.Post
-      end_node Neo4jex.Test.User
+      start_node Seraph.Test.Post
+      end_node Seraph.Test.User
 
       property :at, :utc_datetime
       property :virtual, :boolean, virtual: true
@@ -34,11 +34,11 @@ defmodule Neo4jex.Schema.RelationshipTest do
   test "Enforce naming convention" do
     assert_raise ArgumentError, fn ->
       defmodule InvalidRelType do
-        use Neo4jex.Schema.Relationship
+        use Seraph.Schema.Relationship
 
         relationship "invalid" do
-          start_node Neo4jex.Test.Post
-          end_node Neo4jex.Test.User
+          start_node Seraph.Test.Post
+          end_node Seraph.Test.User
         end
       end
     end

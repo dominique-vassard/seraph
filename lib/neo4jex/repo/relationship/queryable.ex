@@ -1,12 +1,12 @@
-defmodule Neo4jex.Repo.Relationship.Queryable do
-  alias Neo4jex.Query.{Builder, Planner}
+defmodule Seraph.Repo.Relationship.Queryable do
+  alias Seraph.Query.{Builder, Planner}
 
   @spec get(
-          Neo4jex.Repo.t(),
-          Neo4jex.Repo.Queryable.t(),
-          Neo4jex.Schema.Node.t() | map,
-          Neo4jex.Schema.Node.t() | map
-        ) :: nil | Neo4jex.Schema.Relationship.t()
+          Seraph.Repo.t(),
+          Seraph.Repo.Queryable.t(),
+          Seraph.Schema.Node.t() | map,
+          Seraph.Schema.Node.t() | map
+        ) :: nil | Seraph.Schema.Relationship.t()
   def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
     queryable.__schema__(:start_node)
 
@@ -41,7 +41,7 @@ defmodule Neo4jex.Repo.Relationship.Queryable do
         format_result(queryable, List.first(result))
 
       count ->
-        raise Neo4jex.MultipleRelationshipsError,
+        raise Seraph.MultipleRelationshipsError,
           queryable: queryable,
           count: count,
           start_node: queryable.__schema__(:start_node),
@@ -53,10 +53,10 @@ defmodule Neo4jex.Repo.Relationship.Queryable do
     end
   end
 
-  @spec node_data(String.t(), Neo4jex.Repo.Queryable.t(), Neo4jex.Schema.Node.t() | map) ::
+  @spec node_data(String.t(), Seraph.Repo.Queryable.t(), Seraph.Schema.Node.t() | map) ::
           {Builder.NodeExpr.t(), map}
   def node_data(node_var, queryable, %{__struct__: _} = data) do
-    id_field = Neo4jex.Repo.Node.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Node.Helper.identifier_field(queryable)
 
     bound_name = node_var <> "_" <> Atom.to_string(id_field)
     props = Map.put(%{}, id_field, bound_name)
@@ -92,7 +92,7 @@ defmodule Neo4jex.Repo.Relationship.Queryable do
     {node, query_node_data.params}
   end
 
-  @spec format_result(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Relationship.t()
+  @spec format_result(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Relationship.t()
   defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
     props =
       rel_data.properties
@@ -104,7 +104,7 @@ defmodule Neo4jex.Repo.Relationship.Queryable do
     struct(queryable, props)
   end
 
-  @spec build_node(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Node.t()
+  @spec build_node(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Node.t()
   defp build_node(queryable, node_data) do
     props =
       node_data.properties

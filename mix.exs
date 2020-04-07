@@ -1,9 +1,9 @@
-defmodule Neo4jex.MixProject do
+defmodule Seraph.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :neo4jex,
+      app: :seraph,
       version: "0.1.0",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
@@ -16,7 +16,7 @@ defmodule Neo4jex.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Neo4jex.Application, []}
+      mod: {Seraph.Application, []}
     ]
   end
 

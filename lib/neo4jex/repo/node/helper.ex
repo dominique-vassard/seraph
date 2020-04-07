@@ -1,4 +1,4 @@
-defmodule Neo4jex.Repo.Node.Helper do
+defmodule Seraph.Repo.Node.Helper do
   @spec identifier_field(Queryable.t()) :: atom
   def identifier_field(queryable) do
     case queryable.__schema__(:identifier) do
@@ -10,7 +10,7 @@ defmodule Neo4jex.Repo.Node.Helper do
     end
   end
 
-  @spec build_node(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Node.t()
+  @spec build_node(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Node.t()
   def build_node(queryable, node_data) do
     props =
       node_data.properties

@@ -1,4 +1,4 @@
-defmodule Neo4jex.Schema.Helper do
+defmodule Seraph.Schema.Helper do
   @valid_ecto_types [
     :binary_id,
     :integer,
@@ -15,14 +15,14 @@ defmodule Neo4jex.Schema.Helper do
     :utc_datetime_usec
   ]
 
-  @valid_neo4jex_types [
+  @valid_seraph_types [
     :point2d,
     :point3d
   ]
 
   @spec valid_types :: [atom]
   def valid_types do
-    @valid_ecto_types ++ @valid_neo4jex_types
+    @valid_ecto_types ++ @valid_seraph_types
   end
 
   def expand_alias({:__aliases__, _, _} = ast, env),

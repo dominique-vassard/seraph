@@ -1,21 +1,21 @@
-defmodule Neo4jex.RepoRelationshipTest do
+defmodule Seraph.RepoRelationshipTest do
   use ExUnit.Case, async: false
-  alias Neo4jex.TestRepo
-  alias Neo4jex.Test.{User, Post, UserToPost.Wrote}
+  alias Seraph.TestRepo
+  alias Seraph.Test.{User, Post, UserToPost.Wrote}
 
   setup do
     TestRepo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
 
     [
-      Neo4jex.Cypher.Node.list_all_constraints(""),
-      Neo4jex.Cypher.Node.list_all_indexes("")
+      Seraph.Cypher.Node.list_all_constraints(""),
+      Seraph.Cypher.Node.list_all_indexes("")
     ]
     |> Enum.map(fn cql ->
       TestRepo.raw_query!(cql)
       |> Map.get(:records, [])
     end)
     |> List.flatten()
-    |> Enum.map(&Neo4jex.Cypher.Node.drop_constraint_index_from_cql/1)
+    |> Enum.map(&Seraph.Cypher.Node.drop_constraint_index_from_cql/1)
     |> Enum.map(&TestRepo.query/1)
 
     :ok
@@ -36,10 +36,10 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.create()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -85,11 +85,11 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.create()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
                at: ^rel_date,
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -187,11 +187,11 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.create(node_creation: true)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
                at: ^rel_date,
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -287,7 +287,7 @@ defmodule Neo4jex.RepoRelationshipTest do
         at: :invalid
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
         |> TestRepo.create!()
@@ -310,10 +310,10 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.merge()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -359,11 +359,11 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.merge()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
                at: ^rel_date,
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -461,11 +461,11 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(data)
                |> TestRepo.merge(node_creation: true)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
                at: ^rel_date,
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -561,7 +561,7 @@ defmodule Neo4jex.RepoRelationshipTest do
         at: :invalid
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
         |> TestRepo.merge!()
@@ -583,10 +583,10 @@ defmodule Neo4jex.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                TestRepo.merge(Wrote, data, on_create: {%{at: date}, &Wrote.changeset/2})
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -626,10 +626,10 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       assert {:ok, rel_wrote} = TestRepo.merge(Wrote, data, on_create: {%{}, &Wrote.changeset/2})
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -673,10 +673,10 @@ defmodule Neo4jex.RepoRelationshipTest do
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -722,10 +722,10 @@ defmodule Neo4jex.RepoRelationshipTest do
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
+      assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               start_node: %Neo4jex.Test.User{},
-               end_node: %Neo4jex.Test.Post{}
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
@@ -868,7 +868,7 @@ defmodule Neo4jex.RepoRelationshipTest do
         end_node: post
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         TestRepo.merge!(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
       end
     end
@@ -880,13 +880,13 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       retrieved = TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  additionalLabels: [],
                  text: "This is the first post of all times.",
                  title: "First post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  additionalLabels: [],
                  firstName: "John",
                  lastName: "Doe",
@@ -917,13 +917,13 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       retrieved = TestRepo.get(Wrote, start_data, end_data)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  additionalLabels: [],
                  text: "This is the first post of all times.",
                  title: "First post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  additionalLabels: [],
                  firstName: "John",
                  lastName: "Doe",
@@ -949,13 +949,13 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       retrieved = TestRepo.get(Wrote, relationship.start_node, end_data)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  additionalLabels: [],
                  text: "This is the first post of all times.",
                  title: "First post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  additionalLabels: [],
                  firstName: "John",
                  lastName: "Doe",
@@ -1006,7 +1006,7 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       TestRepo.query!(cql, params)
 
-      assert_raise Neo4jex.MultipleRelationshipsError, fn ->
+      assert_raise Seraph.MultipleRelationshipsError, fn ->
         TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
       end
     end
@@ -1024,7 +1024,7 @@ defmodule Neo4jex.RepoRelationshipTest do
         title: post.title
       }
 
-      assert_raise Neo4jex.NoResultsError, fn ->
+      assert_raise Seraph.NoResultsError, fn ->
         TestRepo.get!(Wrote, start_data, end_data)
       end
     end
@@ -1090,12 +1090,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{start_node: new_user})
                |> TestRepo.set()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the first post of all times.",
                  title: "First post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "James",
                  lastName: "Who"
                },
@@ -1148,12 +1148,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{end_node: new_post})
                |> TestRepo.set()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the new post.",
                  title: "New post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "John",
                  lastName: "Doe",
                  viewCount: 5
@@ -1215,12 +1215,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{start_node: new_user, end_node: new_post})
                |> TestRepo.set()
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the new post.",
                  title: "New post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "James",
                  lastName: "Who"
                },
@@ -1276,12 +1276,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{start_node: new_user_cs})
                |> TestRepo.set(node_creation: true)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the first post of all times.",
                  title: "First post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "James",
                  lastName: "Who"
                },
@@ -1335,12 +1335,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{end_node: new_post_cs})
                |> TestRepo.set(node_creation: true)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the new post.",
                  title: "New post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "John",
                  lastName: "Doe",
                  viewCount: 5
@@ -1403,12 +1403,12 @@ defmodule Neo4jex.RepoRelationshipTest do
                |> Wrote.changeset(%{start_node: new_user_cs, end_node: new_post_cs})
                |> TestRepo.set(node_creation: true)
 
-      assert %Neo4jex.Test.UserToPost.Wrote{
-               end_node: %Neo4jex.Test.Post{
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
                  text: "This is the new post.",
                  title: "New post"
                },
-               start_node: %Neo4jex.Test.User{
+               start_node: %Seraph.Test.User{
                  firstName: "James",
                  lastName: "Who"
                },
@@ -1462,7 +1462,7 @@ defmodule Neo4jex.RepoRelationshipTest do
     test "raise when used with bang version" do
       relationship = add_fixtures(:relationship)
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         relationship
         |> Wrote.changeset(%{start_node: :invalid})
         |> TestRepo.set!()
@@ -1475,13 +1475,13 @@ defmodule Neo4jex.RepoRelationshipTest do
       relationship = add_fixtures(:relationship)
 
       assert {:ok,
-              %Neo4jex.Test.UserToPost.Wrote{
-                end_node: %Neo4jex.Test.Post{
+              %Seraph.Test.UserToPost.Wrote{
+                end_node: %Seraph.Test.Post{
                   additionalLabels: [],
                   text: "This is the first post of all times.",
                   title: "First post"
                 },
-                start_node: %Neo4jex.Test.User{
+                start_node: %Seraph.Test.User{
                   additionalLabels: [],
                   firstName: "John",
                   lastName: "Doe",
@@ -1515,13 +1515,13 @@ defmodule Neo4jex.RepoRelationshipTest do
       new_rel_date = DateTime.truncate(new_rel_date_long, :second)
 
       assert {:ok,
-              %Neo4jex.Test.UserToPost.Wrote{
-                end_node: %Neo4jex.Test.Post{
+              %Seraph.Test.UserToPost.Wrote{
+                end_node: %Seraph.Test.Post{
                   additionalLabels: [],
                   text: "This is the first post of all times.",
                   title: "First post"
                 },
-                start_node: %Neo4jex.Test.User{
+                start_node: %Seraph.Test.User{
                   additionalLabels: [],
                   firstName: "John",
                   lastName: "Doe",
@@ -1569,7 +1569,7 @@ defmodule Neo4jex.RepoRelationshipTest do
 
       new_post = add_fixtures(:end_node, new_post_data)
 
-      assert_raise Neo4jex.DeletionError, fn ->
+      assert_raise Seraph.DeletionError, fn ->
         relationship
         |> Map.put(:end_node, new_post)
         |> TestRepo.delete()
@@ -1579,7 +1579,7 @@ defmodule Neo4jex.RepoRelationshipTest do
     test "raise: used with !" do
       relationship = add_fixtures(:relationship)
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         relationship
         |> Wrote.changeset(%{at: :invalid})
         |> TestRepo.delete!()

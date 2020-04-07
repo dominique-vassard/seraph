@@ -1,11 +1,11 @@
-defmodule Neo4jex.InvalidChangesetError do
+defmodule Seraph.InvalidChangesetError do
   defexception [:action, :changeset]
 
   @impl true
   defdelegate message(data), to: Ecto.InvalidChangesetError
 end
 
-defmodule Neo4jex.NoResultsError do
+defmodule Seraph.NoResultsError do
   defexception [:message]
 
   def exception(opts) do
@@ -24,7 +24,7 @@ defmodule Neo4jex.NoResultsError do
   end
 end
 
-defmodule Neo4jex.MultipleRelationshipsError do
+defmodule Seraph.MultipleRelationshipsError do
   defexception [:message]
 
   def exception(opts) do
@@ -45,7 +45,7 @@ defmodule Neo4jex.MultipleRelationshipsError do
   end
 end
 
-defmodule Neo4jex.DeletionError do
+defmodule Seraph.DeletionError do
   defexception [:message]
 
   def exception(opts) do

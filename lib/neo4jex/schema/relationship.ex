@@ -1,4 +1,4 @@
-defmodule Neo4jex.Schema.Relationship do
+defmodule Seraph.Schema.Relationship do
   defmodule Metadata do
     defstruct [:type, :schema]
 
@@ -35,7 +35,7 @@ defmodule Neo4jex.Schema.Relationship do
     defimpl Inspect do
       def inspect(not_loaded, _opts) do
         msg = "relation :#{not_loaded.__type__} is not loaded"
-        ~s(#Neo4jex.Schema.Relationship.NotLoaded<#{msg}>)
+        ~s(#Seraph.Schema.Relationship.NotLoaded<#{msg}>)
       end
     end
   end
@@ -57,14 +57,14 @@ defmodule Neo4jex.Schema.Relationship do
           __id__: integer,
           type: String.t(),
           direction: :outgoing | :incoming,
-          start_node: Neo4jex.Schema.Node.t(),
-          end_node: Neo4jex.Schema.Node.t(),
+          start_node: Seraph.Schema.Node.t(),
+          end_node: Seraph.Schema.Node.t(),
           properties: Ecto.Schema.t(),
           cardinality: :one | :many
         }
   defmacro __using__(_) do
     quote do
-      import Neo4jex.Schema.Relationship
+      import Seraph.Schema.Relationship
 
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
@@ -99,7 +99,7 @@ defmodule Neo4jex.Schema.Relationship do
         Module.put_attribute(__MODULE__, :struct_fields, {:type, rel_type})
 
         try do
-          import Neo4jex.Schema.Relationship
+          import Seraph.Schema.Relationship
           unquote(block)
         after
           :ok
@@ -148,7 +148,7 @@ defmodule Neo4jex.Schema.Relationship do
       name = unquote(name)
       type = unquote(type)
 
-      Neo4jex.Schema.Node.check_property_type!(name, type)
+      Seraph.Schema.Node.check_property_type!(name, type)
 
       Module.put_attribute(__MODULE__, :properties, {name, type})
       Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
@@ -161,7 +161,7 @@ defmodule Neo4jex.Schema.Relationship do
   end
 
   defmacro start_node(node) do
-    node = Neo4jex.Schema.Helper.expand_alias(node, __CALLER__)
+    node = Seraph.Schema.Helper.expand_alias(node, __CALLER__)
 
     quote do
       Module.put_attribute(__MODULE__, :start_node, unquote(node))
@@ -173,7 +173,7 @@ defmodule Neo4jex.Schema.Relationship do
         __MODULE__,
         :struct_fields,
         {:end_node,
-         %Neo4jex.Schema.Node.NotLoaded{
+         %Seraph.Schema.Node.NotLoaded{
            #  __primary_label__: unquote(node).__schema__(:primary_label)
          }}
       )
@@ -181,7 +181,7 @@ defmodule Neo4jex.Schema.Relationship do
   end
 
   defmacro end_node(node) do
-    node = Neo4jex.Schema.Helper.expand_alias(node, __CALLER__)
+    node = Seraph.Schema.Helper.expand_alias(node, __CALLER__)
 
     quote do
       Module.put_attribute(__MODULE__, :end_node, unquote(node))
@@ -192,7 +192,7 @@ defmodule Neo4jex.Schema.Relationship do
         __MODULE__,
         :struct_fields,
         {:start_node,
-         %Neo4jex.Schema.Node.NotLoaded{
+         %Seraph.Schema.Node.NotLoaded{
            #  __primary_label__: unquote(node).__schema__(:primary_label)
          }}
       )

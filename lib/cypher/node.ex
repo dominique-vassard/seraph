@@ -1,15 +1,15 @@
-defmodule Neo4jex.Cypher.Node do
+defmodule Seraph.Cypher.Node do
   @doc """
   Builds a cypher query for listing all the constraints for a specific node.
 
   ## Example
 
-      iex> Neo4jex.Cypher.Node.list_all_constraints("Post")
+      iex> Seraph.Cypher.Node.list_all_constraints("Post")
       "CALL db.constraints()
       YIELD description
       WHERE description CONTAINS \\":Post\\" \\nRETURN description
       "
-      iex> Neo4jex.Cypher.Node.list_all_constraints("Post", :title)
+      iex> Seraph.Cypher.Node.list_all_constraints("Post", :title)
       "CALL db.constraints()
       YIELD description
       WHERE description CONTAINS \\":Post\\" AND description CONTAINS '.title'
@@ -36,12 +36,12 @@ defmodule Neo4jex.Cypher.Node do
 
   ## Example
 
-      iex> Neo4jex.Cypher.Node.list_all_indexes("Post")
+      iex> Seraph.Cypher.Node.list_all_indexes("Post")
       "CALL db.indexes()
       YIELD description
       WHERE description CONTAINS \\":Post\\" \\nRETURN description
       "
-      iex> Neo4jex.Cypher.Node.list_all_indexes("Post", :title)
+      iex> Seraph.Cypher.Node.list_all_indexes("Post", :title)
       "CALL db.indexes()
       YIELD description
       WHERE description CONTAINS \\":Post\\" AND description CONTAINS 'title'
@@ -70,10 +70,10 @@ defmodule Neo4jex.Cypher.Node do
   ## Example
 
       iex> constraint_cql = "CONSTRAINT ON ( posts:posts ) ASSERT posts.uuid IS UNIQUE"
-      iex> Neo4jex.Cypher.Node.drop_constraint_index_from_cql(constraint_cql)
+      iex> Seraph.Cypher.Node.drop_constraint_index_from_cql(constraint_cql)
       "DROP CONSTRAINT ON ( posts:posts ) ASSERT posts.uuid IS UNIQUE"
       iex> index_cql = "INDEX ON :posts(nodeId)"
-      iex> Neo4jex.Cypher.Node.drop_constraint_index_from_cql(index_cql)
+      iex> Seraph.Cypher.Node.drop_constraint_index_from_cql(index_cql)
       "DROP INDEX ON :posts(nodeId)"
   """
   @spec drop_constraint_index_from_cql(String.t()) :: String.t()

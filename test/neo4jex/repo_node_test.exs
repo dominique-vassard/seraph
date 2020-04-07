@@ -1,21 +1,21 @@
-defmodule Neo4jex.RepoTest do
+defmodule Seraph.RepoTest do
   use ExUnit.Case, async: true
-  alias Neo4jex.TestRepo
-  alias Neo4jex.Test.User
+  alias Seraph.TestRepo
+  alias Seraph.Test.User
 
   setup do
     TestRepo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
 
     [
-      Neo4jex.Cypher.Node.list_all_constraints(""),
-      Neo4jex.Cypher.Node.list_all_indexes("")
+      Seraph.Cypher.Node.list_all_constraints(""),
+      Seraph.Cypher.Node.list_all_indexes("")
     ]
     |> Enum.map(fn cql ->
       TestRepo.raw_query!(cql)
       |> Map.get(:records, [])
     end)
     |> List.flatten()
-    |> Enum.map(&Neo4jex.Cypher.Node.drop_constraint_index_from_cql/1)
+    |> Enum.map(&Seraph.Cypher.Node.drop_constraint_index_from_cql/1)
     |> Enum.map(&TestRepo.query/1)
 
     :ok
@@ -31,7 +31,7 @@ defmodule Neo4jex.RepoTest do
 
       assert {:ok, created_user} = TestRepo.create(user)
 
-      assert %Neo4jex.Test.User{
+      assert %Seraph.Test.User{
                firstName: "John",
                lastName: "Doe",
                viewCount: 5
@@ -87,7 +87,7 @@ defmodule Neo4jex.RepoTest do
                |> User.changeset(params)
                |> TestRepo.create()
 
-      assert %Neo4jex.Test.User{
+      assert %Seraph.Test.User{
                firstName: "John",
                lastName: "Doe",
                viewCount: 5
@@ -129,7 +129,7 @@ defmodule Neo4jex.RepoTest do
 
       assert {:ok, created_user} = TestRepo.create(user)
 
-      assert %Neo4jex.Test.User{
+      assert %Seraph.Test.User{
                additionalLabels: ["Buyer", "Regular"],
                firstName: "John",
                lastName: "Doe",
@@ -163,7 +163,7 @@ defmodule Neo4jex.RepoTest do
     end
 
     defmodule WithoutIdentifier do
-      use Neo4jex.Schema.Node
+      use Seraph.Schema.Node
       @identifier false
       @merge_keys [:name]
 
@@ -204,7 +204,7 @@ defmodule Neo4jex.RepoTest do
                |> User.changeset(params)
                |> TestRepo.create()
 
-      assert %Neo4jex.Test.User{
+      assert %Seraph.Test.User{
                additionalLabels: ["Buyer", "Irregular"],
                firstName: "John",
                lastName: "Doe",
@@ -237,7 +237,7 @@ defmodule Neo4jex.RepoTest do
         viewCount: 5
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         %User{}
         |> User.changeset(params)
         |> TestRepo.create!()
@@ -267,7 +267,7 @@ defmodule Neo4jex.RepoTest do
     end
 
     defmodule NoIdentifier do
-      use Neo4jex.Schema.Node
+      use Seraph.Schema.Node
       @identifier false
       @merge_keys [:id]
 
@@ -283,7 +283,7 @@ defmodule Neo4jex.RepoTest do
     end
 
     test "raise when used with !" do
-      assert_raise Neo4jex.NoResultsError, fn ->
+      assert_raise Seraph.NoResultsError, fn ->
         TestRepo.get!(User, "unknown")
       end
     end
@@ -474,7 +474,7 @@ defmodule Neo4jex.RepoTest do
         firstName: :invalid
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         user
         |> User.changeset(params)
         |> TestRepo.merge!()
@@ -805,7 +805,7 @@ defmodule Neo4jex.RepoTest do
         viewCount: :invalid
       }
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         TestRepo.merge!(User, %{uuid: "uuid-1"},
           on_match: {on_match_data, &User.update_viewcount_changeset/2}
         )
@@ -819,7 +819,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: [],
                 firstName: "John",
                 lastName: "New name",
@@ -836,7 +836,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: ["Buyer", "New"],
                 firstName: "John",
                 lastName: "Doe",
@@ -853,7 +853,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: ["Old"],
                 firstName: "John",
                 lastName: "Doe",
@@ -870,7 +870,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: ["Old", "Client"],
                 firstName: "John",
                 lastName: "Doe",
@@ -894,7 +894,7 @@ defmodule Neo4jex.RepoTest do
     test "raise when used with !" do
       data = add_fixtures()
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         TestRepo.get(User, data.uuid)
         |> User.changeset(%{lastName: :invalid})
         |> TestRepo.set!()
@@ -908,7 +908,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: [],
                 firstName: "John",
                 lastName: "Doe",
@@ -937,7 +937,7 @@ defmodule Neo4jex.RepoTest do
       data_uuid = data.uuid
 
       assert {:ok,
-              %Neo4jex.Test.User{
+              %Seraph.Test.User{
                 additionalLabels: [],
                 firstName: "John",
                 lastName: "Doe",
@@ -977,7 +977,7 @@ defmodule Neo4jex.RepoTest do
       user_to_del = TestRepo.get(User, data.uuid)
       TestRepo.delete(user_to_del)
 
-      assert_raise Neo4jex.DeletionError, fn ->
+      assert_raise Seraph.DeletionError, fn ->
         TestRepo.delete(user_to_del)
       end
     end
@@ -985,7 +985,7 @@ defmodule Neo4jex.RepoTest do
     test "raise when used with !" do
       data = add_fixtures()
 
-      assert_raise Neo4jex.InvalidChangesetError, fn ->
+      assert_raise Seraph.InvalidChangesetError, fn ->
         TestRepo.get(User, data.uuid)
         |> User.changeset(%{viewCount: :invalid})
         |> TestRepo.delete!()

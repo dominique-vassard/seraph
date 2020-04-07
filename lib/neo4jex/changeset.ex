@@ -1,4 +1,4 @@
-defmodule Neo4jex.Changeset do
+defmodule Seraph.Changeset do
   def cast(%{__struct__: entity} = data, params, permitted, opts \\ []) do
     types = changeset_properties_types(entity)
 

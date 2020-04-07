@@ -1,4 +1,4 @@
-defmodule Neo4jex.Repo do
+defmodule Seraph.Repo do
   @moduledoc """
   Available functions:
     - query/1, query/2, query/3
@@ -16,13 +16,13 @@ defmodule Neo4jex.Repo do
   """
   @type t :: module
 
-  alias Neo4jex.Repo.{Queryable, Schema}
+  alias Seraph.Repo.{Queryable, Schema}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
       @otp_app opts[:otp_app]
 
-      alias Neo4jex.{Condition, Query}
+      alias Seraph.{Condition, Query}
 
       def child_spec(opts) do
         %{
@@ -33,7 +33,7 @@ defmodule Neo4jex.Repo do
       end
 
       def start_link(opts \\ []) do
-        Neo4jex.Repo.Supervisor.start_link(__MODULE__, @otp_app, opts)
+        Seraph.Repo.Supervisor.start_link(__MODULE__, @otp_app, opts)
       end
 
       def stop(timeout \\ 5000) do
@@ -42,19 +42,19 @@ defmodule Neo4jex.Repo do
 
       # Planner
       def query(statement, params \\ %{}, opts \\ []) do
-        Neo4jex.Query.Planner.query(__MODULE__, statement, params, opts)
+        Seraph.Query.Planner.query(__MODULE__, statement, params, opts)
       end
 
       def query!(statement, params \\ %{}, opts \\ []) do
-        Neo4jex.Query.Planner.query!(__MODULE__, statement, params, opts)
+        Seraph.Query.Planner.query!(__MODULE__, statement, params, opts)
       end
 
       def raw_query(statement, params \\ %{}, opts \\ []) do
-        Neo4jex.Query.Planner.raw_query(__MODULE__, statement, params, opts)
+        Seraph.Query.Planner.raw_query(__MODULE__, statement, params, opts)
       end
 
       def raw_query!(statement, params \\ %{}, opts \\ []) do
-        Neo4jex.Query.Planner.raw_query!(__MODULE__, statement, params, opts)
+        Seraph.Query.Planner.raw_query!(__MODULE__, statement, params, opts)
       end
 
       # Schema

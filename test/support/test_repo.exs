@@ -6,10 +6,10 @@ config = [
   max_overflow: 1
 ]
 
-Application.put_env(:neo4jex, Neo4jex.TestRepo, config)
+Application.put_env(:seraph, Seraph.TestRepo, config)
 
-defmodule Neo4jex.TestRepo do
-  use Neo4jex.Repo, otp_app: :neo4jex
+defmodule Seraph.TestRepo do
+  use Seraph.Repo, otp_app: :seraph
 end
 
-Neo4jex.TestRepo.start_link()
+Seraph.TestRepo.start_link()

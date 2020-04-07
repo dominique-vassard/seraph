@@ -1,19 +1,19 @@
-defmodule Neo4jex.Repo.Queryable do
+defmodule Seraph.Repo.Queryable do
   @type t :: module
 
-  @spec get(Neo4jex.Repo.t(), Queryable.t(), any) :: nil | Neo4jex.Schema.Node.t()
+  @spec get(Seraph.Repo.t(), Queryable.t(), any) :: nil | Seraph.Schema.Node.t()
   def get(repo, queryable, id_value) do
-    Neo4jex.Repo.Node.Queryable.get(repo, queryable, id_value)
+    Seraph.Repo.Node.Queryable.get(repo, queryable, id_value)
   end
 
   @spec get(
-          Neo4jex.Repo.t(),
+          Seraph.Repo.t(),
           Queryable.t(),
-          Neo4jex.Schema.Node.t() | map,
-          Neo4jex.Schema.Node.t() | map
-        ) :: nil | Neo4jex.Schema.Relationship.t()
+          Seraph.Schema.Node.t() | map,
+          Seraph.Schema.Node.t() | map
+        ) :: nil | Seraph.Schema.Relationship.t()
   def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
-    Neo4jex.Repo.Relationship.Queryable.get(
+    Seraph.Repo.Relationship.Queryable.get(
       repo,
       queryable,
       start_struct_or_data,
@@ -21,20 +21,20 @@ defmodule Neo4jex.Repo.Queryable do
     )
   end
 
-  @spec get!(Neo4jex.Repo.t(), Queryable.t(), any) :: Neo4jex.Schema.Node.t()
+  @spec get!(Seraph.Repo.t(), Queryable.t(), any) :: Seraph.Schema.Node.t()
   def get!(repo, queryable, id_value) do
     case get(repo, queryable, id_value) do
-      nil -> raise Neo4jex.NoResultsError, queryable: queryable, function: :get!, params: id_value
+      nil -> raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: id_value
       result -> result
     end
   end
 
   @spec get!(
-          Neo4jex.Repo.t(),
+          Seraph.Repo.t(),
           Queryable.t(),
-          Neo4jex.Schema.Node.t() | map,
-          Neo4jex.Schema.Node.t() | map
-        ) :: Neo4jex.Schema.Relationship.t()
+          Seraph.Schema.Node.t() | map,
+          Seraph.Schema.Node.t() | map
+        ) :: Seraph.Schema.Relationship.t()
   def get!(repo, queryable, start_struct_or_data, end_struct_or_data) do
     case get(repo, queryable, start_struct_or_data, end_struct_or_data) do
       nil ->
@@ -43,7 +43,7 @@ defmodule Neo4jex.Repo.Queryable do
           end: end_struct_or_data
         }
 
-        raise Neo4jex.NoResultsError, queryable: queryable, function: :get!, params: params
+        raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: params
 
       result ->
         result

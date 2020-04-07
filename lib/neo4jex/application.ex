@@ -1,4 +1,4 @@
-defmodule Neo4jex.Application do
+defmodule Seraph.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -8,13 +8,13 @@ defmodule Neo4jex.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
-      # Starts a worker by calling: Neo4jex.Worker.start_link(arg)
-      # {Neo4jex.Worker, arg}
+      # Starts a worker by calling: Seraph.Worker.start_link(arg)
+      # {Seraph.Worker, arg}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Neo4jex.Supervisor]
+    opts = [strategy: :one_for_one, name: Seraph.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

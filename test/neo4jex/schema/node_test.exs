@@ -1,10 +1,10 @@
-defmodule Neo4jex.Schema.NodeTest do
+defmodule Seraph.Schema.NodeTest do
   use ExUnit.Case
 
-  alias Neo4jex.Test.Post
+  alias Seraph.Test.Post
 
   defmodule SimpleSchema do
-    use Neo4jex.Schema.Node
+    use Seraph.Schema.Node
 
     node "SimpleSchema" do
       property :firstName, :string
@@ -57,67 +57,67 @@ defmodule Neo4jex.Schema.NodeTest do
   end
 
   defmodule InPlaceRelatedSchema do
-    use Neo4jex.Schema.Node
+    use Seraph.Schema.Node
 
     node "RelatedSchema" do
       property :name, :string
 
-      outgoing_relationship "WROTE", Neo4jex.Test.Post, :posts
-      outgoing_relationship "WROTE", Neo4jex.Test.Comment, :comments
-      outgoing_relationship "EDIT", Neo4jex.Test.Post, :edited_posts, cardinality: :one
-      incoming_relationship "FOLLOWED", Neo4jex.Test.User, :followers
+      outgoing_relationship "WROTE", Seraph.Test.Post, :posts
+      outgoing_relationship "WROTE", Seraph.Test.Comment, :comments
+      outgoing_relationship "EDIT", Seraph.Test.Post, :edited_posts, cardinality: :one
+      incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
     end
   end
 
   test "in place relationship metadata" do
     assert [
-             followed: %Neo4jex.Schema.Relationship.Incoming{
+             followed: %Seraph.Schema.Relationship.Incoming{
                cardinality: :many,
-               end_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+               end_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
                field: :followers,
-               start_node: Neo4jex.Test.User,
+               start_node: Seraph.Test.User,
                type: "FOLLOWED",
                schema: nil
              },
-             edit: %Neo4jex.Schema.Relationship.Outgoing{
+             edit: %Seraph.Schema.Relationship.Outgoing{
                cardinality: :one,
-               end_node: Neo4jex.Test.Post,
+               end_node: Seraph.Test.Post,
                field: :edited_posts,
-               start_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
                type: "EDIT",
                schema: nil
              },
-             wrote: %Neo4jex.Schema.Relationship.Outgoing{
+             wrote: %Seraph.Schema.Relationship.Outgoing{
                cardinality: :many,
-               end_node: Neo4jex.Test.Comment,
+               end_node: Seraph.Test.Comment,
                field: :comments,
-               start_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
                type: "WROTE",
                schema: nil
              },
-             wrote: %Neo4jex.Schema.Relationship.Outgoing{
+             wrote: %Seraph.Schema.Relationship.Outgoing{
                cardinality: :many,
-               end_node: Neo4jex.Test.Post,
+               end_node: Seraph.Test.Post,
                field: :posts,
-               start_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
                type: "WROTE",
                schema: nil
              }
            ] = InPlaceRelatedSchema.__schema__(:relationships)
 
     expected = [
-      %Neo4jex.Schema.Relationship.Outgoing{
+      %Seraph.Schema.Relationship.Outgoing{
         cardinality: :many,
-        end_node: Neo4jex.Test.Comment,
+        end_node: Seraph.Test.Comment,
         field: :comments,
-        start_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+        start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
         type: "WROTE"
       },
-      %Neo4jex.Schema.Relationship.Outgoing{
+      %Seraph.Schema.Relationship.Outgoing{
         cardinality: :many,
-        end_node: Neo4jex.Test.Post,
+        end_node: Seraph.Test.Post,
         field: :posts,
-        start_node: Neo4jex.Schema.NodeTest.InPlaceRelatedSchema,
+        start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
         type: "WROTE"
       }
     ]
@@ -141,29 +141,29 @@ defmodule Neo4jex.Schema.NodeTest do
   end
 
   defmodule UserFollowsUser do
-    use Neo4jex.Schema.Relationship
+    use Seraph.Schema.Relationship
 
     relationship "FOLLOWS", cardinality: :one do
-      start_node Neo4jex.Test.User
-      end_node Neo4jex.Test.User
+      start_node Seraph.Test.User
+      end_node Seraph.Test.User
 
       property :at, :utc_datetime
     end
   end
 
   defmodule Wrote do
-    use Neo4jex.Schema.Relationship
+    use Seraph.Schema.Relationship
 
     relationship "WROTE" do
       start_node WithSchemaRelatedSchema
-      end_node Neo4jex.Test.Post
+      end_node Seraph.Test.Post
 
       property :at, :utc_datetime
     end
   end
 
   defmodule UsedMod do
-    use Neo4jex.Schema.Relationship
+    use Seraph.Schema.Relationship
 
     relationship "USED" do
       start_node Post
@@ -174,7 +174,7 @@ defmodule Neo4jex.Schema.NodeTest do
   end
 
   defmodule WithSchemaRelatedSchema do
-    use Neo4jex.Schema.Node
+    use Seraph.Schema.Node
 
     node "RelatedSchema" do
       property :name, :string
@@ -186,20 +186,20 @@ defmodule Neo4jex.Schema.NodeTest do
 
   test "with schema metadata" do
     assert [
-             used: %Neo4jex.Schema.Relationship.Incoming{
+             used: %Seraph.Schema.Relationship.Incoming{
                cardinality: nil,
-               end_node: Neo4jex.Schema.NodeTest.WithSchemaRelatedSchema,
+               end_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
                field: :used_posts,
-               schema: Neo4jex.Schema.NodeTest.UsedMod,
-               start_node: Neo4jex.Test.Post,
+               schema: Seraph.Schema.NodeTest.UsedMod,
+               start_node: Seraph.Test.Post,
                type: "USED"
              },
-             wrote: %Neo4jex.Schema.Relationship.Outgoing{
+             wrote: %Seraph.Schema.Relationship.Outgoing{
                cardinality: nil,
-               end_node: Neo4jex.Test.Post,
+               end_node: Seraph.Test.Post,
                field: :posts,
-               schema: Neo4jex.Schema.NodeTest.Wrote,
-               start_node: Neo4jex.Schema.NodeTest.WithSchemaRelatedSchema,
+               schema: Seraph.Schema.NodeTest.Wrote,
+               start_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
                type: "WROTE"
              }
            ] == WithSchemaRelatedSchema.__schema__(:relationships)
@@ -220,7 +220,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "when duplicating fields" do
       assert_raise ArgumentError, fn ->
         defmodule DuplicatedFieldError do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "DuplicatedFieldError" do
             property :one, :string
@@ -233,7 +233,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "when adding a relations with type same as a field name (outgoing)" do
       assert_raise ArgumentError, fn ->
         defmodule DuplicatedRelFieldByTypeOut do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "DuplicatedRelFieldByTypeOut" do
             property :one, :string
@@ -247,7 +247,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "when adding a relations with type same as a field name (incoming)" do
       assert_raise ArgumentError, fn ->
         defmodule DuplicatedRelFieldByTypeIn do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "DuplicatedRelFieldByTypeIn" do
             property :one, :string
@@ -261,7 +261,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "when adding a relations with field already existing (outgoing)" do
       assert_raise ArgumentError, fn ->
         defmodule FieldAlreadyExistsOut do
-          use Neo4jex.Schema.node()
+          use Seraph.Schema.node()
 
           node "FieldAlreadyExistsOut" do
             property :posts, :string
@@ -275,7 +275,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "when adding a relations with field already existing (incoming)" do
       assert_raise ArgumentError, fn ->
         defmodule FieldAlreadyExistsIn do
-          use Neo4jex.Schema.node()
+          use Seraph.Schema.node()
 
           node "FieldAlreadyExistsIn" do
             property :posts, :string
@@ -289,7 +289,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "with relationship module: when defined type is not the same as in module" do
       assert_raise ArgumentError, fn ->
         defmodule ValidRelationship do
-          use Neo4jex.Schema.Relationship
+          use Seraph.Schema.Relationship
 
           relationship "VALIDATED" do
             start_node Start
@@ -299,7 +299,7 @@ defmodule Neo4jex.Schema.NodeTest do
         end
 
         defmodule InvalidRelType do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "InvalidRelType" do
             outgoing_relationship "INVALID", Post, :invalid, through: ValidRelationship
@@ -311,7 +311,7 @@ defmodule Neo4jex.Schema.NodeTest do
     # test "with relationship module: when defined start node is invalid" do
     #   assert_raise ArgumentError, fn ->
     #     defmodule InvalidRelOut do
-    #       use Neo4jex.Schema.Relationship
+    #       use Seraph.Schema.Relationship
 
     #       relationship "INVALIDRELOUT" do
     #         start_node Other
@@ -320,7 +320,7 @@ defmodule Neo4jex.Schema.NodeTest do
     #     end
 
     #     defmodule InvalidStartNode do
-    #       use Neo4jex.Schema.Node
+    #       use Seraph.Schema.Node
 
     #       node "InvalidStartNode" do
     #         outgoing_relationship "INVALIDRELOUT", EndNode, :not_used, through: InvalidRelOut
@@ -332,7 +332,7 @@ defmodule Neo4jex.Schema.NodeTest do
     # test "with relationship module: when defined end node is invalid" do
     #   assert_raise ArgumentError, fn ->
     #     defmodule InvalidRelIn do
-    #       use Neo4jex.Schema.Relationship
+    #       use Seraph.Schema.Relationship
 
     #       relationship "INVALIDRELIN" do
     #         start_node Start
@@ -341,7 +341,7 @@ defmodule Neo4jex.Schema.NodeTest do
     #     end
 
     #     defmodule InvalidEndNode do
-    #       use Neo4jex.Schema.Node
+    #       use Seraph.Schema.Node
 
     #       node "InvalidEndNode" do
     #         incoming_relationship "INVALIDRELIN", Start, :not_used, through: InvalidRelIn
@@ -355,7 +355,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "Invalid node name" do
       assert_raise ArgumentError, fn ->
         defmodule WrongNodeName do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "invalid_label" do
             property :name, :string
@@ -365,7 +365,7 @@ defmodule Neo4jex.Schema.NodeTest do
 
       assert_raise ArgumentError, fn ->
         defmodule WrongNodeName do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "INVALIDLABEL" do
             property :name, :string
@@ -377,7 +377,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "invalid property name" do
       assert_raise ArgumentError, fn ->
         defmodule WrongProperyName do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "WrongProperyName" do
             property :invalid_name, :string
@@ -389,7 +389,7 @@ defmodule Neo4jex.Schema.NodeTest do
     test "invalid relationship type" do
       assert_raise ArgumentError, fn ->
         defmodule WrongRelName do
-          use Neo4jex.Schema.Node
+          use Seraph.Schema.Node
 
           node "WrongRelName" do
             outgoing_relationship("wrongType", Post, :invalid_rel)

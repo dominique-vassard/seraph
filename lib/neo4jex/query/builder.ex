@@ -1,6 +1,6 @@
-defmodule Neo4jex.Query.Builder do
+defmodule Seraph.Query.Builder do
   @moduledoc """
-  `Neo4jex.Builder` is designed to build Cypher queries programmatically.
+  `Seraph.Builder` is designed to build Cypher queries programmatically.
   It has functions to build essential parts of a Cypher Builder and its `to_string` returns a valid
   cypher query.
 
@@ -12,7 +12,7 @@ defmodule Neo4jex.Query.Builder do
       #   n.uuid = "my-user-uid"
       # RETURN
       # n
-      alias Neo4jex.Builder
+      alias Seraph.Builder
 
       node = %Builder.NodeExpr{
         index: 0,
@@ -20,7 +20,7 @@ defmodule Neo4jex.Query.Builder do
         labels: ["User"]
       }
 
-      condition = %Neo4jex.Query.Condition{
+      condition = %Seraph.Query.Condition{
         source: node.variable,
         field: :uuid,
         operator: :==,
@@ -179,7 +179,7 @@ defmodule Neo4jex.Query.Builder do
     defstruct [:expr, on_create: [], on_match: []]
 
     @type t :: %__MODULE__{
-            expr: Neo4jex.Query.Builder.entity_expr(),
+            expr: Seraph.Query.Builder.entity_expr(),
             on_create: [SetExpr.t()],
             on_match: [SetExpr.t()]
           }
@@ -231,7 +231,7 @@ defmodule Neo4jex.Query.Builder do
           create: [entity_expr],
           merge: [MergeExpr.t()],
           delete: [entity_expr],
-          where: nil | Neo4jex.Query.Condition.t(),
+          where: nil | Seraph.Query.Condition.t(),
           set: [SetExpr.t()],
           label_ops: [LabelOperationExpr.t()],
           return: nil | ReturnExpr.t(),
@@ -242,11 +242,11 @@ defmodule Neo4jex.Query.Builder do
           batch: Batch.t()
         }
 
-  alias Neo4jex.Query.Builder
+  alias Seraph.Query.Builder
 
-  @chunk_size Application.get_env(:ecto_neo4j, Neo4jex, chunk_size: 10_000)
+  @chunk_size Application.get_env(:ecto_neo4j, Seraph, chunk_size: 10_000)
               |> Keyword.get(:chunk_size)
-  @is_batch? Application.get_env(:ecto_neo4j, Neo4jex, batch: false)
+  @is_batch? Application.get_env(:ecto_neo4j, Seraph, batch: false)
              |> Keyword.get(:batch)
 
   @doc """
@@ -280,7 +280,7 @@ defmodule Neo4jex.Query.Builder do
   @doc """
   Adds information regarding batch query.
 
-  See `Neo4jex.batch_query\4` for more info about batch queries.
+  See `Seraph.batch_query\4` for more info about batch queries.
   """
   @spec batch(Builder.t(), Batch.t()) :: Builder.t()
   def batch(query, %Batch{} = batch_opt) do
@@ -369,13 +369,13 @@ defmodule Neo4jex.Query.Builder do
   @doc """
   Adds WHERE data
   """
-  @spec where(Builder.t(), nil | Neo4jex.Query.Condition.t()) :: Builder.t()
-  def where(%Builder{where: nil} = query, %Neo4jex.Query.Condition{} = condition) do
+  @spec where(Builder.t(), nil | Seraph.Query.Condition.t()) :: Builder.t()
+  def where(%Builder{where: nil} = query, %Seraph.Query.Condition{} = condition) do
     %{query | where: condition}
   end
 
-  def where(%Builder{where: query_cond} = query, %Neo4jex.Query.Condition{} = condition) do
-    new_condition = %Neo4jex.Query.Condition{
+  def where(%Builder{where: query_cond} = query, %Seraph.Query.Condition{} = condition) do
+    new_condition = %Seraph.Query.Condition{
       operator: :and,
       conditions: [
         query_cond,
@@ -765,9 +765,9 @@ defmodule Neo4jex.Query.Builder do
     |> Enum.join(", ")
   end
 
-  @spec stringify_where(nil | Neo4jex.Query.Condition.t()) :: String.t()
+  @spec stringify_where(nil | Seraph.Query.Condition.t()) :: String.t()
   defp stringify_where(condition) do
-    Neo4jex.Query.Condition.stringify_condition(condition)
+    Seraph.Query.Condition.stringify_condition(condition)
   end
 
   @spec stringify_return(ReturnExpr.t()) :: String.t()

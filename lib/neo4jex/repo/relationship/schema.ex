@@ -1,12 +1,12 @@
-defmodule Neo4jex.Repo.Relationship.Schema do
-  alias Neo4jex.Query.{Builder, Planner}
+defmodule Seraph.Repo.Relationship.Schema do
+  alias Seraph.Query.{Builder, Planner}
 
   @spec create(
-          Neo4jex.Repo.t(),
-          Neo4jex.Schema.Relationship.t(),
-          Neo4jex.Repo.Schema.create_options()
+          Seraph.Repo.t(),
+          Seraph.Schema.Relationship.t(),
+          Seraph.Repo.Schema.create_options()
         ) ::
-          {:ok, Neo4jex.Schema.Relationship.t()}
+          {:ok, Seraph.Schema.Relationship.t()}
   def create(repo, rel_data, [node_creation: true] = opts) do
     start_node = repo.create!(rel_data.start_node, opts)
     end_node = repo.create!(rel_data.end_node, opts)
@@ -60,10 +60,10 @@ defmodule Neo4jex.Repo.Relationship.Schema do
   end
 
   @spec merge(
-          Neo4jex.Repo.t(),
-          Neo4jex.Schema.Relationship.t(),
-          Neo4jex.Repo.Schema.merge_options()
-        ) :: {:ok, Neo4jex.Schema.Relationship.t()}
+          Seraph.Repo.t(),
+          Seraph.Schema.Relationship.t(),
+          Seraph.Repo.Schema.merge_options()
+        ) :: {:ok, Seraph.Schema.Relationship.t()}
   def merge(repo, rel_data, [node_creation: true] = opts) do
     start_node = repo.create!(rel_data.start_node, opts)
     end_node = repo.create!(rel_data.end_node, opts)
@@ -120,10 +120,10 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
-  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
-          {:ok, Neo4jex.Schema.Relationship.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Seraph.Schema.Relationship.t()}
   def merge(repo, queryable, nodes_data, opts) do
-    merge_opts = Neo4jex.Repo.Schema.create_match_merge_opts(opts)
+    merge_opts = Seraph.Repo.Schema.create_match_merge_opts(opts)
     do_create_match_merge(repo, queryable, nodes_data, merge_opts)
   end
 
@@ -193,8 +193,8 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     end
   end
 
-  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
-          {:ok, Neo4jex.Schema.Relationship.t()}
+  @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
+          {:ok, Seraph.Schema.Relationship.t()}
 
   def set(repo, changeset, [node_creation: true] = opts) do
     new_changeset =
@@ -285,12 +285,12 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     {:ok, result}
   end
 
-  @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: {:ok, Neo4jex.Schema.Relationship.t()}
+  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Relationship.t()}
   def delete(repo, changeset) do
     data =
       changeset
       |> Map.put(:changes, %{})
-      |> Neo4jex.Changeset.apply_changes()
+      |> Seraph.Changeset.apply_changes()
 
     queryable = data.__struct__
 
@@ -318,11 +318,11 @@ defmodule Neo4jex.Repo.Relationship.Schema do
         {:ok, data}
 
       [] ->
-        raise Neo4jex.DeletionError, queryable: queryable, data: data
+        raise Seraph.DeletionError, queryable: queryable, data: data
     end
   end
 
-  @spec build_node_match(String.t(), Neo4jex.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
+  @spec build_node_match(String.t(), Seraph.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
   defp build_node_match(variable, node_data)
 
   defp build_node_match(_, %Ecto.Changeset{}) do
@@ -331,7 +331,7 @@ defmodule Neo4jex.Repo.Relationship.Schema do
 
   defp build_node_match(variable, node_data) do
     %{__struct__: queryable} = node_data
-    identifier = Neo4jex.Repo.Node.Helper.identifier_field(queryable)
+    identifier = Seraph.Repo.Node.Helper.identifier_field(queryable)
     id_value = Map.fetch!(node_data, identifier)
 
     bound_name = variable <> "_" <> Atom.to_string(identifier)
@@ -461,7 +461,7 @@ defmodule Neo4jex.Repo.Relationship.Schema do
 
   @spec pre_create_nodes(
           Ecto.Changeset.t(),
-          Neo4jex.Repo.t(),
+          Seraph.Repo.t(),
           :start_node | :end_node,
           Keyword.t()
         ) :: Ecto.Changeset.t()
@@ -487,7 +487,7 @@ defmodule Neo4jex.Repo.Relationship.Schema do
   defp check_nodes_data(nodes_data) do
     msg = """
     nodes_data must be a map.
-    :start_node and :end_node are mandatory and must be Neo4jex.Schema.Node.
+    :start_node and :end_node are mandatory and must be Seraph.Schema.Node.
     Received:
     #{inspect(nodes_data)}
     """
@@ -495,19 +495,19 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     raise ArgumentError, msg
   end
 
-  @spec format_result(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Relationship.t()
+  @spec format_result(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Relationship.t()
   defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
     props =
       rel_data.properties
-      |> Neo4jex.Repo.Node.Helper.atom_map()
+      |> Seraph.Repo.Node.Helper.atom_map()
       |> Map.put(:__id__, rel_data.id)
       |> Map.put(
         :start_node,
-        Neo4jex.Repo.Node.Helper.build_node(queryable.__schema__(:start_node), start_data)
+        Seraph.Repo.Node.Helper.build_node(queryable.__schema__(:start_node), start_data)
       )
       |> Map.put(
         :end_node,
-        Neo4jex.Repo.Node.Helper.build_node(queryable.__schema__(:end_node), end_data)
+        Seraph.Repo.Node.Helper.build_node(queryable.__schema__(:end_node), end_data)
       )
 
     struct(queryable, props)

@@ -1,5 +1,5 @@
-defmodule Neo4jex.Schema.Node do
-  alias Neo4jex.Schema.Helper
+defmodule Seraph.Schema.Node do
+  alias Seraph.Schema.Helper
 
   defmodule Metadata do
     defstruct [:primary_label, :schema]
@@ -22,12 +22,12 @@ defmodule Neo4jex.Schema.Node do
         msg =
           "nodes #{not_loaded.__primary_label__} through relation #{not_loaded.__type__} are not loaded"
 
-        ~s(#Neo4jex.Schema.Node.NotLoaded<#{msg}>)
+        ~s(#Seraph.Schema.Node.NotLoaded<#{msg}>)
       end
     end
   end
 
-  alias Neo4jex.Schema.Relationship
+  alias Seraph.Schema.Relationship
   defstruct [:__meta__, :__id__, :labels, :properties, :outgoing, :incoming]
 
   @type t :: %{
@@ -40,7 +40,7 @@ defmodule Neo4jex.Schema.Node do
 
   defmacro __using__(_) do
     quote do
-      import Neo4jex.Schema.Node
+      import Seraph.Schema.Node
       @identifier {:uuid, :string, []}
       @merge_keys nil
 
@@ -57,11 +57,11 @@ defmodule Neo4jex.Schema.Node do
   defmacro node(primary_label, do: block) do
     prelude =
       quote do
-        @after_compile Neo4jex.Schema.Node
+        @after_compile Seraph.Schema.Node
 
         unless @identifier == false do
           {name, type, opts} = @identifier
-          Neo4jex.Schema.Node.__property__(__MODULE__, name, type, opts ++ [identifier: true])
+          Seraph.Schema.Node.__property__(__MODULE__, name, type, opts ++ [identifier: true])
           Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
         end
 
@@ -91,7 +91,7 @@ defmodule Neo4jex.Schema.Node do
         )
 
         try do
-          import Neo4jex.Schema.Node
+          import Seraph.Schema.Node
           unquote(block)
         after
           :ok
@@ -180,12 +180,12 @@ defmodule Neo4jex.Schema.Node do
 
   defmacro property(name, type, opts \\ []) do
     quote do
-      Neo4jex.Schema.Node.__property__(__MODULE__, unquote(name), unquote(type), unquote(opts))
+      Seraph.Schema.Node.__property__(__MODULE__, unquote(name), unquote(type), unquote(opts))
     end
   end
 
   defmacro outgoing_relationship(type, related_node, name, opts \\ []) do
-    related_node = Neo4jex.Schema.Helper.expand_alias(related_node, __CALLER__)
+    related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
     quote do
       add_relationship(
@@ -200,7 +200,7 @@ defmodule Neo4jex.Schema.Node do
   end
 
   defmacro incoming_relationship(type, related_node, name, opts \\ []) do
-    related_node = Neo4jex.Schema.Helper.expand_alias(related_node, __CALLER__)
+    related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
     quote do
       add_relationship(
@@ -238,7 +238,7 @@ defmodule Neo4jex.Schema.Node do
 
   @spec __property__(module, atom, atom, Keyword.t()) :: nil | :ok
   def __property__(module, name, type, opts) do
-    Neo4jex.Schema.Node.check_property_type!(name, type)
+    Seraph.Schema.Node.check_property_type!(name, type)
 
     name_str = Atom.to_string(name)
 

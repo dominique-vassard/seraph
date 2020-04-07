@@ -1,4 +1,4 @@
-defmodule Neo4jex.Repo.Supervisor do
+defmodule Seraph.Repo.Supervisor do
   use Supervisor
 
   def start_link(repo, otp_app, opts) do

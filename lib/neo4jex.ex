@@ -1,6 +1,6 @@
-defmodule Neo4jex do
+defmodule Seraph do
   @moduledoc """
-  Documentation for Neo4jex.
+  Documentation for Seraph.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule Neo4jex do
 
   ## Examples
 
-      iex> Neo4jex.hello()
+      iex> Seraph.hello()
       :world
 
   """

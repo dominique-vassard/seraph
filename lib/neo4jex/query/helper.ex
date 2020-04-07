@@ -1,5 +1,5 @@
-defmodule Neo4jex.Query.Helper do
-  alias Neo4jex.Query.Condition
+defmodule Seraph.Query.Helper do
+  alias Seraph.Query.Condition
 
   @type merge_keys_data :: %{
           where: nil | Condition.t(),
@@ -7,11 +7,11 @@ defmodule Neo4jex.Query.Helper do
         }
 
   @spec build_where_from_merge_keys(
-          Neo4jex.Query.Builder.NodeExpr.t(),
-          Neo4jex.Repo.Queryable.t(),
-          Neo4jex.Schema.Node.t()
+          Seraph.Query.Builder.NodeExpr.t(),
+          Seraph.Repo.Queryable.t(),
+          Seraph.Schema.Node.t()
         ) ::
-          Neo4jex.Repo.Queryable.merge_keys_data()
+          Seraph.Repo.Queryable.merge_keys_data()
   def build_where_from_merge_keys(entity, queryable, data) do
     merge_keys = queryable.__schema__(:merge_keys)
 

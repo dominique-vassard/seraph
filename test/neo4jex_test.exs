@@ -1,8 +1,8 @@
-defmodule Neo4jexTest do
+defmodule SeraphTest do
   use ExUnit.Case
-  doctest Neo4jex
+  doctest Seraph
 
   test "greets the world" do
-    assert Neo4jex.hello() == :world
+    assert Seraph.hello() == :world
   end
 end

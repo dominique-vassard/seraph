@@ -1,10 +1,10 @@
-defmodule Neo4jex.Test.UserToPost.Wrote do
-  use Neo4jex.Schema.Relationship
-  import Neo4jex.Changeset
+defmodule Seraph.Test.UserToPost.Wrote do
+  use Seraph.Schema.Relationship
+  import Seraph.Changeset
 
   relationship "WROTE" do
-    start_node Neo4jex.Test.User
-    end_node Neo4jex.Test.Post
+    start_node Seraph.Test.User
+    end_node Seraph.Test.Post
 
     property :at, :utc_datetime
   end
@@ -15,31 +15,31 @@ defmodule Neo4jex.Test.UserToPost.Wrote do
   end
 end
 
-defmodule Neo4jex.Test.User do
-  use Neo4jex.Schema.Node
-  import Neo4jex.Changeset
+defmodule Seraph.Test.User do
+  use Seraph.Schema.Node
+  import Seraph.Changeset
 
   node "User" do
     property :firstName, :string
     property :lastName, :string
     property :viewCount, :integer, default: 1
 
-    outgoing_relationship "WROTE", Neo4jex.Test.Post, :posts,
-      through: Neo4jex.Test.UserToPost.Wrote
+    outgoing_relationship "WROTE", Seraph.Test.Post, :posts,
+      through: Seraph.Test.UserToPost.Wrote
 
-    outgoing_relationship "READ", Neo4jex.Test.Post, :read_posts
-    outgoing_relationship "FOLLOWS", Neo4jex.Test.User, :followeds
+    outgoing_relationship "READ", Seraph.Test.Post, :read_posts
+    outgoing_relationship "FOLLOWS", Seraph.Test.User, :followeds
 
-    incoming_relationship "EDITED_BY", Neo4jex.Test.Post, :edited_posts
-    incoming_relationship "FOLLOWED", Neo4jex.Test.User, :followers
+    incoming_relationship "EDITED_BY", Seraph.Test.Post, :edited_posts
+    incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
 
-    @spec changeset(Neo4jex.Schema.Node.t(), map) :: Ecto.Changeset.t()
+    @spec changeset(Seraph.Schema.Node.t(), map) :: Ecto.Changeset.t()
     def changeset(user, params \\ %{}) do
       user
       |> cast(params, [:firstName, :lastName, :viewCount, :additionalLabels])
 
       # |> cast_relationship("WROTE", params[:new_post])
-      # |> cast_relationship(Neo4jex.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])
+      # |> cast_relationship(Seraph.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])
       # |> put_related_nodes(:wrote, [])
     end
 
@@ -50,9 +50,9 @@ defmodule Neo4jex.Test.User do
   end
 end
 
-defmodule Neo4jex.Test.Post do
-  use Neo4jex.Schema.Node
-  import Neo4jex.Changeset
+defmodule Seraph.Test.Post do
+  use Seraph.Schema.Node
+  import Seraph.Changeset
 
   node "Post" do
     property :title, :string

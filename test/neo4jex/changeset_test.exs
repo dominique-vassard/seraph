@@ -1,8 +1,8 @@
-defmodule Neo4jex.ChangesetTest do
+defmodule Seraph.ChangesetTest do
   use ExUnit.Case, async: true
 
   defmodule User do
-    use Neo4jex.Schema.Node
+    use Seraph.Schema.Node
 
     node "User" do
       property :name, :string
@@ -11,7 +11,7 @@ defmodule Neo4jex.ChangesetTest do
   end
 
   defmodule Post do
-    use Neo4jex.Schema.Node
+    use Seraph.Schema.Node
 
     node "Post" do
       property :title, :string
@@ -20,7 +20,7 @@ defmodule Neo4jex.ChangesetTest do
   end
 
   defmodule UserWrotePost do
-    use Neo4jex.Schema.Relationship
+    use Seraph.Schema.Relationship
 
     relationship "WROTE" do
       start_node User
@@ -30,7 +30,7 @@ defmodule Neo4jex.ChangesetTest do
     end
   end
 
-  alias Neo4jex.Changeset
+  alias Seraph.Changeset
 
   describe "Node:" do
     test "cast/4 produces a valid Ecto.Changeset" do

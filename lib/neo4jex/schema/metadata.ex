@@ -1,4 +1,4 @@
-defmodule Neo4jex.Schema.Metadata do
+defmodule Seraph.Schema.Metadata do
   defstruct [:source, :schema]
 
   @type t :: %__MODULE__{

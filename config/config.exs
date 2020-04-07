@@ -10,11 +10,11 @@ use Mix.Config
 
 # You can configure your application as:
 #
-#     config :neo4jex, key: :value
+#     config :seraph, key: :value
 #
 # and access this configuration in your application as:
 #
-#     Application.get_env(:neo4jex, :key)
+#     Application.get_env(:seraph, :key)
 #
 # You can also configure a third-party app:
 #

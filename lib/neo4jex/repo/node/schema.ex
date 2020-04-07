@@ -1,8 +1,8 @@
-defmodule Neo4jex.Repo.Node.Schema do
-  alias Neo4jex.Query.{Builder, Helper, Planner}
+defmodule Seraph.Repo.Node.Schema do
+  alias Seraph.Query.{Builder, Helper, Planner}
 
-  @spec create(Neo4jex.Repo.t(), Neo4jex.Schema.Node.t(), Neo4jex.Repo.Schema.create_options()) ::
-          {:ok, Neo4jex.Schema.Node.t()}
+  @spec create(Seraph.Repo.t(), Seraph.Schema.Node.t(), Seraph.Repo.Schema.create_options()) ::
+          {:ok, Seraph.Schema.Node.t()}
   def create(repo, %{__struct__: queryable} = data, _opts) do
     persisted_properties = queryable.__schema__(:persisted_properties)
 
@@ -58,8 +58,8 @@ defmodule Neo4jex.Repo.Node.Schema do
     {:ok, Map.put(data, :__id__, created_node.id)}
   end
 
-  @spec merge(Neo4jex.Repo.t(), Ecto.Changeset.t() | Neo4jex.Schema.Node.t(), Keyword.t()) ::
-          {:ok, Neo4jex.Schema.Node.t()}
+  @spec merge(Seraph.Repo.t(), Ecto.Changeset.t() | Seraph.Schema.Node.t(), Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t()}
   def merge(repo, %Ecto.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
     queryable.__schema__(:merge_keys)
     |> Enum.map(&Ecto.Changeset.fetch_field(changeset, &1))
@@ -94,14 +94,14 @@ defmodule Neo4jex.Repo.Node.Schema do
     end
   end
 
-  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
-          {:ok, Neo4jex.Schema.Node.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t()}
   def merge(repo, queryable, merge_keys_data, opts) do
-    merge_opts = Neo4jex.Repo.Schema.create_match_merge_opts(opts)
+    merge_opts = Seraph.Repo.Schema.create_match_merge_opts(opts)
     do_create_match_merge(repo, queryable, merge_keys_data, merge_opts)
   end
 
-  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Neo4jex.Schema.Node.t()}
+  @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Seraph.Schema.Node.t()}
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
 
@@ -232,7 +232,7 @@ defmodule Neo4jex.Repo.Node.Schema do
 
       {:ok, [%{"n" => merged_node}]} = Planner.query(repo, statement, params)
 
-      {:ok, Neo4jex.Repo.Node.Helper.build_node(queryable, merged_node)}
+      {:ok, Seraph.Repo.Node.Helper.build_node(queryable, merged_node)}
     else
       {:error, _} = error ->
         error
@@ -254,8 +254,8 @@ defmodule Neo4jex.Repo.Node.Schema do
     {:ok, %{sets: [], params: %{}}}
   end
 
-  @spec build_set(Builder.NodeExpr.t(), Neo4jex.Schema.Node.t()) ::
-          Neo4jex.Repo.Queryable.sets_data()
+  @spec build_set(Builder.NodeExpr.t(), Seraph.Schema.Node.t()) ::
+          Seraph.Repo.Queryable.sets_data()
   defp build_set(entity, data, prop_prefix \\ "") do
     Enum.reduce(data, %{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
       bound_name = entity.variable <> "_" <> prop_prefix <> "_" <> Atom.to_string(prop_name)
@@ -296,12 +296,12 @@ defmodule Neo4jex.Repo.Node.Schema do
     []
   end
 
-  @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: {:ok, Neo4jex.Schema.Node.t()}
+  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
   def delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
     data =
       changeset
       |> Map.put(:changes, %{})
-      |> Neo4jex.Changeset.apply_changes()
+      |> Seraph.Changeset.apply_changes()
 
     queryable = data.__struct__
 
@@ -327,7 +327,7 @@ defmodule Neo4jex.Repo.Node.Schema do
         {:ok, data}
 
       [] ->
-        raise Neo4jex.DeletionError, queryable: queryable, data: data
+        raise Seraph.DeletionError, queryable: queryable, data: data
     end
   end
 end

@@ -1,5 +1,5 @@
-defmodule Neo4jex.Repo.Node.Queryable do
-  alias Neo4jex.Query.{Builder, Condition, Planner}
+defmodule Seraph.Repo.Node.Queryable do
+  alias Seraph.Query.{Builder, Condition, Planner}
 
   def get(repo, queryable, id_value) do
     id_field = identifier_field(queryable)
