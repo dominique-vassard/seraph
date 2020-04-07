@@ -1,131 +1,24 @@
 defmodule Neo4jex.Repo.Queryable do
-  alias Neo4jex.Query.{Builder, Condition, Helper, Planner}
-
   @type t :: module
-  @type sets_data :: %{
-          sets: [Builder.SetExpr.t()],
-          params: map
-        }
-
-  @type merge_keys_data :: %{
-          where: nil | Condition.t(),
-          params: map
-        }
 
   @spec get(Neo4jex.Repo.t(), Queryable.t(), any) :: nil | Neo4jex.Schema.Node.t()
   def get(repo, queryable, id_value) do
-    id_field = identifier_field(queryable)
-
-    node_to_get = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    condition = %Condition{
-      source: node_to_get.variable,
-      field: id_field,
-      operator: :==,
-      value: Atom.to_string(id_field)
-    }
-
-    params = Map.put(%{}, id_field, id_value)
-
-    fields =
-      Enum.map(queryable.__schema__(:properties), fn property ->
-        %Builder.FieldExpr{
-          variable: node_to_get.variable,
-          name: property,
-          alias: Atom.to_string(property)
-        }
-      end)
-
-    id_expr = %Builder.Fragment{
-      expr: "id(#{node_to_get.variable})",
-      alias: "__id__"
-    }
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([node_to_get])
-      |> Builder.where(condition)
-      |> Builder.params(params)
-      |> Builder.return(%Builder.ReturnExpr{fields: [id_expr | fields]})
-      |> Builder.to_string()
-
-    {:ok, results} = Planner.query(repo, statement, params)
-
-    case List.first(results) do
-      nil ->
-        nil
-
-      res ->
-        struct(queryable, Enum.map(res, fn {k, v} -> {String.to_atom(k), v} end))
-    end
+    Neo4jex.Repo.Node.Queryable.get(repo, queryable, id_value)
   end
 
-  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t()) ::
-          {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
-  def set(repo, %Ecto.Changeset{valid?: true} = changeset) do
-    %{__struct__: queryable} = changeset.data
-
-    node_to_set = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    changes = Map.drop(changeset.changes, [:additionalLabels])
-    sets = build_set(node_to_set, changes)
-    merge_keys_data = Helper.build_where_from_merge_keys(node_to_set, queryable, changeset.data)
-    label_ops = build_label_operation(node_to_set, queryable, changeset)
-
-    return_fields =
-      Enum.map(changes, fn {property, _} ->
-        %Builder.FieldExpr{
-          variable: node_to_set.variable,
-          name: property,
-          alias: Atom.to_string(property)
-        }
-      end)
-
-    label_field = %Builder.Fragment{
-      expr: "labels(#{node_to_set.variable})",
-      alias: "additionalLabels"
-    }
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([node_to_set])
-      |> Builder.set(sets.sets)
-      |> Builder.label_ops(label_ops)
-      |> Builder.where(merge_keys_data.where)
-      |> Builder.return(%Builder.ReturnExpr{fields: [label_field | return_fields]})
-      |> Builder.params(Map.merge(merge_keys_data.params, sets.params))
-      |> Builder.to_string()
-
-    {:ok, results} = Planner.query(repo, statement, params)
-
-    formated_res =
-      case List.first(results) do
-        nil ->
-          changeset.data
-
-        result ->
-          Enum.reduce(result, changeset.data, fn {property, value}, data ->
-            case property do
-              "additionalLabels" ->
-                Map.put(data, :additionalLabels, value -- [queryable.__schema__(:primary_label)])
-
-              prop ->
-                Map.put(data, String.to_atom(prop), value)
-            end
-          end)
-      end
-
-    {:ok, formated_res}
-  end
-
-  def set(_, %Ecto.Changeset{valid?: false} = changeset) do
-    {:error, changeset}
+  @spec get(
+          Neo4jex.Repo.t(),
+          Queryable.t(),
+          Neo4jex.Schema.Node.t() | map,
+          Neo4jex.Schema.Node.t() | map
+        ) :: nil | Neo4jex.Schema.Relationship.t()
+  def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
+    Neo4jex.Repo.Relationship.Queryable.get(
+      repo,
+      queryable,
+      start_struct_or_data,
+      end_struct_or_data
+    )
   end
 
   @spec get!(Neo4jex.Repo.t(), Queryable.t(), any) :: Neo4jex.Schema.Node.t()
@@ -136,66 +29,24 @@ defmodule Neo4jex.Repo.Queryable do
     end
   end
 
-  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
-  def set!(repo, changeset) do
-    case set(repo, changeset) do
-      {:ok, result} ->
+  @spec get!(
+          Neo4jex.Repo.t(),
+          Queryable.t(),
+          Neo4jex.Schema.Node.t() | map,
+          Neo4jex.Schema.Node.t() | map
+        ) :: Neo4jex.Schema.Relationship.t()
+  def get!(repo, queryable, start_struct_or_data, end_struct_or_data) do
+    case get(repo, queryable, start_struct_or_data, end_struct_or_data) do
+      nil ->
+        params = %{
+          start: start_struct_or_data,
+          end: end_struct_or_data
+        }
+
+        raise Neo4jex.NoResultsError, queryable: queryable, function: :get!, params: params
+
+      result ->
         result
-
-      {:error, changeset} ->
-        raise Neo4jex.InvalidChangesetError, action: :set, changeset: changeset
     end
-  end
-
-  @spec identifier_field(Queryable.t()) :: atom
-  defp identifier_field(queryable) do
-    case queryable.__schema__(:identifier) do
-      {field, _, _} ->
-        field
-
-      _ ->
-        raise ArgumentError, "Impossible to use get/2 on a schema without identifier."
-    end
-  end
-
-  @spec build_set(Builder.NodeExpr.t(), Neo4jex.Schema.Node.t()) :: sets_data()
-  defp build_set(entity, data) do
-    Enum.reduce(data, %{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-      bound_name = entity.variable <> "_" <> Atom.to_string(prop_name)
-
-      set = %Builder.SetExpr{
-        field: %Builder.FieldExpr{
-          variable: entity.variable,
-          name: prop_name
-        },
-        value: bound_name
-      }
-
-      %{
-        sets_data
-        | sets: [set | sets_data.sets],
-          params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
-      }
-    end)
-  end
-
-  @spec build_label_operation(Builder.NodeExpr.t(), Queryable.t(), Ecto.Changeset.t()) :: [
-          Builder.LabelOperationExpr.t()
-        ]
-  defp build_label_operation(entity, queryable, %{changes: %{additionalLabels: _}} = changeset) do
-    additionalLabels =
-      changeset.changes[:additionalLabels] -- [queryable.__schema__(:primary_label)]
-
-    [
-      %Builder.LabelOperationExpr{
-        variable: entity.variable,
-        set: additionalLabels -- changeset.data.additionalLabels,
-        remove: changeset.data.additionalLabels -- additionalLabels
-      }
-    ]
-  end
-
-  defp build_label_operation(_entity, _queryable, _changeset) do
-    []
   end
 end

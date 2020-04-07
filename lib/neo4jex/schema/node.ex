@@ -62,6 +62,7 @@ defmodule Neo4jex.Schema.Node do
         unless @identifier == false do
           {name, type, opts} = @identifier
           Neo4jex.Schema.Node.__property__(__MODULE__, name, type, opts ++ [identifier: true])
+          Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
         end
 
         primary_label = unquote(primary_label)
@@ -110,7 +111,12 @@ defmodule Neo4jex.Schema.Node do
 
         defstruct @struct_fields
 
+        def __changeset__ do
+          %{unquote_splicing(Macro.escape(cs_prop_list))}
+        end
+
         def __schema__(:schema), do: __MODULE__
+        def __schema__(:entity_type), do: :node
         def __schema__(:primary_label), do: unquote(primary_label)
         def __schema__(:properties), do: unquote(prop_list)
         def __schema__(:changeset_properties), do: unquote(cs_prop_list)

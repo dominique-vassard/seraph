@@ -1,6 +1,11 @@
 defmodule Neo4jex.Query.Helper do
   alias Neo4jex.Query.Condition
 
+  @type merge_keys_data :: %{
+          where: nil | Condition.t(),
+          params: map
+        }
+
   @spec build_where_from_merge_keys(
           Neo4jex.Query.Builder.NodeExpr.t(),
           Neo4jex.Repo.Queryable.t(),

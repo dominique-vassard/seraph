@@ -1,80 +1,103 @@
 defmodule Neo4jex.Repo.Schema do
-  alias Neo4jex.Query.{Builder, Helper, Planner}
+  alias Neo4jex.Repo.{Node, Relationship}
 
-  @type merge_options :: [on_create: Ecto.Changeset.t(), on_match: Ecto.Changeset.t()]
+  @type create_options :: Keyword.t()
+  @type merge_options :: Keyword.t()
+  @type create_match_merge_opts :: Keyword.t()
 
-  @spec create(Neo4jex.Repo.t(), struct | Neo4jex.Schema.Node.t() | Ecto.Changeset.t()) ::
-          {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
-  def create(repo, %{__struct__: schema, __meta__: %Neo4jex.Schema.Node.Metadata{}} = data) do
-    persisted_properties = schema.__schema__(:persisted_properties)
-
-    data =
-      case schema.__schema__(:identifier) do
-        {:uuid, :string, _} ->
-          Map.put(data, :uuid, UUID.uuid4())
-
-        _ ->
-          data
-      end
-
-    node_to_insert = %Builder.NodeExpr{
-      labels: [schema.__schema__(:primary_label)] ++ data.additionalLabels,
-      variable: "n"
-    }
-
-    sets =
-      data
-      |> Map.from_struct()
-      |> Enum.filter(fn {k, _} ->
-        k in persisted_properties
-      end)
-      |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-        bound_name = node_to_insert.variable <> "_" <> Atom.to_string(prop_name)
-
-        set = %Builder.SetExpr{
-          field: %Builder.FieldExpr{
-            variable: node_to_insert.variable,
-            name: prop_name
-          },
-          value: bound_name
-        }
-
-        %{
-          sets_data
-          | sets: [set | sets_data.sets],
-            params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
-        }
-      end)
-
-    {cql, params} =
-      Builder.new()
-      |> Builder.create([node_to_insert])
-      |> Builder.set(sets.sets)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [node_to_insert]
-      })
-      |> Builder.to_string()
-
-    {:ok, [%{"n" => created_node}]} = Planner.query(repo, cql, Map.merge(params, sets.params))
-
-    {:ok, Map.put(data, :__id__, created_node.id)}
+  @spec create(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
+          create_options
+        ) ::
+          {:ok, Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()}
+          | {:error, Ecto.Changeset.t()}
+  def create(repo, %{__meta__: %Neo4jex.Schema.Node.Metadata{}} = data, opts) do
+    Node.Schema.create(repo, data, opts)
   end
 
-  def create(repo, %Ecto.Changeset{valid?: true} = changeset) do
+  def create(repo, %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}} = data, opts) do
+    Relationship.Schema.create(repo, data, opts)
+  end
+
+  def create(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
     cs =
       changeset
       |> Ecto.Changeset.apply_changes()
 
-    create(repo, cs)
+    create(repo, cs, opts)
   end
 
-  def create(_, %Ecto.Changeset{valid?: false} = changeset) do
+  def create(_, %Ecto.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
   end
 
-  @spec create!(Neo4jex.Repo.t(), Ecto.Changeset.t()) :: Neo4jex.Schema.Node.t()
-  def create!(repo, changeset) do
-    case create(repo, changeset) do
+  @spec create!(Neo4jex.Repo.t(), Ecto.Changeset.t(), create_options()) ::
+          Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()
+  def create!(repo, changeset, opts) do
+    case create(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :insert, changeset: changeset
+    end
+  end
+
+  @spec merge(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
+          merge_options
+        ) :: {:ok, Neo4jex.Schema.Relationship.t()} | {:error, Ecto.Changeset.t()}
+  def merge(repo, %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}} = data, opts) do
+    Relationship.Schema.merge(repo, data, opts)
+  end
+
+  def merge(repo, %{__meta__: %Neo4jex.Schema.Node.Metadata{}} = data, opts) do
+    Node.Schema.merge(repo, data, opts)
+  end
+
+  def merge(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Node.Schema.merge(repo, changeset, opts)
+  end
+
+  def merge(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
+    cs =
+      changeset
+      |> Ecto.Changeset.apply_changes()
+
+    merge(repo, cs, opts)
+  end
+
+  def merge(_, %Ecto.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
+  end
+
+  def merge(_, _, _) do
+    raise ArgumentError, "merge/3 requires a Ecto.Changeset or a Queryable struct."
+  end
+
+  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()} | {:error, any}
+  def merge(repo, queryable, merge_keys_data, opts) do
+    case queryable.__schema__(:entity_type) do
+      :node -> Node.Schema.merge(repo, queryable, merge_keys_data, opts)
+      :relationship -> Relationship.Schema.merge(repo, queryable, merge_keys_data, opts)
+    end
+  end
+
+  @spec merge!(
+          Neo4jex.Repo.t(),
+          Neo4jex.Schema.Relationship.t() | Ecto.Changeset.t(),
+          merge_options
+        ) :: Neo4jex.Schema.Relationship.t()
+  def merge!(repo, changeset, opts) do
+    case merge(repo, changeset, opts) do
       {:ok, result} ->
         result
 
@@ -83,54 +106,84 @@ defmodule Neo4jex.Repo.Schema do
     end
   end
 
+  @spec merge!(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+          Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()
+  def merge!(repo, queryable, merge_keys_data, opts) do
+    case merge(repo, queryable, merge_keys_data, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, [on_create: %Ecto.Changeset{} = changeset]} ->
+        raise Neo4jex.InvalidChangesetError, action: :on_create, changeset: changeset
+
+      {:error, [on_match: %Ecto.Changeset{} = changeset]} ->
+        raise Neo4jex.InvalidChangesetError, action: :on_match, changeset: changeset
+    end
+  end
+
+  @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Node.t()}
+          | {:ok, Neo4jex.Schema.Relationship.t()}
+          | {:error, Ecto.Changeset.t()}
+  def set(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Neo4jex.Repo.Node.Schema.set(repo, changeset, opts)
+  end
+
+  def set(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}}} =
+          changeset,
+        opts
+      ) do
+    Neo4jex.Repo.Relationship.Schema.set(repo, changeset, opts)
+  end
+
+  def set(_, %Ecto.Changeset{valid?: false} = changeset, _opts) do
+    {:error, changeset}
+  end
+
+  @spec set!(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: Neo4jex.Schema.Node.t()
+  def set!(repo, changeset, opts) do
+    case set(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Neo4jex.InvalidChangesetError, action: :set, changeset: changeset
+    end
+  end
+
   @spec delete(Neo4jex.Repo.t(), Ecto.Changeset.t() | Neo4jex.Schema.Node.t()) ::
           {:ok, Neo4jex.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
-  def delete(repo, %Ecto.Changeset{} = changeset) do
-    do_delete(repo, changeset)
+  def delete(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Node.Metadata{}}} =
+          changeset
+      ) do
+    Node.Schema.delete(repo, changeset)
+  end
+
+  def delete(
+        repo,
+        %Ecto.Changeset{valid?: true, data: %{__meta__: %Neo4jex.Schema.Relationship.Metadata{}}} =
+          changeset
+      ) do
+    Relationship.Schema.delete(repo, changeset)
+  end
+
+  def delete(_repo, %Ecto.Changeset{valid?: false} = changeset) do
+    {:error, changeset}
   end
 
   def delete(repo, struct) do
     changeset = Neo4jex.Changeset.change(struct)
 
-    do_delete(repo, changeset)
-  end
-
-  defp do_delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
-    data =
-      changeset
-      |> Map.put(:changes, %{})
-      |> Neo4jex.Changeset.apply_changes()
-
-    queryable = data.__struct__
-
-    node_to_del = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    merge_keys_data = Helper.build_where_from_merge_keys(node_to_del, queryable, data)
-
-    {statement, params} =
-      Builder.new(:delete)
-      |> Builder.match([node_to_del])
-      |> Builder.delete([node_to_del])
-      |> Builder.where(merge_keys_data.where)
-      |> Builder.params(merge_keys_data.params)
-      |> Builder.to_string()
-
-    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
-
-    case stats do
-      %{"nodes-deleted" => 1} ->
-        {:ok, data}
-
-      [] ->
-        raise Neo4jex.DeletionError, queryable: queryable, data: data
-    end
-  end
-
-  defp do_delete(_, changeset) do
-    {:error, changeset}
+    delete(repo, changeset)
   end
 
   @spec delete!(Neo4jex.Repo.t(), Neo4jex.Schema.Node.t() | Ecto.Changeset.t()) ::
@@ -143,5 +196,45 @@ defmodule Neo4jex.Repo.Schema do
       {:error, changeset} ->
         raise Neo4jex.InvalidChangesetError, action: :delete, changeset: changeset
     end
+  end
+
+  @spec create_match_merge_opts(create_match_merge_opts(), create_match_merge_opts) ::
+          create_match_merge_opts | {:error, String.t()}
+  def create_match_merge_opts(opts, final_opts \\ [])
+
+  def create_match_merge_opts([{:on_create, {data, changeset_fn} = on_create_opts} | rest], opts)
+      when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_create, on_create_opts))
+  end
+
+  def create_match_merge_opts([{:on_create, on_create_opts} | _], _opts) do
+    msg = """
+    on_create: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_create_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  def create_match_merge_opts([{:on_match, {data, changeset_fn} = on_match_opts} | rest], opts)
+      when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_match, on_match_opts))
+  end
+
+  def create_match_merge_opts([{:on_match, on_match_opts} | _], _opts) do
+    msg = """
+    on_match: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_match_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  def create_match_merge_opts(_, opts) do
+    opts
   end
 end

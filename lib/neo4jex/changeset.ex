@@ -1,8 +1,18 @@
 defmodule Neo4jex.Changeset do
   def cast(%{__struct__: entity} = data, params, permitted, opts \\ []) do
-    types = entity.__schema__(:changeset_properties) |> Keyword.to_list() |> Enum.into(%{})
+    types = changeset_properties_types(entity)
 
-    Ecto.Changeset.cast({data, types}, params, permitted, opts)
+    changeset = Ecto.Changeset.cast({data, types}, params, permitted, opts)
+
+    case entity.__schema__(:entity_type) do
+      :node ->
+        changeset
+
+      :relationship ->
+        changeset
+        |> cast_linked_node(entity, :start_node, Map.get(params, :start_node), permitted)
+        |> cast_linked_node(entity, :end_node, Map.get(params, :end_node), permitted)
+    end
   end
 
   def change(%{__struct__: entity} = data, changes \\ %{}) do
@@ -37,4 +47,65 @@ defmodule Neo4jex.Changeset do
   defdelegate validate_required(changeset, fields, opts \\ []), to: Ecto.Changeset
   defdelegate validate_subset(changeset, field, data, opts \\ []), to: Ecto.Changeset
   defdelegate validations(changeset), to: Ecto.Changeset
+
+  defp changeset_properties_types(entity) do
+    entity.__schema__(:changeset_properties)
+    |> Keyword.to_list()
+    |> Enum.into(%{})
+  end
+
+  defp cast_linked_node(changeset, _, _, nil, _) do
+    changeset
+  end
+
+  defp cast_linked_node(changeset, relationship, linked_node, node_data, permitted) do
+    case linked_node in permitted do
+      true ->
+        case extract_queryable(node_data) do
+          {:ok, queryable} ->
+            case queryable == relationship.__schema__(linked_node) do
+              true ->
+                changeset
+                |> put_change(linked_node, node_data)
+
+              false ->
+                changeset
+                |> add_error(
+                  linked_node,
+                  "#{inspect(linked_node)} must be a #{
+                    Atom.to_string(relationship.__schema__(linked_node))
+                  }."
+                )
+            end
+
+          {:error, _} ->
+            changeset
+            |> add_error(
+              linked_node,
+              "#{inspect(linked_node)} must be a #{
+                Atom.to_string(relationship.__schema__(linked_node))
+              }."
+            )
+        end
+
+      false ->
+        changeset
+    end
+  end
+
+  defp extract_queryable(%Ecto.Changeset{data: data}) do
+    do_extract_queryable(data)
+  end
+
+  defp extract_queryable(data) do
+    do_extract_queryable(data)
+  end
+
+  defp do_extract_queryable(%{__struct__: queryable}) do
+    {:ok, queryable}
+  end
+
+  defp do_extract_queryable(_) do
+    {:error, :invalid_type}
+  end
 end

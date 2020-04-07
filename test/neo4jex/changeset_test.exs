@@ -72,7 +72,7 @@ defmodule Neo4jex.ChangesetTest do
     end
 
     test "change/2 produces a valid Ecto.Changeset" do
-      assert %Ecto.Changeset{} = Changeset.change(%UserWrotePost{})
+      assert %Ecto.Changeset{valid?: true} = Changeset.change(%UserWrotePost{})
     end
   end
 end

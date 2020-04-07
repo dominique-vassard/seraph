@@ -33,6 +33,7 @@ defmodule Neo4jex.Schema.NodeTest do
     assert SimpleSchema.__schema__(:type, :geoloc) == :boolean
 
     assert SimpleSchema.__schema__(:changeset_properties) == [
+             uuid: :string,
              additionalLabels: {:array, :string},
              firstName: :string,
              lastName: :string,
