@@ -569,6 +569,311 @@ defmodule Neo4jex.RepoRelationshipTest do
     end
   end
 
+  describe "merge/4" do
+    test "ok: on_create opt (existing -> no change)" do
+      old_rel = add_fixtures(:relationship)
+
+      date = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      data = %{
+        start_node: old_rel.start_node,
+        end_node: old_rel.end_node
+      }
+
+      assert {:ok, rel_wrote} =
+               TestRepo.merge(Wrote, data, on_create: {%{at: date}, &Wrote.changeset/2})
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               type: "WROTE",
+               start_node: %Neo4jex.Test.User{},
+               end_node: %Neo4jex.Test.Post{}
+             } = rel_wrote
+
+      refute is_nil(rel_wrote.__id__)
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: old_rel.start_node.uuid,
+        post_uuid: old_rel.end_node.uuid
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
+    test "ok: on_create opt (not existing -> creation)" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      assert {:ok, rel_wrote} = TestRepo.merge(Wrote, data, on_create: {%{}, &Wrote.changeset/2})
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               type: "WROTE",
+               start_node: %Neo4jex.Test.User{},
+               end_node: %Neo4jex.Test.Post{}
+             } = rel_wrote
+
+      refute is_nil(rel_wrote.__id__)
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: user.uuid,
+        post_uuid: post.uuid
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
+    test "ok: on_match opt (existing -> update)" do
+      old_rel = add_fixtures(:relationship)
+
+      {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+
+      data = %{
+        start_node: old_rel.start_node,
+        end_node: old_rel.end_node
+      }
+
+      assert {:ok, rel_wrote} =
+               TestRepo.merge(Wrote, data,
+                 on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
+               )
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               type: "WROTE",
+               start_node: %Neo4jex.Test.User{},
+               end_node: %Neo4jex.Test.Post{}
+             } = rel_wrote
+
+      refute is_nil(rel_wrote.__id__)
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE {at: $rel_date}]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: old_rel.start_node.uuid,
+        post_uuid: old_rel.end_node.uuid,
+        rel_date: DateTime.truncate(date, :second)
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
+    test "ok: on_create opt (not existing -> no change)" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+
+      assert {:ok, rel_wrote} =
+               TestRepo.merge(Wrote, data,
+                 on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
+               )
+
+      assert %Neo4jex.Test.UserToPost.Wrote{
+               type: "WROTE",
+               start_node: %Neo4jex.Test.User{},
+               end_node: %Neo4jex.Test.Post{}
+             } = rel_wrote
+
+      refute is_nil(rel_wrote.__id__)
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE {at: $rel_date}]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: user.uuid,
+        post_uuid: post.uuid,
+        rel_date: DateTime.truncate(date, :second)
+      }
+
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
+    end
+
+    test "ok: on_create + on_match opts (existing -> update)" do
+      old_rel = add_fixtures(:relationship)
+
+      {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+      create_date = DateTime.utc_now() |> DateTime.truncate(:second)
+      match_date = DateTime.truncate(date, :second)
+
+      data = %{
+        start_node: old_rel.start_node,
+        end_node: old_rel.end_node
+      }
+
+      assert {:ok, rel_wrote} =
+               TestRepo.merge(Wrote, data,
+                 on_create: {%{at: create_date}, &Wrote.changeset/2},
+                 on_match: {%{at: match_date}, &Wrote.changeset/2}
+               )
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE {at: $rel_date}]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: old_rel.start_node.uuid,
+        post_uuid: old_rel.end_node.uuid,
+        rel_date: match_date
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
+    test "ok: on_create + on_match opts (not existing -> creation)" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+      create_date = DateTime.utc_now() |> DateTime.truncate(:second)
+      match_date = DateTime.truncate(date, :second)
+
+      assert {:ok, rel_wrote} =
+               TestRepo.merge(Wrote, data,
+                 on_create: {%{at: create_date}, &Wrote.changeset/2},
+                 on_match: {%{at: match_date}, &Wrote.changeset/2}
+               )
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE {at: $rel_date}]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: user.uuid,
+        post_uuid: post.uuid,
+        rel_date: create_date
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
+    test "fail: on_create invalid changeset" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      assert {:error, [on_create: %Ecto.Changeset{valid?: false}]} =
+               TestRepo.merge(Wrote, data, on_create: {%{at: :invalid}, &Wrote.changeset/2})
+    end
+
+    test "fail: on_match invalid changeset" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      assert {:error, [on_match: %Ecto.Changeset{valid?: false}]} =
+               TestRepo.merge(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
+    end
+
+    test "raise: when used with !" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      assert_raise Neo4jex.InvalidChangesetError, fn ->
+        TestRepo.merge!(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
+      end
+    end
+  end
+
   describe "get/3" do
     test "ok: with structs only" do
       relationship = add_fixtures(:relationship)

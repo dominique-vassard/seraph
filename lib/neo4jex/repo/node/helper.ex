@@ -22,7 +22,7 @@ defmodule Neo4jex.Repo.Node.Helper do
   end
 
   @spec atom_map(map) :: map
-  defp atom_map(string_map) do
+  def atom_map(string_map) do
     string_map
     |> Enum.map(fn {k, v} ->
       {String.to_atom(k), v}

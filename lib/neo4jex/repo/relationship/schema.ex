@@ -120,6 +120,79 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
+  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Neo4jex.Schema.Relationship.t()}
+  def merge(repo, queryable, nodes_data, opts) do
+    merge_opts = Neo4jex.Repo.Schema.create_match_merge_opts(opts)
+    do_create_match_merge(repo, queryable, nodes_data, merge_opts)
+  end
+
+  defp do_create_match_merge(_, _, _, {:error, error}) do
+    raise ArgumentError, error
+  end
+
+  defp do_create_match_merge(repo, queryable, nodes_data, merge_opts) do
+    check_nodes_data(nodes_data)
+
+    {start_node, start_params} = build_node_merge("start", nodes_data.start_node)
+    {end_node, end_params} = build_node_merge("end", nodes_data.end_node)
+
+    relationship = %Builder.RelationshipExpr{
+      start: %Builder.NodeExpr{
+        variable: start_node.variable
+      },
+      end: %Builder.NodeExpr{
+        variable: end_node.variable
+      },
+      type: queryable.__schema__(:type),
+      variable: "rel"
+    }
+
+    with {:ok, %{sets: on_create_sets, params: on_create_params}} <-
+           build_merge_sets(
+             queryable,
+             relationship,
+             :on_create,
+             Keyword.get(merge_opts, :on_create)
+           ),
+         {:ok, %{sets: on_match_sets, params: on_match_params}} <-
+           build_merge_sets(
+             queryable,
+             relationship,
+             :on_match,
+             Keyword.get(merge_opts, :on_match)
+           ) do
+      merge = %Builder.MergeExpr{
+        expr: relationship,
+        on_create: on_create_sets,
+        on_match: on_match_sets
+      }
+
+      pre_params =
+        start_params
+        |> Map.merge(end_params)
+        |> Map.merge(on_create_params)
+        |> Map.merge(on_match_params)
+
+      {statement, params} =
+        Builder.new(:merge)
+        |> Builder.match([start_node, end_node])
+        |> Builder.merge([merge])
+        |> Builder.return(%Builder.ReturnExpr{
+          fields: [start_node, end_node, relationship]
+        })
+        |> Builder.params(pre_params)
+        |> Builder.to_string()
+
+      {:ok, bare_result} = Planner.query(repo, statement, params)
+      result = format_result(queryable, List.first(bare_result))
+      {:ok, result}
+    else
+      {:error, _} = error ->
+        error
+    end
+  end
+
   @spec set(Neo4jex.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
           {:ok, Neo4jex.Schema.Relationship.t()}
 
@@ -250,6 +323,8 @@ defmodule Neo4jex.Repo.Relationship.Schema do
   end
 
   @spec build_node_match(String.t(), Neo4jex.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
+  defp build_node_match(variable, node_data)
+
   defp build_node_match(_, %Ecto.Changeset{}) do
     raise ArgumentError, "start node and end node should be Queryable, not Changeset"
   end
@@ -275,13 +350,64 @@ defmodule Neo4jex.Repo.Relationship.Schema do
     {match, params}
   end
 
-  defp build_sets(variable, rel_data, persisted_properties) do
+  defp build_node_merge(variable, node_data) do
+    %{__struct__: queryable} = node_data
+
+    merge_keys_data =
+      queryable.__schema__(:merge_keys)
+      |> Enum.reduce(%{properties: %{}, params: %{}}, fn merge_key, mk_data ->
+        bound_name = variable <> "_" <> Atom.to_string(merge_key)
+
+        %{
+          mk_data
+          | properties: Map.put(mk_data.properties, merge_key, bound_name),
+            params: Map.put(mk_data, String.to_atom(bound_name), Map.fetch!(node_data, merge_key))
+        }
+      end)
+
+    node_merge = %Builder.NodeExpr{
+      variable: variable,
+      labels: [
+        queryable.__schema__(:primary_label)
+        | Map.get(node_data, :additional_labels, [])
+      ],
+      properties: merge_keys_data.properties
+    }
+
+    {node_merge, merge_keys_data.params}
+  end
+
+  defp build_merge_sets(queryable, rel_to_merge, operation, {data, changeset_fn}) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    case changeset_fn.(struct(queryable, %{}), data) do
+      %Ecto.Changeset{valid?: false} = changeset ->
+        {:error, [{operation, changeset}]}
+
+      %Ecto.Changeset{valid?: true} = changeset ->
+        sets =
+          build_sets(
+            rel_to_merge.variable,
+            changeset.changes,
+            persisted_properties,
+            Atom.to_string(operation)
+          )
+
+        {:ok, sets}
+    end
+  end
+
+  defp build_merge_sets(_, _, _, _) do
+    {:ok, %{sets: [], params: %{}}}
+  end
+
+  defp build_sets(variable, rel_data, persisted_properties, prop_prefix \\ "") do
     rel_data
     |> Enum.filter(fn {k, _} ->
       k in persisted_properties
     end)
     |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-      bound_name = variable <> "_" <> Atom.to_string(prop_name)
+      bound_name = variable <> "_" <> prop_prefix <> "_" <> Atom.to_string(prop_name)
 
       set = %Builder.SetExpr{
         field: %Builder.FieldExpr{
@@ -351,5 +477,39 @@ defmodule Neo4jex.Repo.Relationship.Schema do
       :error ->
         changeset
     end
+  end
+
+  @spec check_nodes_data(any) :: :ok
+  defp check_nodes_data(%{start_node: %{__struct__: _}, end_node: %{__struct__: _}}) do
+    :ok
+  end
+
+  defp check_nodes_data(nodes_data) do
+    msg = """
+    nodes_data must be a map.
+    :start_node and :end_node are mandatory and must be Neo4jex.Schema.Node.
+    Received:
+    #{inspect(nodes_data)}
+    """
+
+    raise ArgumentError, msg
+  end
+
+  @spec format_result(Neo4jex.Repo.Queryable.t(), map) :: Neo4jex.Schema.Relationship.t()
+  defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
+    props =
+      rel_data.properties
+      |> Neo4jex.Repo.Node.Helper.atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(
+        :start_node,
+        Neo4jex.Repo.Node.Helper.build_node(queryable.__schema__(:start_node), start_data)
+      )
+      |> Map.put(
+        :end_node,
+        Neo4jex.Repo.Node.Helper.build_node(queryable.__schema__(:end_node), end_data)
+      )
+
+    struct(queryable, props)
   end
 end

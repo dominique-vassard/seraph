@@ -3,6 +3,7 @@ defmodule Neo4jex.Repo.Schema do
 
   @type create_options :: Keyword.t()
   @type merge_options :: Keyword.t()
+  @type create_match_merge_opts :: Keyword.t()
 
   @spec create(
           Neo4jex.Repo.t(),
@@ -86,7 +87,7 @@ defmodule Neo4jex.Repo.Schema do
   def merge(repo, queryable, merge_keys_data, opts) do
     case queryable.__schema__(:entity_type) do
       :node -> Node.Schema.merge(repo, queryable, merge_keys_data, opts)
-      _ -> {:error, "not supported"}
+      :relationship -> Relationship.Schema.merge(repo, queryable, merge_keys_data, opts)
     end
   end
 
@@ -105,7 +106,7 @@ defmodule Neo4jex.Repo.Schema do
     end
   end
 
-  @spec merge(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
+  @spec merge!(Neo4jex.Repo.t(), Neo4jex.Repo.Queryable.t(), map, Keyword.t()) ::
           Neo4jex.Schema.Node.t() | Neo4jex.Schema.Relationship.t()
   def merge!(repo, queryable, merge_keys_data, opts) do
     case merge(repo, queryable, merge_keys_data, opts) do
@@ -195,5 +196,45 @@ defmodule Neo4jex.Repo.Schema do
       {:error, changeset} ->
         raise Neo4jex.InvalidChangesetError, action: :delete, changeset: changeset
     end
+  end
+
+  @spec create_match_merge_opts(create_match_merge_opts(), create_match_merge_opts) ::
+          create_match_merge_opts | {:error, String.t()}
+  def create_match_merge_opts(opts, final_opts \\ [])
+
+  def create_match_merge_opts([{:on_create, {data, changeset_fn} = on_create_opts} | rest], opts)
+      when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_create, on_create_opts))
+  end
+
+  def create_match_merge_opts([{:on_create, on_create_opts} | _], _opts) do
+    msg = """
+    on_create: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_create_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  def create_match_merge_opts([{:on_match, {data, changeset_fn} = on_match_opts} | rest], opts)
+      when is_map(data) and is_function(changeset_fn, 2) do
+    create_match_merge_opts(rest, Keyword.put(opts, :on_match, on_match_opts))
+  end
+
+  def create_match_merge_opts([{:on_match, on_match_opts} | _], _opts) do
+    msg = """
+    on_match: Require a tuple {data_for_creation, changeset_fn} with following types:
+      - data_for_creation: map
+      - changeset_fn: 2-arity function
+    Received: #{inspect(on_match_opts)}
+    """
+
+    {:error, msg}
+  end
+
+  def create_match_merge_opts(_, opts) do
+    opts
   end
 end
