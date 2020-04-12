@@ -1,4 +1,14 @@
 defmodule Seraph.Changeset do
+  @moduledoc """
+  Changesets allow filtering, casting, validation and definition of constraints when manipulating structs.
+
+  See `Ecto.Changeset`
+  """
+  @type t :: Ecto.Changeset.t()
+
+  @doc """
+  See `Ecto.Changeset.cast/4`
+  """
   def cast(%{__struct__: entity} = data, params, permitted, opts \\ []) do
     types = changeset_properties_types(entity)
 
@@ -15,6 +25,9 @@ defmodule Seraph.Changeset do
     end
   end
 
+  @doc """
+  See `Ecto.Changeset.change/2`
+  """
   def change(%{__struct__: entity} = data, changes \\ %{}) do
     types = entity.__schema__(:changeset_properties) |> Keyword.to_list() |> Enum.into(%{})
     Ecto.Changeset.change({data, types}, changes)
@@ -54,6 +67,7 @@ defmodule Seraph.Changeset do
     |> Enum.into(%{})
   end
 
+  # Check that the given node is part of the relationship
   defp cast_linked_node(changeset, _, _, nil, _) do
     changeset
   end

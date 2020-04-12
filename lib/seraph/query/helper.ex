@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Helper do
+  @moduledoc false
+
   alias Seraph.Query.Condition
 
   @type merge_keys_data :: %{
@@ -6,6 +8,9 @@ defmodule Seraph.Query.Helper do
           params: map
         }
 
+  @doc """
+  Build a map with data for a merge operation for the given node data
+  """
   @spec build_where_from_merge_keys(
           Seraph.Query.Builder.NodeExpr.t(),
           Seraph.Repo.Queryable.t(),

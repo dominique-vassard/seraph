@@ -1,7 +1,6 @@
 defmodule Seraph.Query.Condition do
-  @moduledoc """
-  Reprensents an atomix WHERE clause
-  """
+  @moduledoc false
+
   @fields [:source, :field, :operator, :value, :conditions, join_operator: :and]
   defstruct @fields
 

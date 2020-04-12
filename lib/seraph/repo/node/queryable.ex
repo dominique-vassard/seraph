@@ -1,8 +1,15 @@
 defmodule Seraph.Repo.Node.Queryable do
+  @moduledoc false
   alias Seraph.Query.{Builder, Condition, Planner}
 
+  @doc """
+  Fetch a single struct from the Neo4j datababase with the given identifier value.
+
+  Returns `nil` if no result was found
+  """
+  @spec get(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), any) :: nil | Seraph.Schema.Node.t()
   def get(repo, queryable, id_value) do
-    id_field = identifier_field(queryable)
+    id_field = Seraph.Repo.Node.Helper.identifier_field(queryable)
 
     node_to_get = %Builder.NodeExpr{
       variable: "n",
@@ -48,17 +55,6 @@ defmodule Seraph.Repo.Node.Queryable do
 
       res ->
         struct(queryable, Enum.map(res, fn {k, v} -> {String.to_atom(k), v} end))
-    end
-  end
-
-  @spec identifier_field(Queryable.t()) :: atom
-  defp identifier_field(queryable) do
-    case queryable.__schema__(:identifier) do
-      {field, _, _} ->
-        field
-
-      _ ->
-        raise ArgumentError, "Impossible to use get/2 on a schema without identifier."
     end
   end
 end

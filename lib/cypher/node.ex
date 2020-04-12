@@ -1,4 +1,6 @@
 defmodule Seraph.Cypher.Node do
+  @moduledoc false
+
   @doc """
   Builds a cypher query for listing all the constraints for a specific node.
 

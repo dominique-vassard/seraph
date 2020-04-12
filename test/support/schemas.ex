@@ -24,8 +24,7 @@ defmodule Seraph.Test.User do
     property :lastName, :string
     property :viewCount, :integer, default: 1
 
-    outgoing_relationship "WROTE", Seraph.Test.Post, :posts,
-      through: Seraph.Test.UserToPost.Wrote
+    outgoing_relationship "WROTE", Seraph.Test.Post, :posts, through: Seraph.Test.UserToPost.Wrote
 
     outgoing_relationship "READ", Seraph.Test.Post, :read_posts
     outgoing_relationship "FOLLOWS", Seraph.Test.User, :followeds
