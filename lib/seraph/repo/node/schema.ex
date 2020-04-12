@@ -1,6 +1,11 @@
 defmodule Seraph.Repo.Node.Schema do
+  @moduledoc false
+
   alias Seraph.Query.{Builder, Helper, Planner}
 
+  @doc """
+  Creates a node in database with the given data.
+  """
   @spec create(Seraph.Repo.t(), Seraph.Schema.Node.t(), Seraph.Repo.Schema.create_options()) ::
           {:ok, Seraph.Schema.Node.t()}
   def create(repo, %{__struct__: queryable} = data, _opts) do
@@ -58,6 +63,11 @@ defmodule Seraph.Repo.Node.Schema do
     {:ok, Map.put(data, :__id__, created_node.id)}
   end
 
+  @doc """
+  Create or update node in database.
+
+  If `merge_keys` are present in changeset / struct, then set new data, otherwise create a new node.
+  """
   @spec merge(Seraph.Repo.t(), Ecto.Changeset.t() | Seraph.Schema.Node.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
   def merge(repo, %Ecto.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
@@ -94,6 +104,16 @@ defmodule Seraph.Repo.Node.Schema do
     end
   end
 
+  @doc """
+  Perform a MERGE on the node in database.
+
+  Options:
+    * `:on_create`: a tuple `{data, changeset_fn}` with the data to set on node if it's created.
+    Provided data will be validated through given `changeset_fn`
+    * `:on_match`: a tuple `{data, changeset_fn}` with the data to set on node if it already exists
+    and is matched.
+    Provided data will be validated through given `changeset_fn`
+  """
   @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
   def merge(repo, queryable, merge_keys_data, opts) do
@@ -101,6 +121,9 @@ defmodule Seraph.Repo.Node.Schema do
     do_create_match_merge(repo, queryable, merge_keys_data, merge_opts)
   end
 
+  @doc """
+  Sets new data on node in database.
+  """
   @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Seraph.Schema.Node.t()}
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
@@ -159,6 +182,44 @@ defmodule Seraph.Repo.Node.Schema do
       end
 
     {:ok, formated_res}
+  end
+
+  @doc """
+  Deletes node from database.
+  """
+  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
+  def delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
+    data =
+      changeset
+      |> Map.put(:changes, %{})
+      |> Seraph.Changeset.apply_changes()
+
+    queryable = data.__struct__
+
+    node_to_del = %Builder.NodeExpr{
+      variable: "n",
+      labels: [queryable.__schema__(:primary_label)]
+    }
+
+    merge_keys_data = Helper.build_where_from_merge_keys(node_to_del, queryable, data)
+
+    {statement, params} =
+      Builder.new(:delete)
+      |> Builder.match([node_to_del])
+      |> Builder.delete([node_to_del])
+      |> Builder.where(merge_keys_data.where)
+      |> Builder.params(merge_keys_data.params)
+      |> Builder.to_string()
+
+    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
+
+    case stats do
+      %{"nodes-deleted" => 1} ->
+        {:ok, data}
+
+      [] ->
+        raise Seraph.DeletionError, queryable: queryable, data: data
+    end
   end
 
   defp do_create_match_merge(_, _, _, {:error, error}) do
@@ -294,40 +355,5 @@ defmodule Seraph.Repo.Node.Schema do
 
   defp build_label_operation(_entity, _queryable, _changeset) do
     []
-  end
-
-  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
-  def delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
-    data =
-      changeset
-      |> Map.put(:changes, %{})
-      |> Seraph.Changeset.apply_changes()
-
-    queryable = data.__struct__
-
-    node_to_del = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    merge_keys_data = Helper.build_where_from_merge_keys(node_to_del, queryable, data)
-
-    {statement, params} =
-      Builder.new(:delete)
-      |> Builder.match([node_to_del])
-      |> Builder.delete([node_to_del])
-      |> Builder.where(merge_keys_data.where)
-      |> Builder.params(merge_keys_data.params)
-      |> Builder.to_string()
-
-    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
-
-    case stats do
-      %{"nodes-deleted" => 1} ->
-        {:ok, data}
-
-      [] ->
-        raise Seraph.DeletionError, queryable: queryable, data: data
-    end
   end
 end

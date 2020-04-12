@@ -1,4 +1,7 @@
 defmodule Seraph.InvalidChangesetError do
+  @moduledoc """
+  Raised when action cannot be performed due to an invalid changeset
+  """
   defexception [:action, :changeset]
 
   @impl true
@@ -6,6 +9,9 @@ defmodule Seraph.InvalidChangesetError do
 end
 
 defmodule Seraph.NoResultsError do
+  @moduledoc """
+  Raised when there is no results when at least one was expected.
+  """
   defexception [:message]
 
   def exception(opts) do
@@ -25,6 +31,9 @@ defmodule Seraph.NoResultsError do
 end
 
 defmodule Seraph.MultipleRelationshipsError do
+  @moduledoc """
+  Raised when there is more than one relstionship found when only one is exoected.
+  """
   defexception [:message]
 
   def exception(opts) do
@@ -46,6 +55,9 @@ defmodule Seraph.MultipleRelationshipsError do
 end
 
 defmodule Seraph.DeletionError do
+  @moduledoc """
+  Rased when a delete operation cannot be performed.
+  """
   defexception [:message]
 
   def exception(opts) do

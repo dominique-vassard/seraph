@@ -1,12 +1,15 @@
 defmodule Seraph.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
     [
       app: :seraph,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
+      docs: docs(),
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env())
     ]
@@ -22,7 +25,28 @@ defmodule Seraph.MixProject do
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:dev), do: ["lib", "examples"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp docs do
+    [
+      source_ref: "v#{@version}",
+      groups_for_modules: [
+        Schema: [
+          Seraph.Schema.Node,
+          Seraph.Schema.Node.Metadata,
+          Seraph.Schema.Relationship,
+          Seraph.Schema.Relationship.Metadata
+        ],
+        "(Not) Loaded struct info": [
+          Seraph.Schema.Node.NotLoaded,
+          Seraph.Schema.Relationship.NotLoaded,
+          Seraph.Schema.Relationship.Outgoing,
+          Seraph.Schema.Relationship.Incoming
+        ]
+      ]
+    ]
+  end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

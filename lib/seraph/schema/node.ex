@@ -1,7 +1,102 @@
 defmodule Seraph.Schema.Node do
+  @moduledoc ~S"""
+  Defines a Node schema.
+
+  a Node Schema is used to map a Neo4j node into an Elixir struct.
+
+  `node/2` is used to map a Neo4j node into an Elixir struct and vice versa.
+  It allows you to have your application data decoipled from your persisted data and
+  to manipulate them easily.
+
+  ## Example
+      defmodule User do
+        use Seraph.Schema.Node
+
+        node "User" do
+          property :name, :string
+          property :age, :integer, default: 0
+
+          incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
+
+          outgoing_relationship "WROTE", Seraph.Test.Post, :posts, through: Seraph.Test.UserToPost.Wrote
+        end
+      end
+
+  By default, a node schema will generate a identifier which is named `uuid` and of type `Ecto.UUID`.
+  This is to avoid to rely on Neo4j's internal ids for identifier purpose.
+  The `property` macro defines a property in the node schema.
+  The `incoming_relationship` macro defines relationship going from another node schema to the current one.
+  The `outgoing_relationship` macro defines relationship going from the current node schema to another one.
+  Schemas are regular structs and can be created and manipulated directly
+  using Elixir's struct API:
+
+      iex> user = %User{name: "jane"}
+      iex> %{user | age: 30}
+
+  However, most commonly, structs are cast, validated and manipulated with the
+  `Seraph.Changeset` module.
+
+  ## Schema attributes
+  Supported attributes for configuring the defined node schema. They must
+  be set after the `use Seraph.Schema.Node` call and before the `node/2`
+  definition.
+
+  These attributes are:
+    * `@identifier` configures the node schema identifier. It will be used at node's creation only.
+    It expects a tuple {name, type, options}. No options are available for the moment.
+    * `@merge_keys` configure the node schema merge keys. These keys will be used when updating the node data.
+    It expects a list of atoms. Note that the merge keys must be properties of the node schema.
+    If they are not defined, the `identifier` will be used as merge key.
+
+  ## Types
+  The available types are:
+
+  Ecto type               | Elixir type             | Literal syntax in query
+  :---------------------- | :---------------------- | :---------------------
+  `:id`                   | `integer`               | 1, 2, 3
+  `:binary_id`            | `binary`                | `<<int, int, int, ...>>`
+  `:integer`              | `integer`               | 1, 2, 3
+  `:float`                | `float`                 | 1.0, 2.0, 3.0
+  `:boolean`              | `boolean`               | true, false
+  `:string`               | UTF-8 encoded `string`  | "hello"
+  `:binary`               | `binary`                | `<<int, int, int, ...>>`
+  `{:array, inner_type}`  | `list`                  | `[value, value, value, ...]`
+  `:map`                  | `map` |
+  `{:map, inner_type}`    | `map` |
+  `:decimal`              | [`Decimal`](https://github.com/ericmj/decimal) |
+  `:date`                 | `Date` |
+  `:time`                 | `Time` |
+  `:time_usec`            | `Time` |
+  `:naive_datetime`       | `NaiveDateTime` |
+  `:naive_datetime_usec`  | `NaiveDateTime` |
+  `:utc_datetime`         | `DateTime` |
+  `:utc_datetime_usec`    | `DateTime` |
+
+  ## Reflection
+
+  Any node schema module will generate the `__schema__` function that can be
+  used for runtime introspection of the schema:
+    * `__schema__(:primary_label)` - Returns the primary label as defined in `node/2`
+    * `__schema__(:identifier)` - Returns the identifier data
+    * `__schema__(:merge_keys)` - Returns the list of merge keys
+    * `__schema__(:properties)` - Returns the list of properties names
+    * `__schema__(:relationships)` - Returns the list of all relationships data
+    * `__schema__(:relationship, relationship_type)` - Returns data about the specified relationship type
+    * `__schema__(:incoming_relationships)` - Returns a list of all incoming relationship names
+    * `__schema__(:outgoing_relationships)` - Returns a list of all outgoing relationship names
+  """
   alias Seraph.Schema.Helper
 
   defmodule Metadata do
+    @moduledoc """
+    Stores metada about node schema.
+
+    # Primary label
+    The primary label of the given node schema.
+
+    # Schema
+     Refers the module name for the schema this metadata belongs to.
+    """
     defstruct [:primary_label, :schema]
 
     @type t :: %__MODULE__{
@@ -11,6 +106,13 @@ defmodule Seraph.Schema.Node do
   end
 
   defmodule NotLoaded do
+    @moduledoc """
+    Struct returned by related nodes when they are not loaded.
+
+    Fields are:
+      * `__primary_label__`: The primary label of the related node
+      * `__type__`: The relationship type considered
+    """
     defstruct [:__primary_label__, :__type__]
 
     @type t :: %__MODULE__{
@@ -18,6 +120,7 @@ defmodule Seraph.Schema.Node do
             __type__: String.t()
           }
     defimpl Inspect do
+      @spec inspect(NotLoaded.t(), Keyword.t()) :: String.t()
       def inspect(not_loaded, _opts) do
         msg =
           "nodes #{not_loaded.__primary_label__} through relation #{not_loaded.__type__} are not loaded"
@@ -38,6 +141,7 @@ defmodule Seraph.Schema.Node do
           properties: map
         }
 
+  @doc false
   defmacro __using__(_) do
     quote do
       import Seraph.Schema.Node
@@ -54,6 +158,12 @@ defmodule Seraph.Schema.Node do
     end
   end
 
+  @doc """
+  Defines a node schema with a primary label, properties and relationships definitions.
+  An additional field called `__meta__` is added to the struct.
+
+  Note that primary label must be PascalCased.
+  """
   defmacro node(primary_label, do: block) do
     prelude =
       quote do
@@ -178,12 +288,35 @@ defmodule Seraph.Schema.Node do
     end)
   end
 
+  @doc """
+  Defines a property on the node schema with the given name and type.
+
+  Options:
+    * `:default` - Sets the default value on the node schema and the struct.
+      The default value is calculated at compilation time, so don't use
+      expressions like `DateTime.utc_now` or `Ecto.UUID.generate` as
+      they would then be the same for all records.
+
+    * `:virtual` - When true, the field is not persisted to the database.
+  """
   defmacro property(name, type, opts \\ []) do
     quote do
       Seraph.Schema.Node.__property__(__MODULE__, unquote(name), unquote(type), unquote(opts))
     end
   end
 
+  @doc """
+  Defines an outgoing relationship on the node schema with the given data:
+    * `type` - the relationship type (must be uppercased)
+    * `related_node` - the node schema the relationship is linked to
+    * `name` - the name used for sotring related nodes (when loaded)
+
+  Loaded relationship(s) will be stored in the struct with their type as key.
+
+  Options:
+    - `through` - Defines a Relationship module
+    - `cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`
+  """
   defmacro outgoing_relationship(type, related_node, name, opts \\ []) do
     related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
@@ -199,6 +332,18 @@ defmodule Seraph.Schema.Node do
     end
   end
 
+  @doc """
+  Defines an incoming relationship on the node schema with the given data:
+    * `type` - the relationship type (must be uppercased)
+    * `related_node` - the node schema the relationship is linked from
+    * `name` - the name used for sotring related nodes (when loaded)
+
+  Loaded relationship(s) will be stored in the struct with their type as key.
+
+  Options:
+    - `through` - Defines a Relationship module
+    - `cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`
+  """
   defmacro incoming_relationship(type, related_node, name, opts \\ []) do
     related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
@@ -214,6 +359,7 @@ defmodule Seraph.Schema.Node do
     end
   end
 
+  @doc false
   @spec manage_merge_keys(module, nil | [:atom], false | {atom, atom, list}, Keyword.t()) :: :ok
   def manage_merge_keys(module, merge_keys, identifier, properties) do
     if is_nil(merge_keys) and identifier == false do
@@ -263,6 +409,7 @@ defmodule Seraph.Schema.Node do
     end
   end
 
+  @doc false
   @spec add_relationship(module, :incoming | :outgoing, String.t(), module, atom, Keyword.t()) ::
           :ok
   def add_relationship(module, direction, type, related_node, name, opts) do
@@ -336,6 +483,7 @@ defmodule Seraph.Schema.Node do
     struct!(struct_type, data)
   end
 
+  @doc false
   @spec check_property_type!(atom, atom) :: nil
   def check_property_type!(name, type) do
     unless type in Helper.valid_types() do

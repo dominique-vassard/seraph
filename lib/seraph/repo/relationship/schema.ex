@@ -1,6 +1,14 @@
 defmodule Seraph.Repo.Relationship.Schema do
+  @moduledoc false
+
   alias Seraph.Query.{Builder, Planner}
 
+  @doc """
+  Creates a relationship in database with the given data.
+
+  Options:
+    * `node_creation` - When set to `true`, defined start and end node will be created
+  """
   @spec create(
           Seraph.Repo.t(),
           Seraph.Schema.Relationship.t(),
@@ -59,6 +67,12 @@ defmodule Seraph.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
+  @doc """
+  Create or update relationship in database.
+
+  Options:
+    * `node_creation` - When set to `true`, defined start and end node will be created
+  """
   @spec merge(
           Seraph.Repo.t(),
           Seraph.Schema.Relationship.t(),
@@ -120,6 +134,23 @@ defmodule Seraph.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
+  @doc """
+  Perform a MERGE on the node in database.
+
+  `nodes_data` must a map like:
+  ```
+  %{
+    start_node: the start node schema data,
+    end_node: the end node schema data
+  }
+  ```
+  Options:
+    * `:on_create`: a tuple `{data, changeset_fn}` with the data to set on node if it's created.
+    Provided data will be validated through given `changeset_fn`
+    * `:on_match`: a tuple `{data, changeset_fn}` with the data to set on node if it already exists
+    and is matched.
+    Provided data will be validated through given `changeset_fn`
+  """
   @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
           {:ok, Seraph.Schema.Relationship.t()}
   def merge(repo, queryable, nodes_data, opts) do
@@ -127,72 +158,12 @@ defmodule Seraph.Repo.Relationship.Schema do
     do_create_match_merge(repo, queryable, nodes_data, merge_opts)
   end
 
-  defp do_create_match_merge(_, _, _, {:error, error}) do
-    raise ArgumentError, error
-  end
+  @doc """
+  Sets new data for relationship.
 
-  defp do_create_match_merge(repo, queryable, nodes_data, merge_opts) do
-    check_nodes_data(nodes_data)
-
-    {start_node, start_params} = build_node_merge("start", nodes_data.start_node)
-    {end_node, end_params} = build_node_merge("end", nodes_data.end_node)
-
-    relationship = %Builder.RelationshipExpr{
-      start: %Builder.NodeExpr{
-        variable: start_node.variable
-      },
-      end: %Builder.NodeExpr{
-        variable: end_node.variable
-      },
-      type: queryable.__schema__(:type),
-      variable: "rel"
-    }
-
-    with {:ok, %{sets: on_create_sets, params: on_create_params}} <-
-           build_merge_sets(
-             queryable,
-             relationship,
-             :on_create,
-             Keyword.get(merge_opts, :on_create)
-           ),
-         {:ok, %{sets: on_match_sets, params: on_match_params}} <-
-           build_merge_sets(
-             queryable,
-             relationship,
-             :on_match,
-             Keyword.get(merge_opts, :on_match)
-           ) do
-      merge = %Builder.MergeExpr{
-        expr: relationship,
-        on_create: on_create_sets,
-        on_match: on_match_sets
-      }
-
-      pre_params =
-        start_params
-        |> Map.merge(end_params)
-        |> Map.merge(on_create_params)
-        |> Map.merge(on_match_params)
-
-      {statement, params} =
-        Builder.new(:merge)
-        |> Builder.match([start_node, end_node])
-        |> Builder.merge([merge])
-        |> Builder.return(%Builder.ReturnExpr{
-          fields: [start_node, end_node, relationship]
-        })
-        |> Builder.params(pre_params)
-        |> Builder.to_string()
-
-      {:ok, bare_result} = Planner.query(repo, statement, params)
-      result = format_result(queryable, List.first(bare_result))
-      {:ok, result}
-    else
-      {:error, _} = error ->
-        error
-    end
-  end
-
+  Options:
+    * `node_creation` - When set to `true`, defined start and end node will be created
+  """
   @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Relationship.t()}
 
@@ -285,6 +256,9 @@ defmodule Seraph.Repo.Relationship.Schema do
     {:ok, result}
   end
 
+  @doc """
+  Deletes relationship from database.
+  """
   @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Relationship.t()}
   def delete(repo, changeset) do
     data =
@@ -319,6 +293,72 @@ defmodule Seraph.Repo.Relationship.Schema do
 
       [] ->
         raise Seraph.DeletionError, queryable: queryable, data: data
+    end
+  end
+
+  defp do_create_match_merge(_, _, _, {:error, error}) do
+    raise ArgumentError, error
+  end
+
+  defp do_create_match_merge(repo, queryable, nodes_data, merge_opts) do
+    check_nodes_data(nodes_data)
+
+    {start_node, start_params} = build_node_merge("start", nodes_data.start_node)
+    {end_node, end_params} = build_node_merge("end", nodes_data.end_node)
+
+    relationship = %Builder.RelationshipExpr{
+      start: %Builder.NodeExpr{
+        variable: start_node.variable
+      },
+      end: %Builder.NodeExpr{
+        variable: end_node.variable
+      },
+      type: queryable.__schema__(:type),
+      variable: "rel"
+    }
+
+    with {:ok, %{sets: on_create_sets, params: on_create_params}} <-
+           build_merge_sets(
+             queryable,
+             relationship,
+             :on_create,
+             Keyword.get(merge_opts, :on_create)
+           ),
+         {:ok, %{sets: on_match_sets, params: on_match_params}} <-
+           build_merge_sets(
+             queryable,
+             relationship,
+             :on_match,
+             Keyword.get(merge_opts, :on_match)
+           ) do
+      merge = %Builder.MergeExpr{
+        expr: relationship,
+        on_create: on_create_sets,
+        on_match: on_match_sets
+      }
+
+      pre_params =
+        start_params
+        |> Map.merge(end_params)
+        |> Map.merge(on_create_params)
+        |> Map.merge(on_match_params)
+
+      {statement, params} =
+        Builder.new(:merge)
+        |> Builder.match([start_node, end_node])
+        |> Builder.merge([merge])
+        |> Builder.return(%Builder.ReturnExpr{
+          fields: [start_node, end_node, relationship]
+        })
+        |> Builder.params(pre_params)
+        |> Builder.to_string()
+
+      {:ok, bare_result} = Planner.query(repo, statement, params)
+      result = format_result(queryable, List.first(bare_result))
+      {:ok, result}
+    else
+      {:error, _} = error ->
+        error
     end
   end
 

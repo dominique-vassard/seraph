@@ -1,6 +1,13 @@
 defmodule Seraph.Repo.Relationship.Queryable do
+  @moduledoc false
+
   alias Seraph.Query.{Builder, Planner}
 
+  @doc """
+  Fetch a single struct from the Neo4j datababase with the given start and end node data/struct.
+
+  Returns `nil` if no result was found
+  """
   @spec get(
           Seraph.Repo.t(),
           Seraph.Repo.Queryable.t(),
@@ -55,7 +62,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
 
   @spec node_data(String.t(), Seraph.Repo.Queryable.t(), Seraph.Schema.Node.t() | map) ::
           {Builder.NodeExpr.t(), map}
-  def node_data(node_var, queryable, %{__struct__: _} = data) do
+  defp node_data(node_var, queryable, %{__struct__: _} = data) do
     id_field = Seraph.Repo.Node.Helper.identifier_field(queryable)
 
     bound_name = node_var <> "_" <> Atom.to_string(id_field)
@@ -71,7 +78,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
     {node, params}
   end
 
-  def node_data(node_var, queryable, data) do
+  defp node_data(node_var, queryable, data) do
     query_node_data =
       Enum.reduce(data, %{properties: %{}, params: %{}}, fn {prop_name, prop_value}, node_data ->
         bound_name = node_var <> "_" <> Atom.to_string(prop_name)

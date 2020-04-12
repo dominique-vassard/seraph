@@ -1,5 +1,6 @@
 defmodule Seraph.Query.Builder do
-  @moduledoc """
+  @moduledoc false
+  @old_doc """
   `Seraph.Builder` is designed to build Cypher queries programmatically.
   It has functions to build essential parts of a Cypher Builder and its `to_string` returns a valid
   cypher query.
@@ -52,6 +53,7 @@ defmodule Seraph.Query.Builder do
       %{user_uuid: "my-user-uid"}
   """
   defmodule NodeExpr do
+    @moduledoc false
     defstruct [:index, :variable, :labels, :alias, properties: %{}]
 
     @type t :: %__MODULE__{
@@ -64,6 +66,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule RelationshipExpr do
+    @moduledoc false
     defstruct [:index, :variable, :start, :end, :type, :alias]
 
     @type t :: %__MODULE__{
@@ -79,6 +82,7 @@ defmodule Seraph.Query.Builder do
   @type entity_expr :: NodeExpr.t() | RelationshipExpr.t()
 
   defmodule FieldExpr do
+    @moduledoc false
     defstruct [:alias, :variable, :name]
 
     @type t :: %__MODULE__{
@@ -89,6 +93,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule Fragment do
+    @moduledoc false
     defstruct [:expr, :alias]
 
     @type t :: %__MODULE__{
@@ -98,6 +103,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule LabelOperationExpr do
+    @moduledoc false
     defstruct [:variable, :set, :remove]
 
     @type t :: %__MODULE__{
@@ -108,6 +114,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule ValueExpr do
+    @moduledoc false
     defstruct [:name, :variable, :value]
 
     @type t :: %__MODULE__{
@@ -118,6 +125,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule OrderExpr do
+    @moduledoc false
     defstruct [:field, order: :asc]
 
     @type t :: %__MODULE__{
@@ -127,6 +135,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule AggregateExpr do
+    @moduledoc false
     defstruct [:alias, :operator, :field, :entity, distinct?: false]
 
     @type t :: %__MODULE__{
@@ -139,6 +148,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule CollectExpr do
+    @moduledoc false
     defstruct [:alias, :variable]
 
     @type t :: %__MODULE__{
@@ -148,6 +158,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule ReturnExpr do
+    @moduledoc false
     defstruct [:fields, distinct?: false]
 
     @type t :: %__MODULE__{
@@ -166,6 +177,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule SetExpr do
+    @moduledoc false
     defstruct [:field, :value, :increment]
 
     @type t :: %__MODULE__{
@@ -176,6 +188,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule MergeExpr do
+    @moduledoc false
     defstruct [:expr, on_create: [], on_match: []]
 
     @type t :: %__MODULE__{
@@ -186,6 +199,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule BatchExpr do
+    @moduledoc false
     defstruct [:with, :skip, :limit]
 
     @type t :: %__MODULE__{
@@ -196,6 +210,7 @@ defmodule Seraph.Query.Builder do
   end
 
   defmodule Batch do
+    @moduledoc false
     defstruct [:type, :chunk_size, :__expr, is_batch?: false]
 
     @type t :: %__MODULE__{

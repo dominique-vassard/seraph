@@ -1,10 +1,15 @@
 defmodule Seraph.Repo.Schema do
+  @moduledoc false
+
   alias Seraph.Repo.{Node, Relationship}
 
   @type create_options :: Keyword.t()
   @type merge_options :: Keyword.t()
   @type create_match_merge_opts :: Keyword.t()
 
+  @doc """
+  Create a Node or a Relationship with the given data.
+  """
   @spec create(
           Seraph.Repo.t(),
           Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
@@ -32,6 +37,9 @@ defmodule Seraph.Repo.Schema do
     {:error, changeset}
   end
 
+  @doc """
+  Same as `create/3` but raise in case of error.
+  """
   @spec create!(Seraph.Repo.t(), Ecto.Changeset.t(), create_options()) ::
           Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
   def create!(repo, changeset, opts) do
@@ -44,6 +52,9 @@ defmodule Seraph.Repo.Schema do
     end
   end
 
+  @doc """
+  Create or update a Node or a Relationship.
+  """
   @spec merge(
           Seraph.Repo.t(),
           Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
@@ -82,15 +93,9 @@ defmodule Seraph.Repo.Schema do
     raise ArgumentError, "merge/3 requires a Ecto.Changeset or a Queryable struct."
   end
 
-  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
-          {:ok, Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()} | {:error, any}
-  def merge(repo, queryable, merge_keys_data, opts) do
-    case queryable.__schema__(:entity_type) do
-      :node -> Node.Schema.merge(repo, queryable, merge_keys_data, opts)
-      :relationship -> Relationship.Schema.merge(repo, queryable, merge_keys_data, opts)
-    end
-  end
-
+  @doc """
+  Same as `merge/3` but raise in case of error.
+  """
   @spec merge!(
           Seraph.Repo.t(),
           Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
@@ -106,6 +111,28 @@ defmodule Seraph.Repo.Schema do
     end
   end
 
+  @doc """
+  Performs a MERGE operation on a Node or Relationship.
+
+  Options:
+    * `:on_create`: a tuple `{data, changeset_fn}` with the data to set on entity if it's created.
+    Provided data will be validated through given `changeset_fn`
+    * `:on_match`: a tuple `{data, changeset_fn}` with the data to set on entity if it already exists
+    and is matched.
+    Provided data will be validated through given `changeset_fn`
+  """
+  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()} | {:error, any}
+  def merge(repo, queryable, merge_keys_data, opts) do
+    case queryable.__schema__(:entity_type) do
+      :node -> Node.Schema.merge(repo, queryable, merge_keys_data, opts)
+      :relationship -> Relationship.Schema.merge(repo, queryable, merge_keys_data, opts)
+    end
+  end
+
+  @doc """
+  Same as `merge/4` but raise in case of error
+  """
   @spec merge!(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
           Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
   def merge!(repo, queryable, merge_keys_data, opts) do
@@ -121,6 +148,9 @@ defmodule Seraph.Repo.Schema do
     end
   end
 
+  @doc """
+  Set new data on a Node or a Relationship.
+  """
   @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
           | {:ok, Seraph.Schema.Relationship.t()}
@@ -147,6 +177,9 @@ defmodule Seraph.Repo.Schema do
     {:error, changeset}
   end
 
+  @doc """
+  Same as `set/3` but raise in case of error.
+  """
   @spec set!(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: Seraph.Schema.Node.t()
   def set!(repo, changeset, opts) do
     case set(repo, changeset, opts) do
@@ -158,6 +191,9 @@ defmodule Seraph.Repo.Schema do
     end
   end
 
+  @doc """
+  Dleete a Node or a Relationship.
+  """
   @spec delete(Seraph.Repo.t(), Ecto.Changeset.t() | Seraph.Schema.Node.t()) ::
           {:ok, Seraph.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
   def delete(
@@ -186,6 +222,9 @@ defmodule Seraph.Repo.Schema do
     delete(repo, changeset)
   end
 
+  @doc """
+  Same as `delete/2` but raise in case of error.
+  """
   @spec delete!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Ecto.Changeset.t()) ::
           Seraph.Schema.Node.t()
   def delete!(repo, struct_or_changeset) do
@@ -198,6 +237,11 @@ defmodule Seraph.Repo.Schema do
     end
   end
 
+  @doc """
+  Manage MERGE options:
+    * `:on_create`
+    * `:on_match`
+  """
   @spec create_match_merge_opts(create_match_merge_opts(), create_match_merge_opts) ::
           create_match_merge_opts | {:error, String.t()}
   def create_match_merge_opts(opts, final_opts \\ [])
