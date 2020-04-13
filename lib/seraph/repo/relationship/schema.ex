@@ -164,7 +164,7 @@ defmodule Seraph.Repo.Relationship.Schema do
   Options:
     * `node_creation` - When set to `true`, defined start and end node will be created
   """
-  @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
+  @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Relationship.t()}
 
   def set(repo, changeset, [node_creation: true] = opts) do
@@ -250,7 +250,7 @@ defmodule Seraph.Repo.Relationship.Schema do
     {:ok, [%{"updated_rel" => updated_rel}]} = Planner.query(repo, statement, params)
 
     result =
-      Ecto.Changeset.apply_changes(changeset)
+      Seraph.Changeset.apply_changes(changeset)
       |> Map.put(:__id__, updated_rel.id)
 
     {:ok, result}
@@ -259,7 +259,7 @@ defmodule Seraph.Repo.Relationship.Schema do
   @doc """
   Deletes relationship from database.
   """
-  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Relationship.t()}
+  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) :: {:ok, Seraph.Schema.Relationship.t()}
   def delete(repo, changeset) do
     data =
       changeset
@@ -362,10 +362,11 @@ defmodule Seraph.Repo.Relationship.Schema do
     end
   end
 
-  @spec build_node_match(String.t(), Seraph.Schema.Node.t()) :: {Builder.NodeExpr.t(), map()}
+  @spec build_node_match(String.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t()) ::
+          {Builder.NodeExpr.t(), map()}
   defp build_node_match(variable, node_data)
 
-  defp build_node_match(_, %Ecto.Changeset{}) do
+  defp build_node_match(_, %Seraph.Changeset{}) do
     raise ArgumentError, "start node and end node should be Queryable, not Changeset"
   end
 
@@ -421,10 +422,10 @@ defmodule Seraph.Repo.Relationship.Schema do
     persisted_properties = queryable.__schema__(:persisted_properties)
 
     case changeset_fn.(struct(queryable, %{}), data) do
-      %Ecto.Changeset{valid?: false} = changeset ->
+      %Seraph.Changeset{valid?: false} = changeset ->
         {:error, [{operation, changeset}]}
 
-      %Ecto.Changeset{valid?: true} = changeset ->
+      %Seraph.Changeset{valid?: true} = changeset ->
         sets =
           build_sets(
             rel_to_merge.variable,
@@ -500,16 +501,16 @@ defmodule Seraph.Repo.Relationship.Schema do
   end
 
   @spec pre_create_nodes(
-          Ecto.Changeset.t(),
+          Seraph.Changeset.t(),
           Seraph.Repo.t(),
           :start_node | :end_node,
           Keyword.t()
-        ) :: Ecto.Changeset.t()
+        ) :: Seraph.Changeset.t()
   defp pre_create_nodes(changeset, repo, changeset_key, opts) do
-    case Ecto.Changeset.fetch_change(changeset, changeset_key) do
-      {:ok, %Ecto.Changeset{} = start_cs} ->
+    case Seraph.Changeset.fetch_change(changeset, changeset_key) do
+      {:ok, %Seraph.Changeset{} = start_cs} ->
         new_start = repo.create!(start_cs, opts)
-        Ecto.Changeset.put_change(changeset, changeset_key, new_start)
+        Seraph.Changeset.put_change(changeset, changeset_key, new_start)
 
       {:ok, _} ->
         changeset

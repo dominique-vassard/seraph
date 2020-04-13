@@ -5,7 +5,12 @@ defmodule Seraph.InvalidChangesetError do
   defexception [:action, :changeset]
 
   @impl true
-  defdelegate message(data), to: Ecto.InvalidChangesetError
+
+  def message(data) do
+    data
+    |> Map.put(:changeset, struct!(Ecto.Changeset, Map.from_struct(data.changeset)))
+    |> Ecto.InvalidChangesetError.message()
+  end
 end
 
 defmodule Seraph.NoResultsError do

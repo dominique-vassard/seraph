@@ -68,14 +68,14 @@ defmodule Seraph.Repo.Node.Schema do
 
   If `merge_keys` are present in changeset / struct, then set new data, otherwise create a new node.
   """
-  @spec merge(Seraph.Repo.t(), Ecto.Changeset.t() | Seraph.Schema.Node.t(), Keyword.t()) ::
+  @spec merge(Seraph.Repo.t(), Seraph.Changeset.t() | Seraph.Schema.Node.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
-  def merge(repo, %Ecto.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
+  def merge(repo, %Seraph.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
     queryable.__schema__(:merge_keys)
-    |> Enum.map(&Ecto.Changeset.fetch_field(changeset, &1))
+    |> Enum.map(&Seraph.Changeset.fetch_field(changeset, &1))
     |> Enum.reject(fn {_, value} -> is_nil(value) end)
     |> case do
-      [] -> create(repo, Ecto.Changeset.apply_changes(changeset), opts)
+      [] -> create(repo, Seraph.Changeset.apply_changes(changeset), opts)
       _ -> set(repo, changeset, opts)
     end
   end
@@ -96,8 +96,8 @@ defmodule Seraph.Repo.Node.Schema do
           |> Map.from_struct()
           |> Enum.filter(fn {k, _} -> k in persisted_properties end)
           |> Enum.into(%{})
-          |> Enum.reduce(Ecto.Changeset.change(data), fn {prop_key, prop_value}, changeset ->
-            Ecto.Changeset.force_change(changeset, prop_key, prop_value)
+          |> Enum.reduce(Seraph.Changeset.change(data), fn {prop_key, prop_value}, changeset ->
+            Seraph.Changeset.force_change(changeset, prop_key, prop_value)
           end)
 
         set(repo, changeset, opts)
@@ -124,7 +124,7 @@ defmodule Seraph.Repo.Node.Schema do
   @doc """
   Sets new data on node in database.
   """
-  @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: {:ok, Seraph.Schema.Node.t()}
+  @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) :: {:ok, Seraph.Schema.Node.t()}
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
 
@@ -187,8 +187,8 @@ defmodule Seraph.Repo.Node.Schema do
   @doc """
   Deletes node from database.
   """
-  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
-  def delete(repo, %Ecto.Changeset{valid?: true} = changeset) do
+  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
+  def delete(repo, %Seraph.Changeset{valid?: true} = changeset) do
     data =
       changeset
       |> Map.put(:changes, %{})
@@ -302,10 +302,10 @@ defmodule Seraph.Repo.Node.Schema do
 
   defp build_merge_sets(queryable, node_to_merge, operation, {data, changeset_fn}) do
     case changeset_fn.(struct(queryable, %{}), data) do
-      %Ecto.Changeset{valid?: false} = changeset ->
+      %Seraph.Changeset{valid?: false} = changeset ->
         {:error, [{operation, changeset}]}
 
-      %Ecto.Changeset{valid?: true} = changeset ->
+      %Seraph.Changeset{valid?: true} = changeset ->
         sets = build_set(node_to_merge, changeset.changes, Atom.to_string(operation))
         {:ok, sets}
     end
@@ -337,7 +337,7 @@ defmodule Seraph.Repo.Node.Schema do
     end)
   end
 
-  @spec build_label_operation(Builder.NodeExpr.t(), Queryable.t(), Ecto.Changeset.t()) :: [
+  @spec build_label_operation(Builder.NodeExpr.t(), Queryable.t(), Seraph.Changeset.t()) :: [
           Builder.LabelOperationExpr.t()
         ]
   defp build_label_operation(entity, queryable, %{changes: %{additionalLabels: _}} = changeset) do

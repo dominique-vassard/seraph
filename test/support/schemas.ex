@@ -32,7 +32,7 @@ defmodule Seraph.Test.User do
     incoming_relationship "EDITED_BY", Seraph.Test.Post, :edited_posts
     incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
 
-    @spec changeset(Seraph.Schema.Node.t(), map) :: Ecto.Changeset.t()
+    @spec changeset(Seraph.Schema.Node.t(), map) :: Seraph.Changeset.t()
     def changeset(user, params \\ %{}) do
       user
       |> cast(params, [:firstName, :lastName, :viewCount, :additionalLabels])

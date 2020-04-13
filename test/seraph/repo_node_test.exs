@@ -69,7 +69,7 @@ defmodule Seraph.RepoTest do
         firstName: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                %User{}
                |> User.changeset(params)
                |> TestRepo.create()
@@ -336,7 +336,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                %User{}
                |> User.changeset(data)
-               |> Ecto.Changeset.apply_changes()
+               |> Seraph.Changeset.apply_changes()
                |> TestRepo.merge()
 
       cql = """
@@ -417,7 +417,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                user
                |> User.changeset(params)
-               |> Ecto.Changeset.apply_changes()
+               |> Seraph.Changeset.apply_changes()
                |> TestRepo.merge()
 
       cql = """
@@ -459,7 +459,7 @@ defmodule Seraph.RepoTest do
         firstName: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                user
                |> User.changeset(params)
                |> TestRepo.merge()
@@ -715,7 +715,7 @@ defmodule Seraph.RepoTest do
         viewCount: 5
       }
 
-      assert {:error, [on_create: %Ecto.Changeset{valid?: false}]} =
+      assert {:error, [on_create: %Seraph.Changeset{valid?: false}]} =
                TestRepo.merge(User, %{uuid: "uuid-1"},
                  on_create: {on_create_data, &User.changeset/2}
                )
@@ -728,7 +728,7 @@ defmodule Seraph.RepoTest do
         viewCount: :invalid
       }
 
-      assert {:error, [on_match: %Ecto.Changeset{valid?: false}]} =
+      assert {:error, [on_match: %Seraph.Changeset{valid?: false}]} =
                TestRepo.merge(User, %{uuid: "uuid-1"},
                  on_match: {on_match_data, &User.update_viewcount_changeset/2}
                )
@@ -885,7 +885,7 @@ defmodule Seraph.RepoTest do
     test "invalid changeset" do
       data = add_fixtures()
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{viewCount: :invalid})
                |> TestRepo.set()
@@ -965,7 +965,7 @@ defmodule Seraph.RepoTest do
     test "invalid changeset" do
       data = add_fixtures()
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{viewCount: :invalid})
                |> TestRepo.delete()

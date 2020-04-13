@@ -12,11 +12,11 @@ defmodule Seraph.Repo.Schema do
   """
   @spec create(
           Seraph.Repo.t(),
-          Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
+          Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
           create_options
         ) ::
           {:ok, Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Seraph.Changeset.t()}
   def create(repo, %{__meta__: %Seraph.Schema.Node.Metadata{}} = data, opts) do
     Node.Schema.create(repo, data, opts)
   end
@@ -25,22 +25,22 @@ defmodule Seraph.Repo.Schema do
     Relationship.Schema.create(repo, data, opts)
   end
 
-  def create(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
+  def create(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
     cs =
       changeset
-      |> Ecto.Changeset.apply_changes()
+      |> Seraph.Changeset.apply_changes()
 
     create(repo, cs, opts)
   end
 
-  def create(_, %Ecto.Changeset{valid?: false} = changeset, _) do
+  def create(_, %Seraph.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
   end
 
   @doc """
   Same as `create/3` but raise in case of error.
   """
-  @spec create!(Seraph.Repo.t(), Ecto.Changeset.t(), create_options()) ::
+  @spec create!(Seraph.Repo.t(), Seraph.Changeset.t(), create_options()) ::
           Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
   def create!(repo, changeset, opts) do
     case create(repo, changeset, opts) do
@@ -57,9 +57,9 @@ defmodule Seraph.Repo.Schema do
   """
   @spec merge(
           Seraph.Repo.t(),
-          Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
+          Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
           merge_options
-        ) :: {:ok, Seraph.Schema.Relationship.t()} | {:error, Ecto.Changeset.t()}
+        ) :: {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
   def merge(repo, %{__meta__: %Seraph.Schema.Relationship.Metadata{}} = data, opts) do
     Relationship.Schema.merge(repo, data, opts)
   end
@@ -70,27 +70,27 @@ defmodule Seraph.Repo.Schema do
 
   def merge(
         repo,
-        %Ecto.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
+        %Seraph.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
           changeset,
         opts
       ) do
     Node.Schema.merge(repo, changeset, opts)
   end
 
-  def merge(repo, %Ecto.Changeset{valid?: true} = changeset, opts) do
+  def merge(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
     cs =
       changeset
-      |> Ecto.Changeset.apply_changes()
+      |> Seraph.Changeset.apply_changes()
 
     merge(repo, cs, opts)
   end
 
-  def merge(_, %Ecto.Changeset{valid?: false} = changeset, _) do
+  def merge(_, %Seraph.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
   end
 
   def merge(_, _, _) do
-    raise ArgumentError, "merge/3 requires a Ecto.Changeset or a Queryable struct."
+    raise ArgumentError, "merge/3 requires a Seraph.Changeset or a Queryable struct."
   end
 
   @doc """
@@ -98,7 +98,7 @@ defmodule Seraph.Repo.Schema do
   """
   @spec merge!(
           Seraph.Repo.t(),
-          Seraph.Schema.Relationship.t() | Ecto.Changeset.t(),
+          Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
           merge_options
         ) :: Seraph.Schema.Relationship.t()
   def merge!(repo, changeset, opts) do
@@ -140,10 +140,10 @@ defmodule Seraph.Repo.Schema do
       {:ok, result} ->
         result
 
-      {:error, [on_create: %Ecto.Changeset{} = changeset]} ->
+      {:error, [on_create: %Seraph.Changeset{} = changeset]} ->
         raise Seraph.InvalidChangesetError, action: :on_create, changeset: changeset
 
-      {:error, [on_match: %Ecto.Changeset{} = changeset]} ->
+      {:error, [on_match: %Seraph.Changeset{} = changeset]} ->
         raise Seraph.InvalidChangesetError, action: :on_match, changeset: changeset
     end
   end
@@ -151,13 +151,13 @@ defmodule Seraph.Repo.Schema do
   @doc """
   Set new data on a Node or a Relationship.
   """
-  @spec set(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) ::
+  @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
           | {:ok, Seraph.Schema.Relationship.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Seraph.Changeset.t()}
   def set(
         repo,
-        %Ecto.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
+        %Seraph.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
           changeset,
         opts
       ) do
@@ -166,21 +166,21 @@ defmodule Seraph.Repo.Schema do
 
   def set(
         repo,
-        %Ecto.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Relationship.Metadata{}}} =
+        %Seraph.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Relationship.Metadata{}}} =
           changeset,
         opts
       ) do
     Seraph.Repo.Relationship.Schema.set(repo, changeset, opts)
   end
 
-  def set(_, %Ecto.Changeset{valid?: false} = changeset, _opts) do
+  def set(_, %Seraph.Changeset{valid?: false} = changeset, _opts) do
     {:error, changeset}
   end
 
   @doc """
   Same as `set/3` but raise in case of error.
   """
-  @spec set!(Seraph.Repo.t(), Ecto.Changeset.t(), Keyword.t()) :: Seraph.Schema.Node.t()
+  @spec set!(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) :: Seraph.Schema.Node.t()
   def set!(repo, changeset, opts) do
     case set(repo, changeset, opts) do
       {:ok, result} ->
@@ -194,11 +194,11 @@ defmodule Seraph.Repo.Schema do
   @doc """
   Dleete a Node or a Relationship.
   """
-  @spec delete(Seraph.Repo.t(), Ecto.Changeset.t() | Seraph.Schema.Node.t()) ::
-          {:ok, Seraph.Schema.Node.t()} | {:error, Ecto.Changeset.t()}
+  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t() | Seraph.Schema.Node.t()) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
   def delete(
         repo,
-        %Ecto.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
+        %Seraph.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Node.Metadata{}}} =
           changeset
       ) do
     Node.Schema.delete(repo, changeset)
@@ -206,13 +206,13 @@ defmodule Seraph.Repo.Schema do
 
   def delete(
         repo,
-        %Ecto.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Relationship.Metadata{}}} =
+        %Seraph.Changeset{valid?: true, data: %{__meta__: %Seraph.Schema.Relationship.Metadata{}}} =
           changeset
       ) do
     Relationship.Schema.delete(repo, changeset)
   end
 
-  def delete(_repo, %Ecto.Changeset{valid?: false} = changeset) do
+  def delete(_repo, %Seraph.Changeset{valid?: false} = changeset) do
     {:error, changeset}
   end
 
@@ -225,7 +225,7 @@ defmodule Seraph.Repo.Schema do
   @doc """
   Same as `delete/2` but raise in case of error.
   """
-  @spec delete!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Ecto.Changeset.t()) ::
+  @spec delete!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t()) ::
           Seraph.Schema.Node.t()
   def delete!(repo, struct_or_changeset) do
     case delete(repo, struct_or_changeset) do

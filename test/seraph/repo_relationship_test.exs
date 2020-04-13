@@ -271,7 +271,7 @@ defmodule Seraph.RepoRelationshipTest do
         at: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                %Wrote{}
                |> Wrote.changeset(data)
                |> TestRepo.create()
@@ -545,7 +545,7 @@ defmodule Seraph.RepoRelationshipTest do
         at: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                %Wrote{}
                |> Wrote.changeset(data)
                |> TestRepo.merge()
@@ -842,7 +842,7 @@ defmodule Seraph.RepoRelationshipTest do
         end_node: post
       }
 
-      assert {:error, [on_create: %Ecto.Changeset{valid?: false}]} =
+      assert {:error, [on_create: %Seraph.Changeset{valid?: false}]} =
                TestRepo.merge(Wrote, data, on_create: {%{at: :invalid}, &Wrote.changeset/2})
     end
 
@@ -855,7 +855,7 @@ defmodule Seraph.RepoRelationshipTest do
         end_node: post
       }
 
-      assert {:error, [on_match: %Ecto.Changeset{valid?: false}]} =
+      assert {:error, [on_match: %Seraph.Changeset{valid?: false}]} =
                TestRepo.merge(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
     end
 
@@ -1453,7 +1453,7 @@ defmodule Seraph.RepoRelationshipTest do
     test "invalid changeset" do
       relationship = add_fixtures(:relationship)
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                relationship
                |> Wrote.changeset(%{start_node: :invalid})
                |> TestRepo.set()
@@ -1553,7 +1553,7 @@ defmodule Seraph.RepoRelationshipTest do
     test "fail: invalid changeset" do
       relationship = add_fixtures(:relationship)
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                relationship
                |> Wrote.changeset(%{at: :invalid})
                |> TestRepo.delete()
