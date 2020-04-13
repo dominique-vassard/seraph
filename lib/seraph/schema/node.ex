@@ -85,7 +85,6 @@ defmodule Seraph.Schema.Node do
     * `__schema__(:incoming_relationships)` - Returns a list of all incoming relationship names
     * `__schema__(:outgoing_relationships)` - Returns a list of all outgoing relationship names
   """
-  alias Seraph.Schema.Helper
 
   defmodule Metadata do
     @moduledoc """
@@ -384,7 +383,7 @@ defmodule Seraph.Schema.Node do
 
   @spec __property__(module, atom, atom, Keyword.t()) :: nil | :ok
   def __property__(module, name, type, opts) do
-    Seraph.Schema.Node.check_property_type!(name, type)
+    Seraph.Schema.Helper.check_property_type!(name, type)
 
     name_str = Atom.to_string(name)
 
@@ -481,14 +480,5 @@ defmodule Seraph.Schema.Node do
     }
 
     struct!(struct_type, data)
-  end
-
-  @doc false
-  @spec check_property_type!(atom, atom) :: nil
-  def check_property_type!(name, type) do
-    unless type in Helper.valid_types() do
-      raise raise ArgumentError,
-                  "invalid or unknown type #{inspect(type)} for field #{inspect(name)}"
-    end
   end
 end

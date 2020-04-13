@@ -4,7 +4,9 @@ defmodule Seraph.Schema.RelationshipTest do
   defmodule WroteSimpleSchema do
     use Seraph.Schema.Relationship
 
-    relationship "WROTE", cardinality: :one do
+    @cardinality :one
+
+    relationship "WROTE" do
       start_node Seraph.Test.Post
       end_node Seraph.Test.User
 

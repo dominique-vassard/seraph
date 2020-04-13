@@ -143,7 +143,9 @@ defmodule Seraph.Schema.NodeTest do
   defmodule UserFollowsUser do
     use Seraph.Schema.Relationship
 
-    relationship "FOLLOWS", cardinality: :one do
+    @cardinality :one
+
+    relationship "FOLLOWS" do
       start_node Seraph.Test.User
       end_node Seraph.Test.User
 

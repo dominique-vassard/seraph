@@ -176,6 +176,8 @@ defmodule Seraph.Schema.Relationship do
     quote do
       import Seraph.Schema.Relationship
 
+      @cardinality :many
+
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
       Module.register_attribute(__MODULE__, :persisted_properties, accumulate: true)
@@ -194,11 +196,9 @@ defmodule Seraph.Schema.Relationship do
     - relationship info must match the info given in the start and end node schemas
 
   """
-  defmacro relationship(rel_type, opts \\ [], do: block) do
+  defmacro relationship(rel_type, do: block) do
     prelude =
       quote do
-        opts = unquote(opts)
-        Module.put_attribute(__MODULE__, :cardinality, Keyword.get(opts, :cardinality, :many))
         Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
         Module.register_attribute(__MODULE__, :properties, accumulate: true)
 
@@ -281,7 +281,7 @@ defmodule Seraph.Schema.Relationship do
       name = unquote(name)
       type = unquote(type)
 
-      Seraph.Schema.Node.check_property_type!(name, type)
+      Seraph.Schema.Helper.check_property_type!(name, type)
 
       Module.put_attribute(__MODULE__, :properties, {name, type})
       Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
