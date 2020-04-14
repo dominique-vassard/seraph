@@ -731,6 +731,34 @@ defmodule Seraph.RepoTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
+    test "ok: no_data opts allows to pass no data" do
+      defmodule NoData do
+        use Seraph.Schema.Node
+
+        node "NoData" do
+        end
+      end
+
+      assert {:ok, merged_node} = TestRepo.merge(NoData, %{uuid: "some-uuid"}, no_data: true)
+
+      cql = """
+      MATCH
+        (n:NoData)
+      WHERE
+        id(n) = $id
+        AND n.uuid = $uuid
+      RETURN
+        COUNT(n) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
     test "fail: on_create invalid changeset" do
       on_create_data = %{
         firstName: :invalid,
@@ -818,6 +846,12 @@ defmodule Seraph.RepoTest do
 
       assert_raise ArgumentError, fn ->
         TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &is_nil/1})
+      end
+    end
+
+    test "raise: whne used with an invalid option" do
+      assert_raise ArgumentError, fn ->
+        TestRepo.merge(User, %{uuid: "some-uuid"}, invalid_option: true)
       end
     end
 

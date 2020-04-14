@@ -216,11 +216,13 @@ defmodule Seraph.Repo do
         * `merge_keys_data_or_start_end_data`:
           - for Node: a map with the merge keys data to used to match the node
           - for Realtionship: a map with the `:start_node` and `:end_node` data
-        * `opts` - at least one of thses two options must be present:
+        * `opts` - at least one of these three options must be present:
           - `:on_create`: a tuple `{data, changeset_fn}` with the data to set on entity if it's created.
           Given data will be validated through given `changeset_fn`.
           - `:on_match`: a tuple `{data, changeset_fn}` with the data to set on entity if it already exists
           and is matched. Given data will be validated through given `changeset_fn`
+          - `:no_data` a boolean. Set to true allow to not provide `:on_match` nor `:on_create` and add
+          no properties if entity is created / updated. Useful for Node / Relationsship without properties.
 
       It returns `{:ok, struct}` if the struct has been successfully
       merged or `{:error, changeset}` if there was a validation error.

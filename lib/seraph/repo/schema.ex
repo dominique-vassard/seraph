@@ -294,6 +294,11 @@ defmodule Seraph.Repo.Schema do
     create_match_merge_opts(rest, Keyword.put(opts, :on_match, on_match_opts))
   end
 
+  def create_match_merge_opts([{:no_data, no_data_opt} | rest], opts)
+      when is_boolean(no_data_opt) do
+    create_match_merge_opts(rest, Keyword.put(opts, :no_data, no_data_opt))
+  end
+
   def create_match_merge_opts([{:on_match, on_match_opts} | _], _opts) do
     msg = """
     on_match: Require a tuple {data_for_creation, changeset_fn} with following types:
@@ -303,6 +308,10 @@ defmodule Seraph.Repo.Schema do
     """
 
     {:error, msg}
+  end
+
+  def create_match_merge_opts([{invalid_opt, _} | _], _opts) do
+    {:error, "#{inspect(invalid_opt)} is not a valid option."}
   end
 
   def create_match_merge_opts(_, opts) do

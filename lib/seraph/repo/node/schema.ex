@@ -117,7 +117,12 @@ defmodule Seraph.Repo.Node.Schema do
   @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()}
   def merge(repo, queryable, merge_keys_data, opts) do
-    merge_opts = Seraph.Repo.Schema.create_match_merge_opts(opts)
+    IO.inspect(opts, label: "OPTS")
+
+    merge_opts =
+      Seraph.Repo.Schema.create_match_merge_opts(opts)
+      |> IO.inspect(label: "MERGE OPTS")
+
     do_create_match_merge(repo, queryable, merge_keys_data, merge_opts)
   end
 

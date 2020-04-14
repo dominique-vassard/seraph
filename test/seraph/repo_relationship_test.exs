@@ -846,6 +846,49 @@ defmodule Seraph.RepoRelationshipTest do
       assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
+    test "ok: no_data opts " do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %{
+        start_node: user,
+        end_node: post
+      }
+
+      assert {:ok, rel_wrote} = TestRepo.merge(Wrote, data, no_data: true)
+
+      assert %Seraph.Test.UserToPost.Wrote{
+               type: "WROTE",
+               start_node: %Seraph.Test.User{},
+               end_node: %Seraph.Test.Post{}
+             } = rel_wrote
+
+      refute is_nil(rel_wrote.__id__)
+
+      cql = """
+      MATCH
+        (:User {uuid: $user_uuid})-[rel:WROTE]->(:Post {uuid: $post_uuid})
+      RETURN
+        COUNT(rel) AS nb_result
+      """
+
+      params = %{
+        user_uuid: user.uuid,
+        post_uuid: post.uuid
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+
+      cql = """
+      MATCH
+      (n)
+      RETURN
+      COUNT(n) AS nb_result
+      """
+
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
+    end
+
     test "fail: on_create invalid changeset" do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
