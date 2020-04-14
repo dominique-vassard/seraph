@@ -230,6 +230,29 @@ defmodule Seraph.RepoTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
+    test "fails: with invalid changeset" do
+      params = %{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} =
+               %User{}
+               |> User.changeset(params)
+               |> TestRepo.create()
+    end
+
+    test "fails: with invalid data" do
+      user = %User{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.create(user)
+    end
+
     test "raise when using !" do
       params = %{
         firstName: :invalid,

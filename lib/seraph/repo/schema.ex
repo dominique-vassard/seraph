@@ -17,24 +17,51 @@ defmodule Seraph.Repo.Schema do
         ) ::
           {:ok, Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()}
           | {:error, Seraph.Changeset.t()}
-  def create(repo, %{__meta__: %Seraph.Schema.Node.Metadata{}} = data, opts) do
-    Node.Schema.create(repo, data, opts)
-  end
+  # def create(repo, %{__meta__: %Seraph.Schema.Node.Metadata{}} = data, opts) do
+  #   Node.Schema.create(repo, data, opts)
+  # end
 
-  def create(repo, %{__meta__: %Seraph.Schema.Relationship.Metadata{}} = data, opts) do
-    Relationship.Schema.create(repo, data, opts)
-  end
+  # def create(repo, %{__meta__: %Seraph.Schema.Relationship.Metadata{}} = data, opts) do
+  #   Relationship.Schema.create(repo, data, opts)
+  # end
 
   def create(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
     cs =
       changeset
       |> Seraph.Changeset.apply_changes()
 
-    create(repo, cs, opts)
+    do_create(repo, cs, opts)
   end
 
   def create(_, %Seraph.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
+  end
+
+  def create(repo, %{__struct__: queryable} = struct, opts) do
+    cs_fields =
+      queryable.__schema__(:changeset_properties)
+      |> Enum.map(fn {key, _} -> key end)
+
+    {data, changes} =
+      Enum.reduce(cs_fields, {struct, %{}}, fn cs_field, {data, changes} ->
+        case Map.fetch(struct, cs_field) do
+          {:ok, value} ->
+            {Map.put(data, cs_field, nil), Map.put(changes, cs_field, value)}
+
+          :error ->
+            {data, changes}
+        end
+      end)
+
+    create(repo, Seraph.Changeset.cast(data, changes, cs_fields), opts)
+  end
+
+  defp do_create(repo, %{__meta__: %Seraph.Schema.Node.Metadata{}} = data, opts) do
+    Node.Schema.create(repo, data, opts)
+  end
+
+  defp do_create(repo, %{__meta__: %Seraph.Schema.Relationship.Metadata{}} = data, opts) do
+    Relationship.Schema.create(repo, data, opts)
   end
 
   @doc """

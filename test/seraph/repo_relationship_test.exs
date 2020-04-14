@@ -261,7 +261,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
-    test "invalid changeset" do
+    test "fails: with invalid changeset" do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
@@ -275,6 +275,19 @@ defmodule Seraph.RepoRelationshipTest do
                %Wrote{}
                |> Wrote.changeset(data)
                |> TestRepo.create()
+    end
+
+    test "fails: with invalid data" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %Wrote{
+        start_node: user,
+        end_node: post,
+        at: :invalid
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.create(data)
     end
 
     test "raise when used with bang version" do
