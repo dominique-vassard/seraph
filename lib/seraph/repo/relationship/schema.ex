@@ -247,13 +247,17 @@ defmodule Seraph.Repo.Relationship.Schema do
 
     {statement, params} = Builder.to_string(query)
 
-    {:ok, [%{"updated_rel" => updated_rel}]} = Planner.query(repo, statement, params)
+    case Planner.query(repo, statement, params) do
+      {:ok, [%{"updated_rel" => updated_rel}]} ->
+        result =
+          Seraph.Changeset.apply_changes(changeset)
+          |> Map.put(:__id__, updated_rel.id)
 
-    result =
-      Seraph.Changeset.apply_changes(changeset)
-      |> Map.put(:__id__, updated_rel.id)
+        {:ok, result}
 
-    {:ok, result}
+      {:ok, []} ->
+        raise Seraph.StaleEntryError, action: :set, struct: changeset.data
+    end
   end
 
   @doc """

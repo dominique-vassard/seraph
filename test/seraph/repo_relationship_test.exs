@@ -1459,6 +1459,40 @@ defmodule Seraph.RepoRelationshipTest do
                |> TestRepo.set()
     end
 
+    test "raise: when struct is not found" do
+      relationship = add_fixtures(:relationship)
+
+      {:ok, new_rel_date_long, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+
+      new_rel_date = DateTime.truncate(new_rel_date_long, :second)
+
+      new_data = %{
+        at: new_rel_date
+      }
+
+      cql = """
+      MATCH
+        (start:User {uuid: $start_uuid}),
+        (end:Post {uuid: $end_uuid}),
+        (start)-[rel:WROTE]->(end)
+        DELETE
+          rel
+      """
+
+      params = %{
+        start_uuid: relationship.start_node.uuid,
+        end_uuid: relationship.end_node.uuid
+      }
+
+      TestRepo.query!(cql, params)
+
+      assert_raise Seraph.StaleEntryError, fn ->
+        relationship
+        |> Wrote.changeset(new_data)
+        |> TestRepo.set()
+      end
+    end
+
     test "raise when used with bang version" do
       relationship = add_fixtures(:relationship)
 

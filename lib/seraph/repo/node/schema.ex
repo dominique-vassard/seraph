@@ -167,7 +167,7 @@ defmodule Seraph.Repo.Node.Schema do
     formated_res =
       case List.first(results) do
         nil ->
-          changeset.data
+          raise Seraph.StaleEntryError, action: :set, struct: changeset.data
 
         result ->
           Enum.reduce(result, changeset.data, fn {property, value}, data ->

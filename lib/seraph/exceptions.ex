@@ -77,3 +77,20 @@ defmodule Seraph.DeletionError do
     %__MODULE__{message: msg}
   end
 end
+
+defmodule Seraph.StaleEntryError do
+  defexception [:message]
+
+  def exception(opts) do
+    action = Keyword.fetch!(opts, :action)
+    struct = Keyword.fetch!(opts, :struct)
+
+    msg = """
+    attempted to #{action} a stale struct:
+
+    #{inspect(struct)}
+    """
+
+    %__MODULE__{message: msg}
+  end
+end

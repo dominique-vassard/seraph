@@ -829,6 +829,36 @@ defmodule Seraph.RepoTest do
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{lastName: "New name", viewCount: 3})
                |> TestRepo.set()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "New name",
+        uuid: data_uuid,
+        viewCount: 3
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add only)" do
@@ -846,6 +876,36 @@ defmodule Seraph.RepoTest do
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Buyer", "New"]})
                |> TestRepo.set()
+
+      cql = """
+      MATCH
+        (u:User:Buyer:New)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (remove only)" do
@@ -863,6 +923,36 @@ defmodule Seraph.RepoTest do
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Old"]})
                |> TestRepo.set()
+
+      cql = """
+      MATCH
+        (u:User:Old)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add + remove only)" do
@@ -880,6 +970,36 @@ defmodule Seraph.RepoTest do
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Old", "Client"]})
                |> TestRepo.set()
+
+      cql = """
+      MATCH
+        (u:User:Old:Client)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "invalid changeset" do
@@ -889,6 +1009,27 @@ defmodule Seraph.RepoTest do
                TestRepo.get(User, data.uuid)
                |> User.changeset(%{viewCount: :invalid})
                |> TestRepo.set()
+    end
+
+    test "raise when struct is not found" do
+      data = add_fixtures()
+      data_uuid = data.uuid
+
+      user = TestRepo.get(User, data.uuid)
+
+      cql = """
+      MATCH
+        (u:User {uuid: $uuid})
+      DETACH DELETE u
+      """
+
+      TestRepo.query!(cql, %{uuid: data_uuid})
+
+      assert_raise Seraph.StaleEntryError, fn ->
+        user
+        |> User.changeset(%{lastName: "New name", viewCount: 3})
+        |> TestRepo.set()
+      end
     end
 
     test "raise when used with !" do
