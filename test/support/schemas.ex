@@ -15,22 +15,40 @@ defmodule Seraph.Test.UserToPost.Wrote do
   end
 end
 
+defmodule Seraph.Test.NoPropsRels do
+  import Seraph.Schema.Relationship
+
+  defrelationship("READ", Seraph.Test.User, Seraph.Test.Post)
+  defrelationship("EDITED_BY", Seraph.Test.Post, Seraph.Test.User)
+  defrelationship("FOLLOWS", Seraph.Test.User, Seraph.Test.User)
+  defrelationship("FOLLOWED", Seraph.Test.User, Seraph.Test.User)
+end
+
 defmodule Seraph.Test.User do
   use Seraph.Schema.Node
   import Seraph.Changeset
+
+  alias Seraph.Test.NoPropsRels
 
   node "User" do
     property :firstName, :string
     property :lastName, :string
     property :viewCount, :integer, default: 1
 
-    outgoing_relationship "WROTE", Seraph.Test.Post, :posts, through: Seraph.Test.UserToPost.Wrote
+    outgoing_relationship "WROTE", Seraph.Test.Post, :posts, Seraph.Test.UserToPost.Wrote
 
-    outgoing_relationship "READ", Seraph.Test.Post, :read_posts
-    outgoing_relationship "FOLLOWS", Seraph.Test.User, :followeds
+    outgoing_relationship "READ", Seraph.Test.Post, :read_posts, NoPropsRels.UserToPost.Read
+    outgoing_relationship "FOLLOWS", Seraph.Test.User, :followeds, NoPropsRels.UserToUser.Follows
 
-    incoming_relationship "EDITED_BY", Seraph.Test.Post, :edited_posts
-    incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
+    incoming_relationship "EDITED_BY",
+                          Seraph.Test.Post,
+                          :edited_posts,
+                          NoPropsRels.PostToUser.EditedBy
+
+    incoming_relationship "FOLLOWED",
+                          Seraph.Test.User,
+                          :followers,
+                          NoPropsRels.UserToUser.Followed
 
     @spec changeset(Seraph.Schema.Node.t(), map) :: Seraph.Changeset.t()
     def changeset(user, params \\ %{}) do
