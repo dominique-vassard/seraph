@@ -15,6 +15,14 @@ defmodule Seraph.Schema.RelationshipTest do
     end
   end
 
+  defmodule NoPropsRelationships do
+    import Seraph.Schema.Relationship
+
+    defrelationship("READ", Seraph.Test.User, Seraph.Test.Post)
+    defrelationship("FOLLOWS", Seraph.Test.User, Seraph.Test.User, cardinality: :one)
+    defrelationship("EDITED_BY", Seraph.Test.Post, Seraph.Test.User, cardinality: :one)
+  end
+
   test "schema metadata" do
     assert WroteSimpleSchema.__schema__(:type) == "WROTE"
     assert WroteSimpleSchema.__schema__(:cardinality) == :one
@@ -31,6 +39,40 @@ defmodule Seraph.Schema.RelationshipTest do
            ]
 
     assert WroteSimpleSchema.__schema__(:persisted_properties) == [:at]
+  end
+
+  describe "defrelationship/4" do
+    test "ok: no opts" do
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:type) == "READ"
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:cardinality) == :many
+
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:properties) == []
+
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:changeset_properties) == [
+               start_node: :map,
+               end_node: :map
+             ]
+
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:persisted_properties) == []
+    end
+
+    test "ok: with :cardinality" do
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:type) == "FOLLOWS"
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:cardinality) == :one
+
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:properties) == []
+
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:changeset_properties) == [
+               start_node: :map,
+               end_node: :map
+             ]
+
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:persisted_properties) == []
+    end
+
+    test "ok: module name with _" do
+      assert NoPropsRelationships.PostToUser.EditedBy.__schema__(:type) == "EDITED_BY"
+    end
   end
 
   test "Enforce naming convention" do
