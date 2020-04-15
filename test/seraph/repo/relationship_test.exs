@@ -1,4 +1,4 @@
-defmodule Seraph.RepoRelationshipTest do
+defmodule Seraph.Repo.RelationshipTest do
   use ExUnit.Case, async: false
   alias Seraph.TestRepo
   alias Seraph.Test.{User, Post, UserToPost.Wrote}
@@ -34,7 +34,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.create()
+               |> TestRepo.Relationship.create()
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -83,7 +83,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.create()
+               |> TestRepo.Relationship.create()
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -150,7 +150,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise ArgumentError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
-        |> TestRepo.create()
+        |> TestRepo.Relationship.create()
       end
     end
 
@@ -185,7 +185,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.create(node_creation: true)
+               |> TestRepo.Relationship.create(node_creation: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -230,11 +230,11 @@ defmodule Seraph.RepoRelationshipTest do
 
       assert {:ok, _} =
                changeset
-               |> TestRepo.create()
+               |> TestRepo.Relationship.create()
 
       assert {:ok, _} =
                changeset
-               |> TestRepo.create()
+               |> TestRepo.Relationship.create()
 
       cql = """
       MATCH
@@ -274,7 +274,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:error, %Seraph.Changeset{valid?: false}} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.create()
+               |> TestRepo.Relationship.create()
     end
 
     test "fails: with invalid data" do
@@ -287,7 +287,7 @@ defmodule Seraph.RepoRelationshipTest do
         at: :invalid
       }
 
-      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.create(data)
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.Relationship.create(data)
     end
 
     test "raise when used with bang version" do
@@ -303,12 +303,12 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
-        |> TestRepo.create!()
+        |> TestRepo.Relationship.create!()
       end
     end
   end
 
-  describe "merge/3" do
+  describe "merge/2" do
     test "ok with existing node" do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
@@ -321,7 +321,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.merge()
+               |> TestRepo.Relationship.merge()
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -370,7 +370,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.merge()
+               |> TestRepo.Relationship.merge()
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -437,7 +437,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise ArgumentError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
-        |> TestRepo.merge()
+        |> TestRepo.Relationship.merge()
       end
     end
 
@@ -472,7 +472,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, rel_wrote} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.merge(node_creation: true)
+               |> TestRepo.Relationship.merge(node_creation: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -517,11 +517,11 @@ defmodule Seraph.RepoRelationshipTest do
 
       assert {:ok, _} =
                changeset
-               |> TestRepo.merge()
+               |> TestRepo.Relationship.merge()
 
       assert {:ok, _} =
                changeset
-               |> TestRepo.merge()
+               |> TestRepo.Relationship.merge()
 
       cql = """
       MATCH
@@ -561,7 +561,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:error, %Seraph.Changeset{valid?: false}} =
                %Wrote{}
                |> Wrote.changeset(data)
-               |> TestRepo.merge()
+               |> TestRepo.Relationship.merge()
     end
 
     test "raise when used with bang version" do
@@ -577,12 +577,12 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         %Wrote{}
         |> Wrote.changeset(data)
-        |> TestRepo.merge!()
+        |> TestRepo.Relationship.merge!()
       end
     end
   end
 
-  describe "merge/4" do
+  describe "merge/3" do
     test "ok: on_create opt (existing -> no change)" do
       old_rel = add_fixtures(:relationship)
 
@@ -594,7 +594,9 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert {:ok, rel_wrote} =
-               TestRepo.merge(Wrote, data, on_create: {%{at: date}, &Wrote.changeset/2})
+               TestRepo.Relationship.merge(Wrote, data,
+                 on_create: {%{at: date}, &Wrote.changeset/2}
+               )
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -637,7 +639,8 @@ defmodule Seraph.RepoRelationshipTest do
         end_node: post
       }
 
-      assert {:ok, rel_wrote} = TestRepo.merge(Wrote, data, on_create: {%{}, &Wrote.changeset/2})
+      assert {:ok, rel_wrote} =
+               TestRepo.Relationship.merge(Wrote, data, on_create: {%{}, &Wrote.changeset/2})
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -682,7 +685,7 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert {:ok, rel_wrote} =
-               TestRepo.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, data,
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
@@ -731,7 +734,7 @@ defmodule Seraph.RepoRelationshipTest do
       {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
 
       assert {:ok, rel_wrote} =
-               TestRepo.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, data,
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
@@ -772,7 +775,7 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert {:ok, rel_wrote} =
-               TestRepo.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, data,
                  on_create: {%{at: create_date}, &Wrote.changeset/2},
                  on_match: {%{at: match_date}, &Wrote.changeset/2}
                )
@@ -816,7 +819,7 @@ defmodule Seraph.RepoRelationshipTest do
       match_date = DateTime.truncate(date, :second)
 
       assert {:ok, rel_wrote} =
-               TestRepo.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, data,
                  on_create: {%{at: create_date}, &Wrote.changeset/2},
                  on_match: {%{at: match_date}, &Wrote.changeset/2}
                )
@@ -855,7 +858,7 @@ defmodule Seraph.RepoRelationshipTest do
         end_node: post
       }
 
-      assert {:ok, rel_wrote} = TestRepo.merge(Wrote, data, no_data: true)
+      assert {:ok, rel_wrote} = TestRepo.Relationship.merge(Wrote, data, no_data: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -899,7 +902,9 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert {:error, [on_create: %Seraph.Changeset{valid?: false}]} =
-               TestRepo.merge(Wrote, data, on_create: {%{at: :invalid}, &Wrote.changeset/2})
+               TestRepo.Relationship.merge(Wrote, data,
+                 on_create: {%{at: :invalid}, &Wrote.changeset/2}
+               )
     end
 
     test "fail: on_match invalid changeset" do
@@ -912,7 +917,9 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert {:error, [on_match: %Seraph.Changeset{valid?: false}]} =
-               TestRepo.merge(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
+               TestRepo.Relationship.merge(Wrote, data,
+                 on_match: {%{at: :invalid}, &Wrote.changeset/2}
+               )
     end
 
     test "raise: when used with !" do
@@ -925,7 +932,7 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert_raise Seraph.InvalidChangesetError, fn ->
-        TestRepo.merge!(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
+        TestRepo.Relationship.merge!(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
       end
     end
   end
@@ -934,7 +941,7 @@ defmodule Seraph.RepoRelationshipTest do
     test "ok: with structs only" do
       relationship = add_fixtures(:relationship)
 
-      retrieved = TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
+      retrieved = TestRepo.Relationship.get(Wrote, relationship.start_node, relationship.end_node)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -971,7 +978,7 @@ defmodule Seraph.RepoRelationshipTest do
         title: relationship.end_node.title
       }
 
-      retrieved = TestRepo.get(Wrote, start_data, end_data)
+      retrieved = TestRepo.Relationship.get(Wrote, start_data, end_data)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1003,7 +1010,7 @@ defmodule Seraph.RepoRelationshipTest do
         title: relationship.end_node.title
       }
 
-      retrieved = TestRepo.get(Wrote, relationship.start_node, end_data)
+      retrieved = TestRepo.Relationship.get(Wrote, relationship.start_node, end_data)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1041,7 +1048,7 @@ defmodule Seraph.RepoRelationshipTest do
         title: post.title
       }
 
-      assert nil == TestRepo.get(Wrote, start_data, end_data)
+      assert nil == TestRepo.Relationship.get(Wrote, start_data, end_data)
     end
 
     test "raise: when more than one result" do
@@ -1063,7 +1070,7 @@ defmodule Seraph.RepoRelationshipTest do
       TestRepo.query!(cql, params)
 
       assert_raise Seraph.MultipleRelationshipsError, fn ->
-        TestRepo.get(Wrote, relationship.start_node, relationship.end_node)
+        TestRepo.Relationship.get(Wrote, relationship.start_node, relationship.end_node)
       end
     end
 
@@ -1081,7 +1088,7 @@ defmodule Seraph.RepoRelationshipTest do
       }
 
       assert_raise Seraph.NoResultsError, fn ->
-        TestRepo.get!(Wrote, start_data, end_data)
+        TestRepo.Relationship.get!(Wrote, start_data, end_data)
       end
     end
   end
@@ -1101,7 +1108,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(new_data)
-               |> TestRepo.set()
+               |> TestRepo.Relationship.set()
 
       assert DateTime.truncate(updated_rel.at, :second) == new_rel_date
 
@@ -1144,7 +1151,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{start_node: new_user})
-               |> TestRepo.set()
+               |> TestRepo.Relationship.set()
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1202,7 +1209,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{end_node: new_post})
-               |> TestRepo.set()
+               |> TestRepo.Relationship.set()
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1269,7 +1276,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{start_node: new_user, end_node: new_post})
-               |> TestRepo.set()
+               |> TestRepo.Relationship.set()
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1330,7 +1337,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{start_node: new_user_cs})
-               |> TestRepo.set(node_creation: true)
+               |> TestRepo.Relationship.set(node_creation: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1389,7 +1396,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{end_node: new_post_cs})
-               |> TestRepo.set(node_creation: true)
+               |> TestRepo.Relationship.set(node_creation: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1457,7 +1464,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:ok, updated_rel} =
                relationship
                |> Wrote.changeset(%{start_node: new_user_cs, end_node: new_post_cs})
-               |> TestRepo.set(node_creation: true)
+               |> TestRepo.Relationship.set(node_creation: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                end_node: %Seraph.Test.Post{
@@ -1512,7 +1519,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:error, %Seraph.Changeset{valid?: false}} =
                relationship
                |> Wrote.changeset(%{start_node: :invalid})
-               |> TestRepo.set()
+               |> TestRepo.Relationship.set()
     end
 
     test "raise: when struct is not found" do
@@ -1545,7 +1552,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.StaleEntryError, fn ->
         relationship
         |> Wrote.changeset(new_data)
-        |> TestRepo.set()
+        |> TestRepo.Relationship.set()
       end
     end
 
@@ -1555,7 +1562,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         relationship
         |> Wrote.changeset(%{start_node: :invalid})
-        |> TestRepo.set!()
+        |> TestRepo.Relationship.set!()
       end
     end
   end
@@ -1578,7 +1585,7 @@ defmodule Seraph.RepoRelationshipTest do
                   viewCount: 5
                 },
                 type: "WROTE"
-              }} = TestRepo.delete(relationship)
+              }} = TestRepo.Relationship.delete(relationship)
 
       cql = """
       MATCH
@@ -1621,7 +1628,7 @@ defmodule Seraph.RepoRelationshipTest do
               }} =
                relationship
                |> Wrote.changeset(%{at: new_rel_date})
-               |> TestRepo.delete()
+               |> TestRepo.Relationship.delete()
 
       cql = """
       MATCH
@@ -1646,7 +1653,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert {:error, %Seraph.Changeset{valid?: false}} =
                relationship
                |> Wrote.changeset(%{at: :invalid})
-               |> TestRepo.delete()
+               |> TestRepo.Relationship.delete()
     end
 
     test "raise: deleting non existing relationship" do
@@ -1662,7 +1669,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.DeletionError, fn ->
         relationship
         |> Map.put(:end_node, new_post)
-        |> TestRepo.delete()
+        |> TestRepo.Relationship.delete()
       end
     end
 
@@ -1672,7 +1679,7 @@ defmodule Seraph.RepoRelationshipTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         relationship
         |> Wrote.changeset(%{at: :invalid})
-        |> TestRepo.delete!()
+        |> TestRepo.Relationship.delete!()
       end
     end
   end
@@ -1688,7 +1695,7 @@ defmodule Seraph.RepoRelationshipTest do
 
     %User{}
     |> User.changeset(Map.merge(default_data, data))
-    |> TestRepo.create!()
+    |> TestRepo.Node.create!()
   end
 
   defp add_fixtures(:end_node, data) do
@@ -1699,7 +1706,7 @@ defmodule Seraph.RepoRelationshipTest do
 
     %Post{}
     |> Post.changeset(Map.merge(default_data, data))
-    |> TestRepo.create!()
+    |> TestRepo.Node.create!()
   end
 
   defp add_fixtures(:relationship, data) do
@@ -1716,6 +1723,6 @@ defmodule Seraph.RepoRelationshipTest do
 
     %Wrote{}
     |> Wrote.changeset(Map.merge(default_data, data))
-    |> TestRepo.create!()
+    |> TestRepo.Relationship.create!()
   end
 end

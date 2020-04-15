@@ -60,10 +60,34 @@ defmodule Seraph.Repo.Relationship.Queryable do
     end
   end
 
+  @doc """
+  Same as `get/4` but raises when no result is found.
+  """
+  @spec get!(
+          Seraph.Repo.t(),
+          Queryable.t(),
+          Seraph.Schema.Node.t() | map,
+          Seraph.Schema.Node.t() | map
+        ) :: Seraph.Schema.Relationship.t()
+  def get!(repo, queryable, start_struct_or_data, end_struct_or_data) do
+    case get(repo, queryable, start_struct_or_data, end_struct_or_data) do
+      nil ->
+        params = %{
+          start: start_struct_or_data,
+          end: end_struct_or_data
+        }
+
+        raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: params
+
+      result ->
+        result
+    end
+  end
+
   @spec node_data(String.t(), Seraph.Repo.Queryable.t(), Seraph.Schema.Node.t() | map) ::
           {Builder.NodeExpr.t(), map}
   defp node_data(node_var, queryable, %{__struct__: _} = data) do
-    id_field = Seraph.Repo.Node.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Helper.identifier_field(queryable)
 
     bound_name = node_var <> "_" <> Atom.to_string(id_field)
     props = Map.put(%{}, id_field, bound_name)

@@ -32,6 +32,11 @@ defmodule Seraph.MixProject do
     [
       source_ref: "v#{@version}",
       groups_for_modules: [
+        "Example Repo": [
+          Seraph.Example.Repo,
+          Seraph.Example.Repo.Node,
+          Seraph.Example.Repo.Relationship
+        ],
         Schema: [
           Seraph.Schema.Node,
           Seraph.Schema.Node.Metadata,

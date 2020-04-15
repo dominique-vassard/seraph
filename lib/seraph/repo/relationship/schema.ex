@@ -11,60 +11,51 @@ defmodule Seraph.Repo.Relationship.Schema do
   """
   @spec create(
           Seraph.Repo.t(),
-          Seraph.Schema.Relationship.t(),
-          Seraph.Repo.Schema.create_options()
+          Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
+          Keyword.t()
         ) ::
-          {:ok, Seraph.Schema.Relationship.t()}
-  def create(repo, rel_data, [node_creation: true] = opts) do
-    start_node = repo.create!(rel_data.start_node, opts)
-    end_node = repo.create!(rel_data.end_node, opts)
+          {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
 
-    new_rel_data =
-      rel_data
-      |> Map.put(:start_node, start_node)
-      |> Map.put(:end_node, end_node)
-
-    create(repo, new_rel_data, Keyword.drop(opts, [:node_creation]))
+  def create(_, %Seraph.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
   end
 
-  def create(repo, %{__struct__: queryable} = rel_data, _opts) do
-    persisted_properties = queryable.__schema__(:persisted_properties)
+  def create(repo, %Seraph.Changeset{} = changeset, opts) do
+    do_create(repo, Seraph.Changeset.apply_changes(changeset), opts)
+  end
 
-    {start_node, start_params} = build_node_match("start", rel_data.start_node)
-    {end_node, end_params} = build_node_match("end", rel_data.end_node)
+  def create(repo, %{__struct__: queryable} = struct, opts) do
+    cs_fields =
+      queryable.__schema__(:changeset_properties)
+      |> Enum.map(fn {key, _} -> key end)
 
-    relationship = %Builder.RelationshipExpr{
-      start: %Builder.NodeExpr{
-        variable: start_node.variable
-      },
-      end: %Builder.NodeExpr{
-        variable: end_node.variable
-      },
-      type: rel_data.type,
-      variable: "rel"
-    }
+    {data, changes} =
+      Enum.reduce(cs_fields, {struct, %{}}, fn cs_field, {data, changes} ->
+        case Map.fetch(struct, cs_field) do
+          {:ok, value} ->
+            {Map.put(data, cs_field, nil), Map.put(changes, cs_field, value)}
 
-    sets = build_sets(relationship.variable, Map.from_struct(rel_data), persisted_properties)
+          :error ->
+            {data, changes}
+        end
+      end)
 
-    relationship_params =
-      start_params
-      |> Map.merge(end_params)
-      |> Map.merge(sets.params)
+    create(repo, Seraph.Changeset.cast(data, changes, cs_fields), opts)
+  end
 
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([start_node, end_node])
-      |> Builder.create([relationship])
-      |> Builder.set(sets.sets)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [relationship]
-      })
-      |> Builder.params(relationship_params)
-      |> Builder.to_string()
+  @doc """
+  Same as `create/3` but raise in case of error.
+  """
+  @spec create!(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) ::
+          Seraph.Schema.Relationship.t()
+  def create!(repo, changeset, opts) do
+    case create(repo, changeset, opts) do
+      {:ok, result} ->
+        result
 
-    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
-
-    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :insert, changeset: changeset
+    end
   end
 
   @doc """
@@ -73,14 +64,20 @@ defmodule Seraph.Repo.Relationship.Schema do
   Options:
     * `node_creation` - When set to `true`, defined start and end node will be created
   """
-  @spec merge(
-          Seraph.Repo.t(),
-          Seraph.Schema.Relationship.t(),
-          Seraph.Repo.Schema.merge_options()
-        ) :: {:ok, Seraph.Schema.Relationship.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Schema.Relationship.t() | Seraph.Changeset.t(), Keyword.t()) ::
+          {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
+
+  def merge(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
+    merge(repo, Seraph.Changeset.apply_changes(changeset), opts)
+  end
+
+  def merge(_, %Seraph.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
+  end
+
   def merge(repo, rel_data, [node_creation: true] = opts) do
-    start_node = repo.create!(rel_data.start_node, opts)
-    end_node = repo.create!(rel_data.end_node, opts)
+    start_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.start_node, opts)
+    end_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.end_node, opts)
 
     new_rel_data =
       rel_data
@@ -135,6 +132,24 @@ defmodule Seraph.Repo.Relationship.Schema do
   end
 
   @doc """
+  Same as `merge/3` but raise in case of error.
+  """
+  @spec merge!(
+          Seraph.Repo.t(),
+          Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
+          Keyword.t()
+        ) :: Seraph.Schema.Relationship.t()
+  def merge!(repo, changeset, opts) do
+    case merge(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :update, changeset: changeset
+    end
+  end
+
+  @doc """
   Perform a MERGE on the node in database.
 
   `nodes_data` must a map like:
@@ -151,11 +166,29 @@ defmodule Seraph.Repo.Relationship.Schema do
     and is matched.
     Provided data will be validated through given `changeset_fn`
   """
-  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
-          {:ok, Seraph.Schema.Relationship.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+          {:ok, Seraph.Schema.Relationship.t()} | {:error, any}
   def merge(repo, queryable, nodes_data, opts) do
-    merge_opts = Seraph.Repo.Schema.create_match_merge_opts(opts)
+    merge_opts = Seraph.Repo.Helper.create_match_merge_opts(opts)
     do_create_match_merge(repo, queryable, nodes_data, merge_opts)
+  end
+
+  @doc """
+  Same as `merge/4` but raise in case of error
+  """
+  @spec merge!(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+          Seraph.Schema.Relationship.t()
+  def merge!(repo, queryable, nodes_data, opts) do
+    case merge(repo, queryable, nodes_data, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, [on_create: %Seraph.Changeset{} = changeset]} ->
+        raise Seraph.InvalidChangesetError, action: :on_create, changeset: changeset
+
+      {:error, [on_match: %Seraph.Changeset{} = changeset]} ->
+        raise Seraph.InvalidChangesetError, action: :on_match, changeset: changeset
+    end
   end
 
   @doc """
@@ -165,7 +198,11 @@ defmodule Seraph.Repo.Relationship.Schema do
     * `node_creation` - When set to `true`, defined start and end node will be created
   """
   @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) ::
-          {:ok, Seraph.Schema.Relationship.t()}
+          {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
+
+  def set(_, %Seraph.Changeset{valid?: false} = changeset, _opts) do
+    {:error, changeset}
+  end
 
   def set(repo, changeset, [node_creation: true] = opts) do
     new_changeset =
@@ -261,10 +298,29 @@ defmodule Seraph.Repo.Relationship.Schema do
   end
 
   @doc """
+  Same as `set/3` but raise in case of error.
+  """
+  @spec set!(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) :: Seraph.Schema.Relationship.t()
+  def set!(repo, changeset, opts) do
+    case set(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :set, changeset: changeset
+    end
+  end
+
+  @doc """
   Deletes relationship from database.
   """
-  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) :: {:ok, Seraph.Schema.Relationship.t()}
-  def delete(repo, changeset) do
+  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) ::
+          {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
+  def delete(_repo, %Seraph.Changeset{valid?: false} = changeset) do
+    {:error, changeset}
+  end
+
+  def delete(repo, %Seraph.Changeset{} = changeset) do
     data =
       changeset
       |> Map.put(:changes, %{})
@@ -298,6 +354,77 @@ defmodule Seraph.Repo.Relationship.Schema do
       [] ->
         raise Seraph.DeletionError, queryable: queryable, data: data
     end
+  end
+
+  def delete(repo, struct) do
+    delete(repo, Seraph.Changeset.change(struct))
+  end
+
+  @doc """
+  Same as `delete/2` but raise in case of error.
+  """
+  @spec delete!(Seraph.Repo.t(), Seraph.Schema.Relationship.t() | Seraph.Changeset.t()) ::
+          Seraph.Schema.Relationship.t()
+  def delete!(repo, struct_or_changeset) do
+    case delete(repo, struct_or_changeset) do
+      {:ok, data} ->
+        data
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :delete, changeset: changeset
+    end
+  end
+
+  defp do_create(repo, rel_data, [node_creation: true] = opts) do
+    start_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.start_node, opts)
+    end_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.end_node, opts)
+
+    new_rel_data =
+      rel_data
+      |> Map.put(:start_node, start_node)
+      |> Map.put(:end_node, end_node)
+
+    do_create(repo, new_rel_data, Keyword.drop(opts, [:node_creation]))
+  end
+
+  defp do_create(repo, %{__struct__: queryable} = rel_data, _opts) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    {start_node, start_params} = build_node_match("start", rel_data.start_node)
+    {end_node, end_params} = build_node_match("end", rel_data.end_node)
+
+    relationship = %Builder.RelationshipExpr{
+      start: %Builder.NodeExpr{
+        variable: start_node.variable
+      },
+      end: %Builder.NodeExpr{
+        variable: end_node.variable
+      },
+      type: rel_data.type,
+      variable: "rel"
+    }
+
+    sets = build_sets(relationship.variable, Map.from_struct(rel_data), persisted_properties)
+
+    relationship_params =
+      start_params
+      |> Map.merge(end_params)
+      |> Map.merge(sets.params)
+
+    {statement, params} =
+      Builder.new()
+      |> Builder.match([start_node, end_node])
+      |> Builder.create([relationship])
+      |> Builder.set(sets.sets)
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [relationship]
+      })
+      |> Builder.params(relationship_params)
+      |> Builder.to_string()
+
+    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
+
+    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
   defp do_create_match_merge(_, _, _, {:error, error}) do
@@ -376,7 +503,7 @@ defmodule Seraph.Repo.Relationship.Schema do
 
   defp build_node_match(variable, node_data) do
     %{__struct__: queryable} = node_data
-    identifier = Seraph.Repo.Node.Helper.identifier_field(queryable)
+    identifier = Seraph.Repo.Helper.identifier_field(queryable)
     id_value = Map.fetch!(node_data, identifier)
 
     bound_name = variable <> "_" <> Atom.to_string(identifier)
@@ -513,8 +640,8 @@ defmodule Seraph.Repo.Relationship.Schema do
   defp pre_create_nodes(changeset, repo, changeset_key, opts) do
     case Seraph.Changeset.fetch_change(changeset, changeset_key) do
       {:ok, %Seraph.Changeset{} = start_cs} ->
-        new_start = repo.create!(start_cs, opts)
-        Seraph.Changeset.put_change(changeset, changeset_key, new_start)
+        new_node = Seraph.Repo.Node.Schema.create!(repo, start_cs, opts)
+        Seraph.Changeset.put_change(changeset, changeset_key, new_node)
 
       {:ok, _} ->
         changeset
@@ -540,19 +667,19 @@ defmodule Seraph.Repo.Relationship.Schema do
     raise ArgumentError, msg
   end
 
-  @spec format_result(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Relationship.t()
+  @spec format_result(Seraph.Repo.queryable(), map) :: Seraph.Schema.Relationship.t()
   defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
     props =
       rel_data.properties
-      |> Seraph.Repo.Node.Helper.atom_map()
+      |> Seraph.Repo.Helper.atom_map()
       |> Map.put(:__id__, rel_data.id)
       |> Map.put(
         :start_node,
-        Seraph.Repo.Node.Helper.build_node(queryable.__schema__(:start_node), start_data)
+        Seraph.Repo.Helper.build_node(queryable.__schema__(:start_node), start_data)
       )
       |> Map.put(
         :end_node,
-        Seraph.Repo.Node.Helper.build_node(queryable.__schema__(:end_node), end_data)
+        Seraph.Repo.Helper.build_node(queryable.__schema__(:end_node), end_data)
       )
 
     struct(queryable, props)

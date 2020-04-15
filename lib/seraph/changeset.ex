@@ -4,7 +4,6 @@ defmodule Seraph.Changeset do
 
   See `Ecto.Changeset`
   """
-  @type t :: Ecto.Changeset.t()
 
   @type error :: Ecto.Changeset.error()
 
@@ -29,6 +28,27 @@ defmodule Seraph.Changeset do
             empty_values: @empty_values,
             repo: nil,
             repo_opts: []
+
+  @type t(data_type) :: %Seraph.Changeset{
+          valid?: boolean(),
+          repo: atom | nil,
+          repo_opts: Keyword.t(),
+          data: data_type,
+          params: %{String.t() => term} | nil,
+          changes: %{atom => term},
+          required: [atom],
+          prepare: [(t -> t)],
+          errors: [{atom, error}],
+          constraints: [],
+          validations: [{atom, term}],
+          filters: %{atom => term},
+          action: action,
+          types: nil | %{atom => Ecto.Type.t()}
+        }
+
+  @type action :: nil | :create | :merge | :set | :delete | :ignore
+
+  @type t :: t(Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t() | map | nil)
 
   @spec cast(
           Seraph.Schema.t() | Seraph.Changeset.t() | {data(), types()},
@@ -84,7 +104,7 @@ defmodule Seraph.Changeset do
   @doc """
   See `Ecto.Changeset.apply_changes/1`
   """
-  @spec apply_changes(Seraph.Changeset.t()) :: Seraph.Schema.t()
+  @spec apply_changes(Seraph.Changeset.t()) :: Seraph.Schema.t() | data
   def apply_changes(changeset) do
     changeset
     |> map_to_ecto()

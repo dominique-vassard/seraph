@@ -6,61 +6,52 @@ defmodule Seraph.Repo.Node.Schema do
   @doc """
   Creates a node in database with the given data.
   """
-  @spec create(Seraph.Repo.t(), Seraph.Schema.Node.t(), Seraph.Repo.Schema.create_options()) ::
-          {:ok, Seraph.Schema.Node.t()}
-  def create(repo, %{__struct__: queryable} = data, _opts) do
-    persisted_properties = queryable.__schema__(:persisted_properties)
+  @spec create(
+          Seraph.Repo.t(),
+          Seraph.Schema.Node.t() | Seraph.Changeset.t(),
+          Keyword.t()
+        ) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
+  def create(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
+    do_create(repo, Seraph.Changeset.apply_changes(changeset), opts)
+  end
 
-    data =
-      case queryable.__schema__(:identifier) do
-        {:uuid, :string, _} ->
-          Map.put(data, :uuid, UUID.uuid4())
+  def create(_, %Seraph.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
+  end
 
-        _ ->
-          data
-      end
+  def create(repo, %{__struct__: queryable} = struct, opts) do
+    cs_fields =
+      queryable.__schema__(:changeset_properties)
+      |> Enum.map(fn {key, _} -> key end)
 
-    node_to_insert = %Builder.NodeExpr{
-      labels: [queryable.__schema__(:primary_label)] ++ data.additionalLabels,
-      variable: "n"
-    }
+    {data, changes} =
+      Enum.reduce(cs_fields, {struct, %{}}, fn cs_field, {data, changes} ->
+        case Map.fetch(struct, cs_field) do
+          {:ok, value} ->
+            {Map.put(data, cs_field, nil), Map.put(changes, cs_field, value)}
 
-    sets =
-      data
-      |> Map.from_struct()
-      |> Enum.filter(fn {k, _} ->
-        k in persisted_properties
-      end)
-      |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
-        bound_name = node_to_insert.variable <> "_" <> Atom.to_string(prop_name)
-
-        set = %Builder.SetExpr{
-          field: %Builder.FieldExpr{
-            variable: node_to_insert.variable,
-            name: prop_name
-          },
-          value: bound_name
-        }
-
-        %{
-          sets_data
-          | sets: [set | sets_data.sets],
-            params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
-        }
+          :error ->
+            {data, changes}
+        end
       end)
 
-    {cql, params} =
-      Builder.new()
-      |> Builder.create([node_to_insert])
-      |> Builder.set(sets.sets)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [node_to_insert]
-      })
-      |> Builder.to_string()
+    create(repo, Seraph.Changeset.cast(data, changes, cs_fields), opts)
+  end
 
-    {:ok, [%{"n" => created_node}]} = Planner.query(repo, cql, Map.merge(params, sets.params))
+  @doc """
+  Same as `create/3` but raise in case of error.
+  """
+  @spec create!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+          Seraph.Schema.Node.t()
+  def create!(repo, struct_or_changeset, opts) do
+    case create(repo, struct_or_changeset, opts) do
+      {:ok, result} ->
+        result
 
-    {:ok, Map.put(data, :__id__, created_node.id)}
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :insert, changeset: changeset
+    end
   end
 
   @doc """
@@ -68,8 +59,13 @@ defmodule Seraph.Repo.Node.Schema do
 
   If `merge_keys` are present in changeset / struct, then set new data, otherwise create a new node.
   """
-  @spec merge(Seraph.Repo.t(), Seraph.Changeset.t() | Seraph.Schema.Node.t(), Keyword.t()) ::
-          {:ok, Seraph.Schema.Node.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
+
+  def merge(_, %Seraph.Changeset{valid?: false} = changeset, _) do
+    {:error, changeset}
+  end
+
   def merge(repo, %Seraph.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
     queryable.__schema__(:merge_keys)
     |> Enum.map(&Seraph.Changeset.fetch_field(changeset, &1))
@@ -105,6 +101,21 @@ defmodule Seraph.Repo.Node.Schema do
   end
 
   @doc """
+  Same as `merge/3` but raise in case of error.
+  """
+  @spec merge!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+          Seraph.Schema.Node.t()
+  def merge!(repo, changeset, opts) do
+    case merge(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :update, changeset: changeset
+    end
+  end
+
+  @doc """
   Perform a MERGE on the node in database.
 
   Options:
@@ -114,22 +125,41 @@ defmodule Seraph.Repo.Node.Schema do
     and is matched.
     Provided data will be validated through given `changeset_fn`
   """
-  @spec merge(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
-          {:ok, Seraph.Schema.Node.t()}
+  @spec merge(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, any}
   def merge(repo, queryable, merge_keys_data, opts) do
-    IO.inspect(opts, label: "OPTS")
-
-    merge_opts =
-      Seraph.Repo.Schema.create_match_merge_opts(opts)
-      |> IO.inspect(label: "MERGE OPTS")
+    merge_opts = Seraph.Repo.Helper.create_match_merge_opts(opts)
 
     do_create_match_merge(repo, queryable, merge_keys_data, merge_opts)
   end
 
   @doc """
+  Same as `merge/4` but raise in case of error
+  """
+  @spec merge!(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+          Seraph.Schema.Node.t()
+  def merge!(repo, queryable, merge_keys_data, opts) do
+    case merge(repo, queryable, merge_keys_data, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, [on_create: %Seraph.Changeset{} = changeset]} ->
+        raise Seraph.InvalidChangesetError, action: :on_create, changeset: changeset
+
+      {:error, [on_match: %Seraph.Changeset{} = changeset]} ->
+        raise Seraph.InvalidChangesetError, action: :on_match, changeset: changeset
+    end
+  end
+
+  @doc """
   Sets new data on node in database.
   """
-  @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) :: {:ok, Seraph.Schema.Node.t()}
+  @spec set(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
+  def set(_, %Seraph.Changeset{valid?: false} = changeset, _opts) do
+    {:error, changeset}
+  end
+
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
 
@@ -190,9 +220,28 @@ defmodule Seraph.Repo.Node.Schema do
   end
 
   @doc """
+  Same as `set/3` but raise in case of error.
+  """
+  @spec set!(Seraph.Repo.t(), Seraph.Changeset.t(), Keyword.t()) :: Seraph.Schema.Node.t()
+  def set!(repo, changeset, opts) do
+    case set(repo, changeset, opts) do
+      {:ok, result} ->
+        result
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :set, changeset: changeset
+    end
+  end
+
+  @doc """
   Deletes node from database.
   """
-  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) :: {:ok, Seraph.Schema.Node.t()}
+  @spec delete(Seraph.Repo.t(), Seraph.Changeset.t()) ::
+          {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
+  def delete(_repo, %Seraph.Changeset{valid?: false} = changeset) do
+    {:error, changeset}
+  end
+
   def delete(repo, %Seraph.Changeset{valid?: true} = changeset) do
     data =
       changeset
@@ -225,6 +274,82 @@ defmodule Seraph.Repo.Node.Schema do
       [] ->
         raise Seraph.DeletionError, queryable: queryable, data: data
     end
+  end
+
+  def delete(repo, struct) do
+    changeset = Seraph.Changeset.change(struct)
+
+    delete(repo, changeset)
+  end
+
+  @doc """
+  Same as `delete/2` but raise in case of error.
+  """
+  @spec delete!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t()) ::
+          Seraph.Schema.Node.t()
+  def delete!(repo, struct_or_changeset) do
+    case delete(repo, struct_or_changeset) do
+      {:ok, data} ->
+        data
+
+      {:error, changeset} ->
+        raise Seraph.InvalidChangesetError, action: :delete, changeset: changeset
+    end
+  end
+
+  defp do_create(repo, %{__struct__: queryable} = data, _opts) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    data =
+      case queryable.__schema__(:identifier) do
+        {:uuid, :string, _} ->
+          Map.put(data, :uuid, UUID.uuid4())
+
+        _ ->
+          data
+      end
+
+    node_to_insert = %Builder.NodeExpr{
+      labels: [queryable.__schema__(:primary_label)] ++ data.additionalLabels,
+      variable: "n"
+    }
+
+    sets =
+      data
+      |> Map.from_struct()
+      |> Enum.filter(fn {k, _} ->
+        k in persisted_properties
+      end)
+      |> Enum.reduce(%{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
+        bound_name = node_to_insert.variable <> "_" <> Atom.to_string(prop_name)
+
+        set = %Builder.SetExpr{
+          field: %Builder.FieldExpr{
+            variable: node_to_insert.variable,
+            name: prop_name
+          },
+          value: bound_name
+        }
+
+        %{
+          sets_data
+          | sets: [set | sets_data.sets],
+            params: Map.put(sets_data.params, String.to_atom(bound_name), prop_value)
+        }
+      end)
+
+    {cql, params} =
+      Builder.new()
+      |> Builder.create([node_to_insert])
+      |> Builder.set(sets.sets)
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [node_to_insert]
+      })
+      |> Builder.to_string()
+
+    {:ok, [%{"n" => created_node}]} = Planner.query(repo, cql, Map.merge(params, sets.params))
+
+    {:ok, Map.put(data, :__id__, created_node.id)}
   end
 
   defp do_create_match_merge(_, _, _, {:error, error}) do
@@ -298,7 +423,7 @@ defmodule Seraph.Repo.Node.Schema do
 
       {:ok, [%{"n" => merged_node}]} = Planner.query(repo, statement, params)
 
-      {:ok, Seraph.Repo.Node.Helper.build_node(queryable, merged_node)}
+      {:ok, Seraph.Repo.Helper.build_node(queryable, merged_node)}
     else
       {:error, _} = error ->
         error
@@ -342,9 +467,10 @@ defmodule Seraph.Repo.Node.Schema do
     end)
   end
 
-  @spec build_label_operation(Builder.NodeExpr.t(), Queryable.t(), Seraph.Changeset.t()) :: [
-          Builder.LabelOperationExpr.t()
-        ]
+  @spec build_label_operation(Builder.NodeExpr.t(), Seraph.Repo.queryable(), Seraph.Changeset.t()) ::
+          [
+            Builder.LabelOperationExpr.t()
+          ]
   defp build_label_operation(entity, queryable, %{changes: %{additionalLabels: _}} = changeset) do
     additionalLabels =
       changeset.changes[:additionalLabels] -- [queryable.__schema__(:primary_label)]
