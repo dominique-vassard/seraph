@@ -151,7 +151,8 @@ defmodule Seraph.Schema.Node do
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
       Module.register_attribute(__MODULE__, :persisted_properties, accumulate: true)
-      Module.register_attribute(__MODULE__, :relationships, accumulate: true)
+      Module.register_attribute(__MODULE__, :relationships_list, accumulate: true)
+      Module.register_attribute(__MODULE__, :relationships, accumulate: false)
       Module.register_attribute(__MODULE__, :outgoing_relationships, accumulate: true)
       Module.register_attribute(__MODULE__, :incoming_relationships, accumulate: true)
     end
@@ -224,6 +225,25 @@ defmodule Seraph.Schema.Node do
           %{unquote_splicing(Macro.escape(cs_prop_list))}
         end
 
+        # Review relationships
+        # If more than one relationship has the same type, add a list to attribute
+        new_relationships =
+          Enum.reduce(@relationships_list, [], fn {rel_type, rel_info} = r, new_rels ->
+            case Keyword.get(new_rels, rel_type) do
+              nil ->
+                Keyword.put(new_rels, rel_type, rel_info)
+
+              old_data when is_list(old_data) ->
+                Keyword.put(new_rels, rel_type, [rel_info | old_data])
+
+              old_data ->
+                Keyword.put(new_rels, rel_type, [rel_info, old_data])
+            end
+          end)
+
+        Module.put_attribute(__MODULE__, :relationships, new_relationships)
+        Module.delete_attribute(__MODULE__, :relationships_list)
+
         def __schema__(:schema), do: __MODULE__
         def __schema__(:entity_type), do: :node
         def __schema__(:primary_label), do: unquote(primary_label)
@@ -274,17 +294,24 @@ defmodule Seraph.Schema.Node do
 
   def __after_compile__(%{module: module} = _env, _) do
     Module.get_attribute(module, :relationships)
-    |> Enum.filter(fn {_, %{schema: schema}} -> not is_nil(schema) end)
-    |> Enum.each(fn {_, info} = data ->
-      unless info.schema.__schema__(:type) == info.type do
-        raise ArgumentError,
-              "[#{inspect(module)}] Defined type #{info.type} doesn't match the one defined in #{
-                inspect(info.schema.__schema__(:type))
-              }"
-      end
+    |> Enum.each(&check_relationship_schema(module, &1))
+  end
 
-      data
-    end)
+  defp check_relationship_schema(module, {_, schemas}) when is_list(schemas) do
+    Enum.each(schemas, &do_check_relationship_schema(module, &1))
+  end
+
+  defp check_relationship_schema(module, {_, info}) do
+    do_check_relationship_schema(module, info)
+  end
+
+  defp do_check_relationship_schema(module, data) do
+    unless data.schema.__schema__(:type) == data.type do
+      raise ArgumentError,
+            "[#{inspect(module)}] Defined type #{data.type} doesn't match the one defined in #{
+              inspect(data.schema.__schema__(:type))
+            }"
+    end
   end
 
   @doc """
@@ -438,7 +465,20 @@ defmodule Seraph.Schema.Node do
     info =
       relationship_info(direction, module, related_node, name, type, relationship_module, opts)
 
-    Module.put_attribute(module, :relationships, {type_field, info})
+    exists? =
+      Enum.any?(Module.get_attribute(module, :relationships_list), fn {_, rel_info} ->
+        rel_info.type == info.type && rel_info.start_node == info.start_node &&
+          rel_info.end_node == info.end_node
+      end)
+
+    if exists? do
+      raise ArgumentError,
+            "Relationship from [#{inspect(info.start_node)}] to [#{inspect(info.end_node)}] with type [#{
+              inspect(info.type)
+            }] already exists."
+    end
+
+    Module.put_attribute(module, :relationships_list, {type_field, info})
     struct_fields = Module.get_attribute(module, :struct_fields)
 
     if List.keyfind(Module.get_attribute(module, :properties), type_field, 0) do
@@ -446,9 +486,12 @@ defmodule Seraph.Schema.Node do
             "[#{inspect(module)}] relationship type name #{inspect(type_field)} is already taken by a property."
     end
 
-    if List.keyfind(struct_fields, name, 0) do
-      raise ArgumentError,
-            "[#{inspect(module)}] relationship field name #{inspect(type_field)} is already taken."
+    # if List.keyfind(struct_fields, name, 0) do
+    #   raise ArgumentError,
+    #         "[#{inspect(module)}] relationship field name #{inspect(type_field)} is already taken."
+    # end
+    unless List.keyfind(struct_fields, name, 0) do
+      Module.put_attribute(module, :struct_fields, {type_field, rel_not_loaded})
     end
 
     attr_name = String.to_atom(Atom.to_string(direction) <> "_relationships")
@@ -456,8 +499,6 @@ defmodule Seraph.Schema.Node do
     if not (type_field in Module.get_attribute(module, attr_name)) do
       Module.put_attribute(module, attr_name, type_field)
     end
-
-    Module.put_attribute(module, :struct_fields, {type_field, rel_not_loaded})
 
     Module.put_attribute(
       module,

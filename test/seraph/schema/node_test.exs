@@ -103,13 +103,13 @@ defmodule Seraph.Schema.NodeTest do
 
   test "with schema metadata" do
     assert [
-             used: %Seraph.Schema.Relationship.Incoming{
+             wrote: %Seraph.Schema.Relationship.Outgoing{
                cardinality: :many,
-               end_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
-               field: :used_posts,
-               schema: Seraph.Schema.NodeTest.UsedMod,
-               start_node: Seraph.Test.Post,
-               type: "USED"
+               end_node: Seraph.Test.Post,
+               field: :posts,
+               schema: Seraph.Schema.NodeTest.Wrote,
+               start_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
+               type: "WROTE"
              },
              follows: %Seraph.Schema.Relationship.Outgoing{
                cardinality: :many,
@@ -119,13 +119,13 @@ defmodule Seraph.Schema.NodeTest do
                start_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
                type: "FOLLOWS"
              },
-             wrote: %Seraph.Schema.Relationship.Outgoing{
+             used: %Seraph.Schema.Relationship.Incoming{
                cardinality: :many,
-               end_node: Seraph.Test.Post,
-               field: :posts,
-               schema: Seraph.Schema.NodeTest.Wrote,
-               start_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
-               type: "WROTE"
+               end_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
+               field: :used_posts,
+               schema: Seraph.Schema.NodeTest.UsedMod,
+               start_node: Seraph.Test.Post,
+               type: "USED"
              }
            ] == WithSchemaRelatedSchema.__schema__(:relationships)
 
