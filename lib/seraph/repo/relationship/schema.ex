@@ -68,67 +68,30 @@ defmodule Seraph.Repo.Relationship.Schema do
           {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
 
   def merge(repo, %Seraph.Changeset{valid?: true} = changeset, opts) do
-    merge(repo, Seraph.Changeset.apply_changes(changeset), opts)
+    do_merge(repo, Seraph.Changeset.apply_changes(changeset), opts)
   end
 
   def merge(_, %Seraph.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
   end
 
-  def merge(repo, rel_data, [node_creation: true] = opts) do
-    start_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.start_node, opts)
-    end_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.end_node, opts)
+  def merge(repo, %{__struct__: queryable} = struct, opts) do
+    cs_fields =
+      queryable.__schema__(:changeset_properties)
+      |> Enum.map(fn {key, _} -> key end)
 
-    new_rel_data =
-      rel_data
-      |> Map.put(:start_node, start_node)
-      |> Map.put(:end_node, end_node)
+    {data, changes} =
+      Enum.reduce(cs_fields, {struct, %{}}, fn cs_field, {data, changes} ->
+        case Map.fetch(struct, cs_field) do
+          {:ok, value} ->
+            {Map.put(data, cs_field, nil), Map.put(changes, cs_field, value)}
 
-    merge(repo, new_rel_data, Keyword.drop(opts, [:node_creation]))
-  end
+          :error ->
+            {data, changes}
+        end
+      end)
 
-  def merge(repo, %{__struct__: queryable} = rel_data, _opts) do
-    persisted_properties = queryable.__schema__(:persisted_properties)
-
-    {start_node, start_params} = build_node_match("start", rel_data.start_node)
-    {end_node, end_params} = build_node_match("end", rel_data.end_node)
-
-    relationship = %Builder.RelationshipExpr{
-      start: %Builder.NodeExpr{
-        variable: start_node.variable
-      },
-      end: %Builder.NodeExpr{
-        variable: end_node.variable
-      },
-      type: rel_data.type,
-      variable: "rel"
-    }
-
-    sets = build_sets(relationship.variable, Map.from_struct(rel_data), persisted_properties)
-
-    relationship_params =
-      start_params
-      |> Map.merge(end_params)
-      |> Map.merge(sets.params)
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([start_node, end_node])
-      |> Builder.merge([
-        %Builder.MergeExpr{
-          expr: relationship
-        }
-      ])
-      |> Builder.set(sets.sets)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [relationship]
-      })
-      |> Builder.params(relationship_params)
-      |> Builder.to_string()
-
-    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
-
-    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
+    merge(repo, Seraph.Changeset.cast(data, changes, cs_fields), opts)
   end
 
   @doc """
@@ -415,6 +378,62 @@ defmodule Seraph.Repo.Relationship.Schema do
       Builder.new()
       |> Builder.match([start_node, end_node])
       |> Builder.create([relationship])
+      |> Builder.set(sets.sets)
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [relationship]
+      })
+      |> Builder.params(relationship_params)
+      |> Builder.to_string()
+
+    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
+
+    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
+  end
+
+  defp do_merge(repo, rel_data, [node_creation: true] = opts) do
+    start_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.start_node, opts)
+    end_node = Seraph.Repo.Node.Schema.create!(repo, rel_data.end_node, opts)
+
+    new_rel_data =
+      rel_data
+      |> Map.put(:start_node, start_node)
+      |> Map.put(:end_node, end_node)
+
+    merge(repo, new_rel_data, Keyword.drop(opts, [:node_creation]))
+  end
+
+  defp do_merge(repo, %{__struct__: queryable} = rel_data, _opts) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    {start_node, start_params} = build_node_match("start", rel_data.start_node)
+    {end_node, end_params} = build_node_match("end", rel_data.end_node)
+
+    relationship = %Builder.RelationshipExpr{
+      start: %Builder.NodeExpr{
+        variable: start_node.variable
+      },
+      end: %Builder.NodeExpr{
+        variable: end_node.variable
+      },
+      type: rel_data.type,
+      variable: "rel"
+    }
+
+    sets = build_sets(relationship.variable, Map.from_struct(rel_data), persisted_properties)
+
+    relationship_params =
+      start_params
+      |> Map.merge(end_params)
+      |> Map.merge(sets.params)
+
+    {statement, params} =
+      Builder.new()
+      |> Builder.match([start_node, end_node])
+      |> Builder.merge([
+        %Builder.MergeExpr{
+          expr: relationship
+        }
+      ])
       |> Builder.set(sets.sets)
       |> Builder.return(%Builder.ReturnExpr{
         fields: [relationship]

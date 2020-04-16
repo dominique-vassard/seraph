@@ -59,14 +59,14 @@ defmodule Seraph.Repo.Node.Schema do
 
   If `merge_keys` are present in changeset / struct, then set new data, otherwise create a new node.
   """
-  @spec merge(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+  @spec create_or_set(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
           {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
 
-  def merge(_, %Seraph.Changeset{valid?: false} = changeset, _) do
+  def create_or_set(_, %Seraph.Changeset{valid?: false} = changeset, _) do
     {:error, changeset}
   end
 
-  def merge(repo, %Seraph.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
+  def create_or_set(repo, %Seraph.Changeset{data: %{__struct__: queryable}} = changeset, opts) do
     queryable.__schema__(:merge_keys)
     |> Enum.map(&Seraph.Changeset.fetch_field(changeset, &1))
     |> Enum.reject(fn {_, value} -> is_nil(value) end)
@@ -76,7 +76,7 @@ defmodule Seraph.Repo.Node.Schema do
     end
   end
 
-  def merge(repo, %{__struct__: queryable} = data, opts) do
+  def create_or_set(repo, %{__struct__: queryable} = data, opts) do
     queryable.__schema__(:merge_keys)
     |> Enum.map(&Map.get(data, &1))
     |> Enum.reject(&is_nil/1)
@@ -103,10 +103,14 @@ defmodule Seraph.Repo.Node.Schema do
   @doc """
   Same as `merge/3` but raise in case of error.
   """
-  @spec merge!(Seraph.Repo.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+  @spec create_or_set!(
+          Seraph.Repo.t(),
+          Seraph.Schema.Node.t() | Seraph.Changeset.t(),
+          Keyword.t()
+        ) ::
           Seraph.Schema.Node.t()
-  def merge!(repo, changeset, opts) do
-    case merge(repo, changeset, opts) do
+  def create_or_set!(repo, changeset, opts) do
+    case create_or_set(repo, changeset, opts) do
       {:ok, result} ->
         result
 

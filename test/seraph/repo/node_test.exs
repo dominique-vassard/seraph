@@ -312,7 +312,7 @@ defmodule Seraph.Repo.NodeTest do
     end
   end
 
-  describe "merge/2" do
+  describe "create_or_set/2" do
     test "ok with changeset: node creation" do
       params = %{
         firstName: "John",
@@ -323,7 +323,7 @@ defmodule Seraph.Repo.NodeTest do
       assert {:ok, merged_node} =
                %User{}
                |> User.changeset(params)
-               |> TestRepo.Node.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -360,7 +360,7 @@ defmodule Seraph.Repo.NodeTest do
                %User{}
                |> User.changeset(data)
                |> Seraph.Changeset.apply_changes()
-               |> TestRepo.Node.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -400,7 +400,7 @@ defmodule Seraph.Repo.NodeTest do
       assert {:ok, merged_node} =
                user
                |> User.changeset(params)
-               |> TestRepo.Node.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -441,7 +441,7 @@ defmodule Seraph.Repo.NodeTest do
                user
                |> User.changeset(params)
                |> Seraph.Changeset.apply_changes()
-               |> TestRepo.Node.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -479,7 +479,17 @@ defmodule Seraph.Repo.NodeTest do
       assert {:error, %Seraph.Changeset{valid?: false}} =
                user
                |> User.changeset(params)
-               |> TestRepo.Node.merge()
+               |> TestRepo.Node.create_or_set()
+    end
+
+    test "fail: with invalid data" do
+      data = %User{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.Node.create_or_set(data)
     end
 
     test "raise: when used with !" do
@@ -494,7 +504,7 @@ defmodule Seraph.Repo.NodeTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         user
         |> User.changeset(params)
-        |> TestRepo.Node.merge!()
+        |> TestRepo.Node.create_or_set!()
       end
     end
   end

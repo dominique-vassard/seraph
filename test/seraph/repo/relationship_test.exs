@@ -564,6 +564,19 @@ defmodule Seraph.Repo.RelationshipTest do
                |> TestRepo.Relationship.merge()
     end
 
+    test "fails: invalid data" do
+      user = add_fixtures(:start_node)
+      post = add_fixtures(:end_node)
+
+      data = %Wrote{
+        start_node: user,
+        end_node: post,
+        at: :invalid
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.Relationship.merge(data)
+    end
+
     test "raise when used with bang version" do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)

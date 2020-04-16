@@ -176,22 +176,22 @@ defmodule Seraph.Repo do
               {:error, changeset} -> # Something went wrong
             end
         """
-        @spec merge(Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
+        @spec create_or_set(Seraph.Schema.Node.t() | Seraph.Changeset.t(), Keyword.t()) ::
                 {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
-        def merge(struct_or_changeset, opts \\ []) do
-          Node.Schema.merge(@repo, struct_or_changeset, opts)
+        def create_or_set(struct_or_changeset, opts \\ []) do
+          Node.Schema.create_or_set(@repo, struct_or_changeset, opts)
         end
 
         @doc """
-        Same as merge/2 but raise in case of error
+        Same as create_or_set/2 but raise in case of error
         """
-        @spec merge!(
+        @spec create_or_set!(
                 Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t() | Seraph.Changeset.t(),
                 Keyword.t()
               ) ::
                 Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
-        def merge!(struct_or_changeset, opts \\ []) do
-          Node.Schema.merge!(@repo, struct_or_changeset, opts)
+        def create_or_set!(struct_or_changeset, opts \\ []) do
+          Node.Schema.create_or_set!(@repo, struct_or_changeset, opts)
         end
 
         @doc """
@@ -326,12 +326,15 @@ defmodule Seraph.Repo do
         @doc """
         Create a Relationship defined via `Seraph.Schema.Relationship` or a changeset.
 
+        Note that a relationship will be created even if a similar one still exists, i.e. It translates
+        to `CREATE (start_node)-[relationship_type]->(end_node)`.
+
         It returns `{:ok, struct}` if the struct has been successfully
         created or `{:error, changeset}` if there was a validation error.
 
         Options:
-          * `node_creation`: if set to `true`, :start_node and :end_node will be created before
-          relationship is.
+          * `node_creation`: if set to `true`, :start_node and :end_node will be
+          created before relationship is.
 
         ## Example
 
@@ -377,7 +380,9 @@ defmodule Seraph.Repo do
         end
 
         @doc """
-        Create new Relationship or set new data to it.
+        Create new Relationship if it doesn't exist.
+
+        It translates to `MERGE (start_node)-[relationship_type]->(end_node)`.
 
         If `:start_node` and `:end_node` can be found (based on their merge keys) -> set new data
         otherwise ->  crete a new Relationship
