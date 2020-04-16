@@ -16,9 +16,9 @@ defmodule Seraph.Schema.Node do
           property :name, :string
           property :age, :integer, default: 0
 
-          incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
+          incoming_relationship "FOLLOWED", MyApp.Blog.User, :followers, through: MyApp.Blog.Relationships.Followed
 
-          outgoing_relationship "WROTE", Seraph.Test.Post, :posts, through: Seraph.Test.UserToPost.Wrote
+          outgoing_relationship "WROTE", MyApp.Blog.Post, :posts, through: MyApp.Blog.Relationships.Wrote
         end
       end
 
@@ -85,7 +85,6 @@ defmodule Seraph.Schema.Node do
     * `__schema__(:incoming_relationships)` - Returns a list of all incoming relationship names
     * `__schema__(:outgoing_relationships)` - Returns a list of all outgoing relationship names
   """
-  alias Seraph.Schema.Helper
 
   defmodule Metadata do
     @moduledoc """
@@ -307,17 +306,17 @@ defmodule Seraph.Schema.Node do
 
   @doc """
   Defines an outgoing relationship on the node schema with the given data:
-    * `type` - the relationship type (must be uppercased)
-    * `related_node` - the node schema the relationship is linked to
-    * `name` - the name used for sotring related nodes (when loaded)
+  * `type` - the relationship type (must be uppercased)
+  * `related_node` - the node schema the relationship is linked to
+  * `name` - the name used for storing related nodes (when loaded)
+  * `relationship_module` - Defines the Relationship module
 
   Loaded relationship(s) will be stored in the struct with their type as key.
 
   Options:
-    - `through` - Defines a Relationship module
-    - `cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`
+  - `cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`
   """
-  defmacro outgoing_relationship(type, related_node, name, opts \\ []) do
+  defmacro outgoing_relationship(type, related_node, name, relationship_module, opts \\ []) do
     related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
     quote do
@@ -327,6 +326,7 @@ defmodule Seraph.Schema.Node do
         unquote(type),
         unquote(related_node),
         unquote(name),
+        unquote(relationship_module),
         unquote(opts)
       )
     end
@@ -334,17 +334,17 @@ defmodule Seraph.Schema.Node do
 
   @doc """
   Defines an incoming relationship on the node schema with the given data:
-    * `type` - the relationship type (must be uppercased)
-    * `related_node` - the node schema the relationship is linked from
-    * `name` - the name used for sotring related nodes (when loaded)
+  * `type` - the relationship type (must be uppercased)
+  * `related_node` - the node schema the relationship is linked from
+  * `name` - the name used for storing related nodes (when loaded)
+  * `relationship_module` - Defines the Relationship module
 
   Loaded relationship(s) will be stored in the struct with their type as key.
 
   Options:
-    - `through` - Defines a Relationship module
     - `cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`
   """
-  defmacro incoming_relationship(type, related_node, name, opts \\ []) do
+  defmacro incoming_relationship(type, related_node, name, relationship_module, opts \\ []) do
     related_node = Seraph.Schema.Helper.expand_alias(related_node, __CALLER__)
 
     quote do
@@ -354,6 +354,7 @@ defmodule Seraph.Schema.Node do
         unquote(type),
         unquote(related_node),
         unquote(name),
+        unquote(relationship_module),
         unquote(opts)
       )
     end
@@ -384,7 +385,7 @@ defmodule Seraph.Schema.Node do
 
   @spec __property__(module, atom, atom, Keyword.t()) :: nil | :ok
   def __property__(module, name, type, opts) do
-    Seraph.Schema.Node.check_property_type!(name, type)
+    Seraph.Schema.Helper.check_property_type!(name, type)
 
     name_str = Atom.to_string(name)
 
@@ -410,9 +411,17 @@ defmodule Seraph.Schema.Node do
   end
 
   @doc false
-  @spec add_relationship(module, :incoming | :outgoing, String.t(), module, atom, Keyword.t()) ::
+  @spec add_relationship(
+          module,
+          :incoming | :outgoing,
+          String.t(),
+          module,
+          atom,
+          module,
+          Keyword.t()
+        ) ::
           :ok
-  def add_relationship(module, direction, type, related_node, name, opts) do
+  def add_relationship(module, direction, type, related_node, name, relationship_module, opts) do
     if not Regex.match?(~r/^[A-Z_]*$/, type) do
       raise ArgumentError,
             "[#{inspect(module)}] Relationship type must conform the format [A-Z_]* [Received: #{
@@ -426,7 +435,8 @@ defmodule Seraph.Schema.Node do
       __type__: type
     }
 
-    info = relationship_info(direction, module, related_node, name, type, opts)
+    info =
+      relationship_info(direction, module, related_node, name, type, relationship_module, opts)
 
     Module.put_attribute(module, :relationships, {type_field, info})
     struct_fields = Module.get_attribute(module, :struct_fields)
@@ -456,7 +466,7 @@ defmodule Seraph.Schema.Node do
     )
   end
 
-  defp relationship_info(direction, module, related_node, field, type, opts) do
+  defp relationship_info(direction, module, related_node, field, type, relationship_module, opts) do
     {struct_type, start_node, end_node} =
       if direction == :outgoing do
         {Relationship.Outgoing, module, related_node}
@@ -464,12 +474,7 @@ defmodule Seraph.Schema.Node do
         {Relationship.Incoming, related_node, module}
       end
 
-    rel_schema = Keyword.get(opts, :through, nil)
-
-    cardinality =
-      unless rel_schema do
-        Keyword.get(opts, :cardinality, :many)
-      end
+    cardinality = Keyword.get(opts, :cardinality, :many)
 
     data = %{
       start_node: start_node,
@@ -477,18 +482,9 @@ defmodule Seraph.Schema.Node do
       field: field,
       type: type,
       cardinality: cardinality,
-      schema: rel_schema
+      schema: relationship_module
     }
 
     struct!(struct_type, data)
-  end
-
-  @doc false
-  @spec check_property_type!(atom, atom) :: nil
-  def check_property_type!(name, type) do
-    unless type in Helper.valid_types() do
-      raise raise ArgumentError,
-                  "invalid or unknown type #{inspect(type)} for field #{inspect(name)}"
-    end
   end
 end

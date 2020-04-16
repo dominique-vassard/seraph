@@ -23,6 +23,17 @@ defmodule Seraph.Schema.Helper do
   ]
 
   @doc """
+  Check if the given property has a valid type.
+  """
+  @spec check_property_type!(atom, atom) :: nil
+  def check_property_type!(name, type) do
+    unless type in valid_types() do
+      raise raise ArgumentError,
+                  "invalid or unknown type #{inspect(type)} for field #{inspect(name)}"
+    end
+  end
+
+  @doc """
   Return valid type that can be used within Seraph.
   """
   @spec valid_types :: [atom]

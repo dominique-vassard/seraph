@@ -32,6 +32,11 @@ defmodule Seraph.MixProject do
     [
       source_ref: "v#{@version}",
       groups_for_modules: [
+        "Example Repo": [
+          Seraph.Example.Repo,
+          Seraph.Example.Repo.Node,
+          Seraph.Example.Repo.Relationship
+        ],
         Schema: [
           Seraph.Schema.Node,
           Seraph.Schema.Node.Metadata,
@@ -57,8 +62,6 @@ defmodule Seraph.MixProject do
       {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
   end
 end

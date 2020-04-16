@@ -10,16 +10,22 @@ defmodule Seraph.Schema.Relationship do
 
   ## Example
 
-      defmodule Wrote do
+      # Complete form
+      defmodule MyApp.Wrote do
         use Seraph.Schema.Relationship
 
+        @cardinality :one
+
         relationship "WROTE" do
-          start_node Seraph.Test.User
-          end_node Seraph.Test.Post
+          start_node MyApp.User
+          end_node MyApp.Post
 
           property :views, :integer, default: 0
         end
       end
+
+      # Short form (useful for relationship without properties)
+      defrelationship("FOLLOWS", MyApp.User, MyApp.User, cardinality: :one)
 
   The `start_node` macro defines the node schema from which starts the relationship.
   The `end_node` macro defines the node schema to which ends the relationship.
@@ -28,7 +34,7 @@ defmodule Seraph.Schema.Relationship do
   Schemas are regular structs and can be created and manipulated directly
   using Elixir's struct API:
 
-      iex> user = %Wrote{views: 1}
+      iex> user = %MyApp.Wrote{views: 1}
       iex> %{user | views: 2}
 
   However, most commonly, structs are cast, validated and manipulated with the
@@ -176,6 +182,8 @@ defmodule Seraph.Schema.Relationship do
     quote do
       import Seraph.Schema.Relationship
 
+      @cardinality :many
+
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
       Module.register_attribute(__MODULE__, :persisted_properties, accumulate: true)
@@ -194,11 +202,9 @@ defmodule Seraph.Schema.Relationship do
     - relationship info must match the info given in the start and end node schemas
 
   """
-  defmacro relationship(rel_type, opts \\ [], do: block) do
+  defmacro relationship(rel_type, do: block) do
     prelude =
       quote do
-        opts = unquote(opts)
-        Module.put_attribute(__MODULE__, :cardinality, Keyword.get(opts, :cardinality, :many))
         Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
         Module.register_attribute(__MODULE__, :properties, accumulate: true)
 
@@ -281,7 +287,7 @@ defmodule Seraph.Schema.Relationship do
       name = unquote(name)
       type = unquote(type)
 
-      Seraph.Schema.Node.check_property_type!(name, type)
+      Seraph.Schema.Helper.check_property_type!(name, type)
 
       Module.put_attribute(__MODULE__, :properties, {name, type})
       Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
@@ -335,6 +341,107 @@ defmodule Seraph.Schema.Relationship do
            #  __primary_label__: unquote(node).__schema__(:primary_label)
          }}
       )
+    end
+  end
+
+  @doc """
+    Allow to define a relationship schema without properties in a quick way.
+
+    Will expand in a viable relationship schema without properties.
+    Module name will be built upon start_node, end_node and relationship type as follows:
+    `[caller_module_name].[start_node]To[end_node].[relationship_type]`.
+
+    A free `changeset` will be provided with `:end_node` and `:start_node` as
+    allowed changes, allowing to easily set them and to have a similar behaviour
+    as fully-defined relationship
+
+  Options:
+    * `:cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`. Default: `:many`
+
+  ## Example
+
+        defmodule MyApp.NoPropsRelationships do
+          import Seraph.Schema.Relationship
+
+          defrelationship("ACTED_IN", MyApp.Person, MyApp.Movie, cardinality: :one)
+          defrelationship("DIRECTED", MyApp.Person, MyApp.Movie)
+        end
+
+        # Will expand to
+
+        defmodule MyApp.NoPropsRelationships do
+          defmodule PersonToMovie.ActedIn do
+            use Seraph.Schema.Relationship
+
+            @cardinality :one
+
+            relationship "ACTED_IN" do
+              start_node MyApp.Person
+              end_node MyApp.Movie
+            end
+
+            def changeset(relationship, params \\ %{}) do
+              Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
+            end
+          end
+
+          defmodule PersonToMovie.Directed do
+            use Seraph.Schema.Relationship
+
+            @cardinality :many
+
+            relationship "DIRECTED" do
+              start_node MyApp.Person
+              end_node MyApp.Movie
+            end
+
+            def changeset(relationship, params \\ %{}) do
+              Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
+            end
+          end
+        end
+  """
+  defmacro defrelationship(rel_type, start_node, end_node, opts \\ []) do
+    caller = __CALLER__.module
+
+    quote do
+      rel_type = unquote(rel_type)
+      start_node = unquote(start_node)
+      end_node = unquote(end_node)
+      opts = unquote(opts)
+      cardinality = Keyword.get(opts, :cardinality, :many)
+
+      nodes_module_name =
+        [start_node, end_node]
+        |> Enum.map(fn mod_name ->
+          mod_name
+          |> Module.split()
+          |> List.last()
+        end)
+        |> Enum.join("To")
+
+      rel_module_name =
+        rel_type
+        |> String.split("_")
+        |> Enum.map(&String.capitalize/1)
+        |> Enum.join()
+
+      module_name = Module.concat([unquote(caller), nodes_module_name, rel_module_name])
+
+      defmodule module_name do
+        use Seraph.Schema.Relationship
+
+        @cardinality cardinality
+
+        relationship rel_type do
+          start_node start_node
+          end_node end_node
+        end
+
+        def changeset(relationship, params \\ %{}) do
+          Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
+        end
+      end
     end
   end
 end

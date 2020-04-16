@@ -56,99 +56,10 @@ defmodule Seraph.Schema.NodeTest do
     assert %SimpleSchema{}.viewCount == 1
   end
 
-  defmodule InPlaceRelatedSchema do
-    use Seraph.Schema.Node
+  defmodule NoPropsRels do
+    import Seraph.Schema.Relationship
 
-    node "RelatedSchema" do
-      property :name, :string
-
-      outgoing_relationship "WROTE", Seraph.Test.Post, :posts
-      outgoing_relationship "WROTE", Seraph.Test.Comment, :comments
-      outgoing_relationship "EDIT", Seraph.Test.Post, :edited_posts, cardinality: :one
-      incoming_relationship "FOLLOWED", Seraph.Test.User, :followers
-    end
-  end
-
-  test "in place relationship metadata" do
-    assert [
-             followed: %Seraph.Schema.Relationship.Incoming{
-               cardinality: :many,
-               end_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-               field: :followers,
-               start_node: Seraph.Test.User,
-               type: "FOLLOWED",
-               schema: nil
-             },
-             edit: %Seraph.Schema.Relationship.Outgoing{
-               cardinality: :one,
-               end_node: Seraph.Test.Post,
-               field: :edited_posts,
-               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-               type: "EDIT",
-               schema: nil
-             },
-             wrote: %Seraph.Schema.Relationship.Outgoing{
-               cardinality: :many,
-               end_node: Seraph.Test.Comment,
-               field: :comments,
-               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-               type: "WROTE",
-               schema: nil
-             },
-             wrote: %Seraph.Schema.Relationship.Outgoing{
-               cardinality: :many,
-               end_node: Seraph.Test.Post,
-               field: :posts,
-               start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-               type: "WROTE",
-               schema: nil
-             }
-           ] = InPlaceRelatedSchema.__schema__(:relationships)
-
-    expected = [
-      %Seraph.Schema.Relationship.Outgoing{
-        cardinality: :many,
-        end_node: Seraph.Test.Comment,
-        field: :comments,
-        start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-        type: "WROTE"
-      },
-      %Seraph.Schema.Relationship.Outgoing{
-        cardinality: :many,
-        end_node: Seraph.Test.Post,
-        field: :posts,
-        start_node: Seraph.Schema.NodeTest.InPlaceRelatedSchema,
-        type: "WROTE"
-      }
-    ]
-
-    assert expected ==
-             InPlaceRelatedSchema.__schema__(:relationship, "WROTE")
-
-    assert expected == InPlaceRelatedSchema.__schema__(:relationship, :wrote)
-    assert InPlaceRelatedSchema.__schema__(:incoming_relationships) == [:followed]
-    assert InPlaceRelatedSchema.__schema__(:outgoing_relationships) == [:edit, :wrote]
-
-    struct_fields =
-      %InPlaceRelatedSchema{}
-      |> Map.from_struct()
-      |> Map.keys()
-
-    assert :posts in struct_fields
-    assert :comments in struct_fields
-    assert :edited_posts in struct_fields
-    assert :followers in struct_fields
-  end
-
-  defmodule UserFollowsUser do
-    use Seraph.Schema.Relationship
-
-    relationship "FOLLOWS", cardinality: :one do
-      start_node Seraph.Test.User
-      end_node Seraph.Test.User
-
-      property :at, :utc_datetime
-    end
+    defrelationship("FOLLOWS", WithSchemaRelatedSchema, Seraph.Test.Post)
   end
 
   defmodule Wrote do
@@ -179,23 +90,37 @@ defmodule Seraph.Schema.NodeTest do
     node "RelatedSchema" do
       property :name, :string
 
-      outgoing_relationship "WROTE", Post, :posts, through: Wrote
-      incoming_relationship "USED", Post, :used_posts, through: UsedMod
+      outgoing_relationship "WROTE", Post, :posts, Wrote
+
+      outgoing_relationship "FOLLOWS",
+                            Post,
+                            :followed_posts,
+                            NoPropsRels.WithSchemaRelatedSchemaToPost.Follows
+
+      incoming_relationship "USED", Post, :used_posts, UsedMod
     end
   end
 
   test "with schema metadata" do
     assert [
              used: %Seraph.Schema.Relationship.Incoming{
-               cardinality: nil,
+               cardinality: :many,
                end_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
                field: :used_posts,
                schema: Seraph.Schema.NodeTest.UsedMod,
                start_node: Seraph.Test.Post,
                type: "USED"
              },
+             follows: %Seraph.Schema.Relationship.Outgoing{
+               cardinality: :many,
+               end_node: Seraph.Test.Post,
+               field: :followed_posts,
+               schema: Seraph.Schema.NodeTest.NoPropsRels.WithSchemaRelatedSchemaToPost.Follows,
+               start_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
+               type: "FOLLOWS"
+             },
              wrote: %Seraph.Schema.Relationship.Outgoing{
-               cardinality: nil,
+               cardinality: :many,
                end_node: Seraph.Test.Post,
                field: :posts,
                schema: Seraph.Schema.NodeTest.Wrote,
@@ -205,7 +130,7 @@ defmodule Seraph.Schema.NodeTest do
            ] == WithSchemaRelatedSchema.__schema__(:relationships)
 
     assert WithSchemaRelatedSchema.__schema__(:incoming_relationships) == [:used]
-    assert WithSchemaRelatedSchema.__schema__(:outgoing_relationships) == [:wrote]
+    assert WithSchemaRelatedSchema.__schema__(:outgoing_relationships) == [:follows, :wrote]
 
     struct_fields =
       %WithSchemaRelatedSchema{}
@@ -238,7 +163,7 @@ defmodule Seraph.Schema.NodeTest do
           node "DuplicatedRelFieldByTypeOut" do
             property :one, :string
 
-            outgoing_relationship "One", One, :ones
+            outgoing_relationship "One", One, :ones, Seraph.Test.UserToPost.Wrote
           end
         end
       end
@@ -252,7 +177,7 @@ defmodule Seraph.Schema.NodeTest do
           node "DuplicatedRelFieldByTypeIn" do
             property :one, :string
 
-            incoming_relationship "One", One, :ones
+            incoming_relationship "One", One, :ones, Seraph.Test.UserToPost.Wrote
           end
         end
       end
@@ -266,7 +191,7 @@ defmodule Seraph.Schema.NodeTest do
           node "FieldAlreadyExistsOut" do
             property :posts, :string
 
-            outgoing_relationship "WROTE", Post, :posts
+            outgoing_relationship "WROTE", Post, :posts, Seraph.Test.UserToPost.Wrote
           end
         end
       end
@@ -280,7 +205,7 @@ defmodule Seraph.Schema.NodeTest do
           node "FieldAlreadyExistsIn" do
             property :posts, :string
 
-            incoming_relationship("WROTE", Post, :posts)
+            incoming_relationship "WROTE", Post, :posts, Seraph.Test.UserToPost.Wrote
           end
         end
       end
@@ -392,7 +317,12 @@ defmodule Seraph.Schema.NodeTest do
           use Seraph.Schema.Node
 
           node "WrongRelName" do
-            outgoing_relationship("wrongType", Post, :invalid_rel)
+            outgoing_relationship(
+              "wrongType",
+              Post,
+              :invalid_rel,
+              Seraph.Test.NoPropsRels.UserToUser.Follows
+            )
           end
         end
       end

@@ -5,7 +5,12 @@ defmodule Seraph.InvalidChangesetError do
   defexception [:action, :changeset]
 
   @impl true
-  defdelegate message(data), to: Ecto.InvalidChangesetError
+
+  def message(data) do
+    data
+    |> Map.put(:changeset, struct!(Ecto.Changeset, Map.from_struct(data.changeset)))
+    |> Ecto.InvalidChangesetError.message()
+  end
 end
 
 defmodule Seraph.NoResultsError do
@@ -67,6 +72,26 @@ defmodule Seraph.DeletionError do
     msg = """
     Failed attempt to delete #{Atom.to_string(queryable)}
     #{inspect(data)}
+    """
+
+    %__MODULE__{message: msg}
+  end
+end
+
+defmodule Seraph.StaleEntryError do
+  @moduledoc """
+  Raised when the given entry is not found in database.
+  """
+  defexception [:message]
+
+  def exception(opts) do
+    action = Keyword.fetch!(opts, :action)
+    struct = Keyword.fetch!(opts, :struct)
+
+    msg = """
+    attempted to #{action} a stale struct:
+
+    #{inspect(struct)}
     """
 
     %__MODULE__{message: msg}

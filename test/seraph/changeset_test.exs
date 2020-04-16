@@ -33,13 +33,13 @@ defmodule Seraph.ChangesetTest do
   alias Seraph.Changeset
 
   describe "Node:" do
-    test "cast/4 produces a valid Ecto.Changeset" do
-      assert %Ecto.Changeset{valid?: true} =
+    test "cast/4 produces a valid Seraph.Changeset" do
+      assert %Seraph.Changeset{valid?: true} =
                Changeset.cast(%User{}, %{name: "John", numericId: 5}, [:name, :numericId])
     end
 
-    test "change/2 produces a valid Ecto.Changeset" do
-      assert %Ecto.Changeset{} = Changeset.change(%User{name: "User"})
+    test "change/2 produces a valid Seraph.Changeset" do
+      assert %Seraph.Changeset{} = Changeset.change(%User{name: "User"})
     end
 
     test "multiple label valid changeset" do
@@ -49,7 +49,7 @@ defmodule Seraph.ChangesetTest do
         additionalLabels: ["Valid", "Label"]
       }
 
-      assert %Ecto.Changeset{valid?: true} =
+      assert %Seraph.Changeset{valid?: true} =
                Changeset.cast(%User{}, data, [:name, :numericId, :additionalLabels])
     end
 
@@ -60,19 +60,19 @@ defmodule Seraph.ChangesetTest do
         additionalLabels: [:invalid]
       }
 
-      assert %Ecto.Changeset{valid?: false} =
+      assert %Seraph.Changeset{valid?: false} =
                Changeset.cast(%User{}, data, [:name, :numericId, :additionalLabels])
     end
   end
 
   describe "Relationship:" do
-    test "cast/4 produces a valid Ecto.Changeset" do
-      assert %Ecto.Changeset{valid?: true} =
+    test "cast/4 produces a valid Seraph.Changeset" do
+      assert %Seraph.Changeset{valid?: true} =
                Changeset.cast(%UserWrotePost{}, %{at: DateTime.utc_now()}, [:at])
     end
 
-    test "change/2 produces a valid Ecto.Changeset" do
-      assert %Ecto.Changeset{valid?: true} = Changeset.change(%UserWrotePost{})
+    test "change/2 produces a valid Seraph.Changeset" do
+      assert %Seraph.Changeset{valid?: true} = Changeset.change(%UserWrotePost{})
     end
   end
 end

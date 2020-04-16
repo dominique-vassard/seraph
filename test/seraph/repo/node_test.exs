@@ -1,4 +1,4 @@
-defmodule Seraph.RepoTest do
+defmodule Seraph.Repo.NodeTest do
   use ExUnit.Case, async: true
   alias Seraph.TestRepo
   alias Seraph.Test.User
@@ -29,7 +29,7 @@ defmodule Seraph.RepoTest do
         viewCount: 5
       }
 
-      assert {:ok, created_user} = TestRepo.create(user)
+      assert {:ok, created_user} = TestRepo.Node.create(user)
 
       assert %Seraph.Test.User{
                firstName: "John",
@@ -69,10 +69,10 @@ defmodule Seraph.RepoTest do
         firstName: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                %User{}
                |> User.changeset(params)
-               |> TestRepo.create()
+               |> TestRepo.Node.create()
     end
 
     test "Node alone (changeset valid)" do
@@ -85,7 +85,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, created_user} =
                %User{}
                |> User.changeset(params)
-               |> TestRepo.create()
+               |> TestRepo.Node.create()
 
       assert %Seraph.Test.User{
                firstName: "John",
@@ -127,7 +127,7 @@ defmodule Seraph.RepoTest do
         viewCount: 5
       }
 
-      assert {:ok, created_user} = TestRepo.create(user)
+      assert {:ok, created_user} = TestRepo.Node.create(user)
 
       assert %Seraph.Test.User{
                additionalLabels: ["Buyer", "Regular"],
@@ -175,7 +175,7 @@ defmodule Seraph.RepoTest do
     test "without default identifier" do
       test = %WithoutIdentifier{name: "Joe"}
 
-      assert {:ok, created} = TestRepo.create(test)
+      assert {:ok, created} = TestRepo.Node.create(test)
       assert is_nil(Map.get(created, :uuid))
 
       cql = """
@@ -202,7 +202,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, created_user} =
                %User{}
                |> User.changeset(params)
-               |> TestRepo.create()
+               |> TestRepo.Node.create()
 
       assert %Seraph.Test.User{
                additionalLabels: ["Buyer", "Irregular"],
@@ -230,6 +230,29 @@ defmodule Seraph.RepoTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
+    test "fails: with invalid changeset" do
+      params = %{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} =
+               %User{}
+               |> User.changeset(params)
+               |> TestRepo.Node.create()
+    end
+
+    test "fails: with invalid data" do
+      user = %User{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.Node.create(user)
+    end
+
     test "raise when using !" do
       params = %{
         firstName: :invalid,
@@ -240,7 +263,7 @@ defmodule Seraph.RepoTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         %User{}
         |> User.changeset(params)
-        |> TestRepo.create!()
+        |> TestRepo.Node.create!()
       end
     end
   end
@@ -250,7 +273,7 @@ defmodule Seraph.RepoTest do
       data = add_fixtures()
       uuid = data.uuid
 
-      retrieved_user = TestRepo.get(User, uuid)
+      retrieved_user = TestRepo.Node.get(User, uuid)
 
       assert %User{
                uuid: ^uuid,
@@ -263,7 +286,7 @@ defmodule Seraph.RepoTest do
     end
 
     test "no result returns nil" do
-      assert is_nil(TestRepo.get(User, "non-existent"))
+      assert is_nil(TestRepo.Node.get(User, "non-existent"))
     end
 
     defmodule NoIdentifier do
@@ -278,18 +301,18 @@ defmodule Seraph.RepoTest do
 
     test "raise with queryable without identifier" do
       assert_raise ArgumentError, fn ->
-        TestRepo.get(NoIdentifier, "none")
+        TestRepo.Node.get(NoIdentifier, "none")
       end
     end
 
     test "raise when used with !" do
       assert_raise Seraph.NoResultsError, fn ->
-        TestRepo.get!(User, "unknown")
+        TestRepo.Node.get!(User, "unknown")
       end
     end
   end
 
-  describe "merge/2" do
+  describe "create_or_set/2" do
     test "ok with changeset: node creation" do
       params = %{
         firstName: "John",
@@ -300,7 +323,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                %User{}
                |> User.changeset(params)
-               |> TestRepo.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -336,8 +359,8 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                %User{}
                |> User.changeset(data)
-               |> Ecto.Changeset.apply_changes()
-               |> TestRepo.merge()
+               |> Seraph.Changeset.apply_changes()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -366,7 +389,7 @@ defmodule Seraph.RepoTest do
     test "ok with changeset: node update" do
       user_data = add_fixtures()
 
-      user = TestRepo.get(User, user_data.uuid)
+      user = TestRepo.Node.get(User, user_data.uuid)
 
       params = %{
         firstName: "James",
@@ -377,7 +400,7 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                user
                |> User.changeset(params)
-               |> TestRepo.merge()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -406,7 +429,7 @@ defmodule Seraph.RepoTest do
     test "ok with data: node update" do
       user_data = add_fixtures()
 
-      user = TestRepo.get(User, user_data.uuid)
+      user = TestRepo.Node.get(User, user_data.uuid)
 
       params = %{
         firstName: "James",
@@ -417,8 +440,8 @@ defmodule Seraph.RepoTest do
       assert {:ok, merged_node} =
                user
                |> User.changeset(params)
-               |> Ecto.Changeset.apply_changes()
-               |> TestRepo.merge()
+               |> Seraph.Changeset.apply_changes()
+               |> TestRepo.Node.create_or_set()
 
       cql = """
       MATCH
@@ -444,31 +467,35 @@ defmodule Seraph.RepoTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
-    test "fail: when a basic map is given" do
-      assert_raise ArgumentError, fn ->
-        TestRepo.merge(%{firstName: "test"})
-      end
-    end
-
     test "fail: invalid changeset" do
       user_data = add_fixtures()
 
-      user = TestRepo.get(User, user_data.uuid)
+      user = TestRepo.Node.get(User, user_data.uuid)
 
       params = %{
         firstName: :invalid
       }
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
+      assert {:error, %Seraph.Changeset{valid?: false}} =
                user
                |> User.changeset(params)
-               |> TestRepo.merge()
+               |> TestRepo.Node.create_or_set()
+    end
+
+    test "fail: with invalid data" do
+      data = %User{
+        firstName: :invalid,
+        lastName: "Doe",
+        viewCount: 5
+      }
+
+      assert {:error, %Seraph.Changeset{valid?: false}} = TestRepo.Node.create_or_set(data)
     end
 
     test "raise: when used with !" do
       user_data = add_fixtures()
 
-      user = TestRepo.get(User, user_data.uuid)
+      user = TestRepo.Node.get(User, user_data.uuid)
 
       params = %{
         firstName: :invalid
@@ -477,7 +504,7 @@ defmodule Seraph.RepoTest do
       assert_raise Seraph.InvalidChangesetError, fn ->
         user
         |> User.changeset(params)
-        |> TestRepo.merge!()
+        |> TestRepo.Node.create_or_set!()
       end
     end
   end
@@ -491,7 +518,9 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &User.changeset/2})
+               TestRepo.Node.merge(User, %{uuid: "some-uuid"},
+                 on_create: {data, &User.changeset/2}
+               )
 
       cql = """
       MATCH
@@ -527,7 +556,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: user.uuid}, on_create: {data, &User.changeset/2})
+               TestRepo.Node.merge(User, %{uuid: user.uuid}, on_create: {data, &User.changeset/2})
 
       cql = """
       MATCH
@@ -561,7 +590,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
+               TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
 
       cql = """
       MATCH
@@ -594,7 +623,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: user.uuid}, on_match: {data, &User.changeset/2})
+               TestRepo.Node.merge(User, %{uuid: user.uuid}, on_match: {data, &User.changeset/2})
 
       cql = """
       MATCH
@@ -634,7 +663,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: "some-uuid"},
+               TestRepo.Node.merge(User, %{uuid: "some-uuid"},
                  on_create: {on_create_data, &User.changeset/2},
                  on_match: {on_match_data, &User.update_viewcount_changeset/2}
                )
@@ -679,7 +708,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert {:ok, merged_node} =
-               TestRepo.merge(User, %{uuid: user.uuid},
+               TestRepo.Node.merge(User, %{uuid: user.uuid},
                  on_create: {on_create_data, &User.changeset/2},
                  on_match: {on_match_data, &User.update_viewcount_changeset/2}
                )
@@ -708,6 +737,34 @@ defmodule Seraph.RepoTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
+    test "ok: no_data opts allows to pass no data" do
+      defmodule NoData do
+        use Seraph.Schema.Node
+
+        node "NoData" do
+        end
+      end
+
+      assert {:ok, merged_node} = TestRepo.Node.merge(NoData, %{uuid: "some-uuid"}, no_data: true)
+
+      cql = """
+      MATCH
+        (n:NoData)
+      WHERE
+        id(n) = $id
+        AND n.uuid = $uuid
+      RETURN
+        COUNT(n) AS nb_result
+      """
+
+      params = %{
+        uuid: merged_node.uuid,
+        id: merged_node.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
     test "fail: on_create invalid changeset" do
       on_create_data = %{
         firstName: :invalid,
@@ -715,8 +772,8 @@ defmodule Seraph.RepoTest do
         viewCount: 5
       }
 
-      assert {:error, [on_create: %Ecto.Changeset{valid?: false}]} =
-               TestRepo.merge(User, %{uuid: "uuid-1"},
+      assert {:error, [on_create: %Seraph.Changeset{valid?: false}]} =
+               TestRepo.Node.merge(User, %{uuid: "uuid-1"},
                  on_create: {on_create_data, &User.changeset/2}
                )
     end
@@ -728,8 +785,8 @@ defmodule Seraph.RepoTest do
         viewCount: :invalid
       }
 
-      assert {:error, [on_match: %Ecto.Changeset{valid?: false}]} =
-               TestRepo.merge(User, %{uuid: "uuid-1"},
+      assert {:error, [on_match: %Seraph.Changeset{valid?: false}]} =
+               TestRepo.Node.merge(User, %{uuid: "uuid-1"},
                  on_match: {on_match_data, &User.update_viewcount_changeset/2}
                )
     end
@@ -738,7 +795,7 @@ defmodule Seraph.RepoTest do
       data = :invalid
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &User.changeset/2})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_create: {data, &User.changeset/2})
       end
     end
 
@@ -750,7 +807,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, :invalid})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_create: {data, :invalid})
       end
     end
 
@@ -762,7 +819,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_create: {data, &is_nil/1})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_create: {data, &is_nil/1})
       end
     end
 
@@ -770,7 +827,7 @@ defmodule Seraph.RepoTest do
       data = :invalid
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_match: {data, &User.changeset/2})
       end
     end
 
@@ -782,7 +839,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, :invalid})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_match: {data, :invalid})
       end
     end
 
@@ -794,7 +851,13 @@ defmodule Seraph.RepoTest do
       }
 
       assert_raise ArgumentError, fn ->
-        TestRepo.merge(User, %{uuid: "some-uuid"}, on_match: {data, &is_nil/1})
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, on_match: {data, &is_nil/1})
+      end
+    end
+
+    test "raise: whne used with an invalid option" do
+      assert_raise ArgumentError, fn ->
+        TestRepo.Node.merge(User, %{uuid: "some-uuid"}, invalid_option: true)
       end
     end
 
@@ -806,7 +869,7 @@ defmodule Seraph.RepoTest do
       }
 
       assert_raise Seraph.InvalidChangesetError, fn ->
-        TestRepo.merge!(User, %{uuid: "uuid-1"},
+        TestRepo.Node.merge!(User, %{uuid: "uuid-1"},
           on_match: {on_match_data, &User.update_viewcount_changeset/2}
         )
       end
@@ -826,9 +889,39 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 3
               }} =
-               TestRepo.get(User, data.uuid)
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{lastName: "New name", viewCount: 3})
-               |> TestRepo.set()
+               |> TestRepo.Node.set()
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "New name",
+        uuid: data_uuid,
+        viewCount: 3
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add only)" do
@@ -843,9 +936,39 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 5
               }} =
-               TestRepo.get(User, data.uuid)
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Buyer", "New"]})
-               |> TestRepo.set()
+               |> TestRepo.Node.set()
+
+      cql = """
+      MATCH
+        (u:User:Buyer:New)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (remove only)" do
@@ -860,9 +983,39 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 5
               }} =
-               TestRepo.get(User, data.uuid)
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Old"]})
-               |> TestRepo.set()
+               |> TestRepo.Node.set()
+
+      cql = """
+      MATCH
+        (u:User:Old)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add + remove only)" do
@@ -877,27 +1030,78 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 5
               }} =
-               TestRepo.get(User, data.uuid)
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{additionalLabels: ["Old", "Client"]})
-               |> TestRepo.set()
+               |> TestRepo.Node.set()
+
+      cql = """
+      MATCH
+        (u:User:Old:Client)
+      WHERE
+        u.uuid = $uuid
+        AND u.firstName = $firstName
+        AND u.lastName = $lastName
+        AND u.viewCount = $viewCount
+      RETURN
+        COUNT(u) AS nb_results
+      """
+
+      params = %{
+        firstName: "John",
+        lastName: "Doe",
+        uuid: data_uuid,
+        viewCount: 5
+      }
+
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
+
+      cql_count = """
+      MATCH
+        (n)
+      RETURN
+        COUNT(n) AS nb_nodes
+      """
+
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "invalid changeset" do
       data = add_fixtures()
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
-               TestRepo.get(User, data.uuid)
+      assert {:error, %Seraph.Changeset{valid?: false}} =
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{viewCount: :invalid})
-               |> TestRepo.set()
+               |> TestRepo.Node.set()
+    end
+
+    test "raise when struct is not found" do
+      data = add_fixtures()
+      data_uuid = data.uuid
+
+      user = TestRepo.Node.get(User, data.uuid)
+
+      cql = """
+      MATCH
+        (u:User {uuid: $uuid})
+      DETACH DELETE u
+      """
+
+      TestRepo.query!(cql, %{uuid: data_uuid})
+
+      assert_raise Seraph.StaleEntryError, fn ->
+        user
+        |> User.changeset(%{lastName: "New name", viewCount: 3})
+        |> TestRepo.Node.set()
+      end
     end
 
     test "raise when used with !" do
       data = add_fixtures()
 
       assert_raise Seraph.InvalidChangesetError, fn ->
-        TestRepo.get(User, data.uuid)
+        TestRepo.Node.get(User, data.uuid)
         |> User.changeset(%{lastName: :invalid})
-        |> TestRepo.set!()
+        |> TestRepo.Node.set!()
       end
     end
   end
@@ -915,8 +1119,8 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 5
               }} =
-               TestRepo.get(User, data.uuid)
-               |> TestRepo.delete()
+               TestRepo.Node.get(User, data.uuid)
+               |> TestRepo.Node.delete()
 
       cql = """
       MATCH
@@ -944,9 +1148,9 @@ defmodule Seraph.RepoTest do
                 uuid: ^data_uuid,
                 viewCount: 5
               }} =
-               TestRepo.get(User, data.uuid)
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{viewCount: 34})
-               |> TestRepo.delete()
+               |> TestRepo.Node.delete()
 
       cql = """
       MATCH
@@ -965,20 +1169,20 @@ defmodule Seraph.RepoTest do
     test "invalid changeset" do
       data = add_fixtures()
 
-      assert {:error, %Ecto.Changeset{valid?: false}} =
-               TestRepo.get(User, data.uuid)
+      assert {:error, %Seraph.Changeset{valid?: false}} =
+               TestRepo.Node.get(User, data.uuid)
                |> User.changeset(%{viewCount: :invalid})
-               |> TestRepo.delete()
+               |> TestRepo.Node.delete()
     end
 
     test "raise when deleting a non exisitng node" do
       data = add_fixtures()
 
-      user_to_del = TestRepo.get(User, data.uuid)
-      TestRepo.delete(user_to_del)
+      user_to_del = TestRepo.Node.get(User, data.uuid)
+      TestRepo.Node.delete(user_to_del)
 
       assert_raise Seraph.DeletionError, fn ->
-        TestRepo.delete(user_to_del)
+        TestRepo.Node.delete(user_to_del)
       end
     end
 
@@ -986,9 +1190,9 @@ defmodule Seraph.RepoTest do
       data = add_fixtures()
 
       assert_raise Seraph.InvalidChangesetError, fn ->
-        TestRepo.get(User, data.uuid)
+        TestRepo.Node.get(User, data.uuid)
         |> User.changeset(%{viewCount: :invalid})
-        |> TestRepo.delete!()
+        |> TestRepo.Node.delete!()
       end
     end
   end

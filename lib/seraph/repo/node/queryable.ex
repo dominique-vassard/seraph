@@ -9,7 +9,7 @@ defmodule Seraph.Repo.Node.Queryable do
   """
   @spec get(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), any) :: nil | Seraph.Schema.Node.t()
   def get(repo, queryable, id_value) do
-    id_field = Seraph.Repo.Node.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Helper.identifier_field(queryable)
 
     node_to_get = %Builder.NodeExpr{
       variable: "n",
@@ -55,6 +55,17 @@ defmodule Seraph.Repo.Node.Queryable do
 
       res ->
         struct(queryable, Enum.map(res, fn {k, v} -> {String.to_atom(k), v} end))
+    end
+  end
+
+  @doc """
+  Same as `get/3` but raises when no result is found.
+  """
+  @spec get!(Seraph.Repo.t(), Queryable.t(), any) :: Seraph.Schema.Node.t()
+  def get!(repo, queryable, id_value) do
+    case get(repo, queryable, id_value) do
+      nil -> raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: id_value
+      result -> result
     end
   end
 end
