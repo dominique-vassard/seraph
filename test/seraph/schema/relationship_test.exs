@@ -73,6 +73,12 @@ defmodule Seraph.Schema.RelationshipTest do
     test "ok: module name with _" do
       assert NoPropsRelationships.PostToUser.EditedBy.__schema__(:type) == "EDITED_BY"
     end
+
+    test "ok: has changeset function" do
+      assert {:error, %Seraph.Changeset{valid?: false}} =
+               %NoPropsRelationships.PostToUser.EditedBy{}
+               |> NoPropsRelationships.PostToUser.EditedBy.changeset(%{start_node: :invalid})
+    end
   end
 
   test "Enforce naming convention" do

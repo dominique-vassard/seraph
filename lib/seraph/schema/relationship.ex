@@ -349,7 +349,11 @@ defmodule Seraph.Schema.Relationship do
 
     Will expand in a viable relationship schema without properties.
     Module name will be built upon start_node, end_node and relationship type as follows:
-    `[caller_module_name].[start_node]To[end_node].[relationship_type]`
+    `[caller_module_name].[start_node]To[end_node].[relationship_type]`.
+
+    A free `changeset` will be provided with `:end_node` and `:start_node` as
+    allowed changes, allowing to easily set them and to have a similar behaviour
+    as fully-defined relationship
 
   Options:
     * `:cardinality` - Defines the cardinality of the relationship. Can take two values: `:one` or `:many`. Default: `:many`
@@ -375,6 +379,10 @@ defmodule Seraph.Schema.Relationship do
               start_node MyApp.Person
               end_node MyApp.Movie
             end
+
+            def changeset(relationship, params \\ %{}) do
+              Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
+            end
           end
 
           defmodule PersonToMovie.Directed do
@@ -385,6 +393,10 @@ defmodule Seraph.Schema.Relationship do
             relationship "DIRECTED" do
               start_node MyApp.Person
               end_node MyApp.Movie
+            end
+
+            def changeset(relationship, params \\ %{}) do
+              Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
             end
           end
         end
@@ -424,6 +436,10 @@ defmodule Seraph.Schema.Relationship do
         relationship rel_type do
           start_node start_node
           end_node end_node
+        end
+
+        def changeset(relationship, params \\ %{}) do
+          Seraph.Changeset.cast(relationship, params, [:start_node, :end_node])
         end
       end
     end
