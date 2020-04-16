@@ -79,6 +79,9 @@ defmodule Seraph.DeletionError do
 end
 
 defmodule Seraph.StaleEntryError do
+  @moduledoc """
+  Raised when the given entry is not found in database.
+  """
   defexception [:message]
 
   def exception(opts) do

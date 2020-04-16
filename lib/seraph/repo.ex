@@ -396,10 +396,10 @@ defmodule Seraph.Repo do
             result =
               case MyRepo.Relationship.get(ActedIn, person, movie) do
                 nil  -> %ActedIn{start_node: person, end_node: movie}   # ActedIn not found, we build one
-                acted_in -> acted_in          # Person exists, let's use it
+                acted_in -> acted_in          # ActedIn exists, nothing will be created
               end
               |> ActedIn.changeset(changes)
-              |> MyRepo.Relationship.merge
+              |> MyRepo.Relationship.merge()
 
             case result do
               {:ok, struct}       -> # Merged with success
@@ -478,7 +478,7 @@ defmodule Seraph.Repo do
         end
 
         @doc """
-        Same as merge/3 but raise in case of error
+        Same as merge/4 but raise in case of error
         """
         @spec merge(
                 Seraph.Repo.Queryable.t(),

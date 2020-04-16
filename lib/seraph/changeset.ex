@@ -2,7 +2,11 @@ defmodule Seraph.Changeset do
   @moduledoc """
   Changesets allow filtering, casting, validation and definition of constraints when manipulating structs.
 
-  See `Ecto.Changeset`
+  `Seraph.Changeset` is a graph-specific subset of `Ecto.Changeset`. Most of its
+  functions are delegated to `Ecto.Changeset` but **you should not use
+  `Ecto.Changeset` functions** as they will fail.
+
+  See `Ecto.Changeset` for more information.
   """
 
   @type error :: Ecto.Changeset.error()
