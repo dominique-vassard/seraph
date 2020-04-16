@@ -75,7 +75,7 @@ defmodule Seraph.Schema.RelationshipTest do
     end
 
     test "ok: has changeset function" do
-      assert {:error, %Seraph.Changeset{valid?: false}} =
+      assert %Seraph.Changeset{valid?: false} =
                %NoPropsRelationships.PostToUser.EditedBy{}
                |> NoPropsRelationships.PostToUser.EditedBy.changeset(%{start_node: :invalid})
     end

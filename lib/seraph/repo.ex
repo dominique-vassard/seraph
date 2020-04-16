@@ -426,7 +426,8 @@ defmodule Seraph.Repo do
 
         It requires:
           * `queryable` - The queryable to merge
-          * `start_end_data`: a map with the `:start_node` and `:end_node` data
+          * `start_node_data`: a valid Node schema data
+          * `end_node_data`: a valid Node schema data
           * `opts` - at least one of these three options must be present:
             - `:on_create`: a tuple `{data, changeset_fn}` with the data to set on relationship if it's created.
             Given data will be validated through given `changeset_fn`.
@@ -441,7 +442,7 @@ defmodule Seraph.Repo do
         ## Examples
 
             # Creation
-            result = MyRepo.Relationship.merge(ActedIn, %{start_node: person, end_node: movie},
+            result = MyRepo.Relationship.merge(ActedIn, person, movie,
                                   on_create: {%{year: 2003}, &Person.changeset/2})
             case result do
               {:ok, struct}       -> # Merged with success
@@ -449,7 +450,7 @@ defmodule Seraph.Repo do
             end
 
             # Update
-            result = MyRepo.Relationship.merge(ActedIn, %{start_node: person, end_node: movie},
+            result = MyRepo.Relationship.merge(ActedIn, person, movie,
                                   on_match: {%{views: 2}, &Person.views_changeset/2})
             case result do
               {:ok, struct}       -> # Merged with success
@@ -457,7 +458,7 @@ defmodule Seraph.Repo do
             end
 
             # Both depending on wether the node is found or not
-            result = MyRepo.Relationship.merge(ActedIn, %{start_node: person, end_node: movie},
+            result = MyRepo.Relationship.merge(AActedIn, person, movie,
                                   on_create: {%{year: 2003}, &Person.changeset/2},
                                   on_match: {%{views: 2}, &Person.views_changeset/2})
             case result do
@@ -465,19 +466,28 @@ defmodule Seraph.Repo do
               {:error, changeset} -> # Something went wrong
             end
         """
-        @spec merge(Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
+        @spec merge(
+                Seraph.Repo.Queryable.t(),
+                Seraph.Schema.Node.t(),
+                Seraph.Schema.Node.t(),
+                Keyword.t()
+              ) ::
                 {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
-        def merge(queryable, start_end_data, opts) do
-          Relationship.Schema.merge(@repo, queryable, start_end_data, opts)
+        def merge(queryable, start_node_data, end_node_data, opts) do
+          Relationship.Schema.merge(@repo, queryable, start_node_data, end_node_data, opts)
         end
 
         @doc """
         Same as merge/3 but raise in case of error
         """
-        @spec merge(Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
-                Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
-        def merge!(queryable, start_end_data, opts) do
-          Relationship.Schema.merge!(@repo, queryable, start_end_data, opts)
+        @spec merge(
+                Seraph.Repo.Queryable.t(),
+                Seraph.Schema.Node.t(),
+                Seraph.Schema.Node.t(),
+                Keyword.t()
+              ) :: Seraph.Schema.Relationship.t()
+        def merge!(queryable, start_node_data, end_node_data, opts) do
+          Relationship.Schema.merge!(@repo, queryable, start_node_data, end_node_data, opts)
         end
 
         @doc """

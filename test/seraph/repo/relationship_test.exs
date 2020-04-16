@@ -595,19 +595,14 @@ defmodule Seraph.Repo.RelationshipTest do
     end
   end
 
-  describe "merge/3" do
+  describe "merge/4" do
     test "ok: on_create opt (existing -> no change)" do
       old_rel = add_fixtures(:relationship)
 
       date = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      data = %{
-        start_node: old_rel.start_node,
-        end_node: old_rel.end_node
-      }
-
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, old_rel.start_node, old_rel.end_node,
                  on_create: {%{at: date}, &Wrote.changeset/2}
                )
 
@@ -647,13 +642,8 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data, on_create: {%{}, &Wrote.changeset/2})
+               TestRepo.Relationship.merge(Wrote, user, post, on_create: {%{}, &Wrote.changeset/2})
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -692,13 +682,8 @@ defmodule Seraph.Repo.RelationshipTest do
 
       {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
 
-      data = %{
-        start_node: old_rel.start_node,
-        end_node: old_rel.end_node
-      }
-
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, old_rel.start_node, old_rel.end_node,
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
@@ -739,15 +724,10 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
 
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, user, post,
                  on_match: {%{at: DateTime.truncate(date, :second)}, &Wrote.changeset/2}
                )
 
@@ -782,13 +762,8 @@ defmodule Seraph.Repo.RelationshipTest do
       create_date = DateTime.utc_now() |> DateTime.truncate(:second)
       match_date = DateTime.truncate(date, :second)
 
-      data = %{
-        start_node: old_rel.start_node,
-        end_node: old_rel.end_node
-      }
-
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, old_rel.start_node, old_rel.end_node,
                  on_create: {%{at: create_date}, &Wrote.changeset/2},
                  on_match: {%{at: match_date}, &Wrote.changeset/2}
                )
@@ -822,17 +797,12 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       {:ok, date, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
       create_date = DateTime.utc_now() |> DateTime.truncate(:second)
       match_date = DateTime.truncate(date, :second)
 
       assert {:ok, rel_wrote} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, user, post,
                  on_create: {%{at: create_date}, &Wrote.changeset/2},
                  on_match: {%{at: match_date}, &Wrote.changeset/2}
                )
@@ -866,12 +836,7 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
-      assert {:ok, rel_wrote} = TestRepo.Relationship.merge(Wrote, data, no_data: true)
+      assert {:ok, rel_wrote} = TestRepo.Relationship.merge(Wrote, user, post, no_data: true)
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
@@ -909,13 +874,8 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       assert {:error, [on_create: %Seraph.Changeset{valid?: false}]} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, user, post,
                  on_create: {%{at: :invalid}, &Wrote.changeset/2}
                )
     end
@@ -924,13 +884,8 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       assert {:error, [on_match: %Seraph.Changeset{valid?: false}]} =
-               TestRepo.Relationship.merge(Wrote, data,
+               TestRepo.Relationship.merge(Wrote, user, post,
                  on_match: {%{at: :invalid}, &Wrote.changeset/2}
                )
     end
@@ -939,13 +894,10 @@ defmodule Seraph.Repo.RelationshipTest do
       user = add_fixtures(:start_node)
       post = add_fixtures(:end_node)
 
-      data = %{
-        start_node: user,
-        end_node: post
-      }
-
       assert_raise Seraph.InvalidChangesetError, fn ->
-        TestRepo.Relationship.merge!(Wrote, data, on_match: {%{at: :invalid}, &Wrote.changeset/2})
+        TestRepo.Relationship.merge!(Wrote, user, post,
+          on_match: {%{at: :invalid}, &Wrote.changeset/2}
+        )
       end
     end
   end

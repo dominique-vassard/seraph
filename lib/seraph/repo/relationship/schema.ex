@@ -129,20 +129,32 @@ defmodule Seraph.Repo.Relationship.Schema do
     and is matched.
     Provided data will be validated through given `changeset_fn`
   """
-  @spec merge(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+  @spec merge(
+          Seraph.Repo.t(),
+          Seraph.Repo.queryable(),
+          Seraph.Schema.Node.t(),
+          Seraph.Schema.Node.t(),
+          Keyword.t()
+        ) ::
           {:ok, Seraph.Schema.Relationship.t()} | {:error, any}
-  def merge(repo, queryable, nodes_data, opts) do
+  def merge(repo, queryable, start_node_data, end_node_data, opts) do
     merge_opts = Seraph.Repo.Helper.create_match_merge_opts(opts)
-    do_create_match_merge(repo, queryable, nodes_data, merge_opts)
+    do_create_match_merge(repo, queryable, start_node_data, end_node_data, merge_opts)
   end
 
   @doc """
   Same as `merge/4` but raise in case of error
   """
-  @spec merge!(Seraph.Repo.t(), Seraph.Repo.queryable(), map, Keyword.t()) ::
+  @spec merge!(
+          Seraph.Repo.t(),
+          Seraph.Repo.queryable(),
+          Seraph.Schema.Node.t(),
+          Seraph.Schema.Node.t(),
+          Keyword.t()
+        ) ::
           Seraph.Schema.Relationship.t()
-  def merge!(repo, queryable, nodes_data, opts) do
-    case merge(repo, queryable, nodes_data, opts) do
+  def merge!(repo, queryable, start_node_data, end_node_data, opts) do
+    case merge(repo, queryable, start_node_data, end_node_data, opts) do
       {:ok, result} ->
         result
 
@@ -446,15 +458,16 @@ defmodule Seraph.Repo.Relationship.Schema do
     {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
   end
 
-  defp do_create_match_merge(_, _, _, {:error, error}) do
+  defp do_create_match_merge(_, _, _, _, {:error, error}) do
     raise ArgumentError, error
   end
 
-  defp do_create_match_merge(repo, queryable, nodes_data, merge_opts) do
-    check_nodes_data(nodes_data)
+  defp do_create_match_merge(repo, queryable, start_node_data, end_node_data, merge_opts) do
+    check_node_data(start_node_data, :start_node)
+    check_node_data(end_node_data, :end_node)
 
-    {start_node, start_params} = build_node_merge("start", nodes_data.start_node)
-    {end_node, end_params} = build_node_merge("end", nodes_data.end_node)
+    {start_node, start_params} = build_node_merge("start", start_node_data)
+    {end_node, end_params} = build_node_merge("end", end_node_data)
 
     relationship = %Builder.RelationshipExpr{
       start: %Builder.NodeExpr{
@@ -670,17 +683,16 @@ defmodule Seraph.Repo.Relationship.Schema do
     end
   end
 
-  @spec check_nodes_data(any) :: :ok
-  defp check_nodes_data(%{start_node: %{__struct__: _}, end_node: %{__struct__: _}}) do
+  @spec check_node_data(any, :start_node | :end_node) :: :ok
+  defp check_node_data(%{__struct__: _}, _node_type) do
     :ok
   end
 
-  defp check_nodes_data(nodes_data) do
+  defp check_node_data(node_data, node_type) do
     msg = """
-    nodes_data must be a map.
-    :start_node and :end_node are mandatory and must be Seraph.Schema.Node.
+    #{inspect(node_type)} data must be a map.
     Received:
-    #{inspect(nodes_data)}
+    #{inspect(node_data)}
     """
 
     raise ArgumentError, msg
