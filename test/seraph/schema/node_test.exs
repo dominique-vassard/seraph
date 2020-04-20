@@ -104,6 +104,7 @@ defmodule Seraph.Schema.NodeTest do
   test "with schema metadata" do
     assert [
              wrote: %Seraph.Schema.Relationship.Outgoing{
+               direction: :outgoing,
                cardinality: :many,
                end_node: Seraph.Test.Post,
                field: :posts,
@@ -112,6 +113,7 @@ defmodule Seraph.Schema.NodeTest do
                type: "WROTE"
              },
              follows: %Seraph.Schema.Relationship.Outgoing{
+               direction: :outgoing,
                cardinality: :many,
                end_node: Seraph.Test.Post,
                field: :followed_posts,
@@ -120,6 +122,7 @@ defmodule Seraph.Schema.NodeTest do
                type: "FOLLOWS"
              },
              used: %Seraph.Schema.Relationship.Incoming{
+               direction: :incoming,
                cardinality: :many,
                end_node: Seraph.Schema.NodeTest.WithSchemaRelatedSchema,
                field: :used_posts,

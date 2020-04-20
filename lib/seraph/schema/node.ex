@@ -312,6 +312,14 @@ defmodule Seraph.Schema.Node do
               inspect(data.schema.__schema__(:type))
             }"
     end
+
+    if not is_nil(data.cardinality) and
+         data.cardinality != data.schema.__schema__(:cardinality)[data.direction] do
+      raise ArgumentError,
+            "[#{inspect(module)}] Defined cardinality #{data.cardinality} doesn't match the one defined in #{
+              inspect(data.schema.__schema__(:type))
+            }"
+    end
   end
 
   @doc """
@@ -468,7 +476,7 @@ defmodule Seraph.Schema.Node do
     exists? =
       Enum.any?(Module.get_attribute(module, :relationships_list), fn {_, rel_info} ->
         rel_info.type == info.type && rel_info.start_node == info.start_node &&
-          rel_info.end_node == info.end_node
+          rel_info.end_node == info.end_node && rel_info.direction == info.direction
       end)
 
     if exists? do
@@ -486,10 +494,11 @@ defmodule Seraph.Schema.Node do
             "[#{inspect(module)}] relationship type name #{inspect(type_field)} is already taken by a property."
     end
 
-    # if List.keyfind(struct_fields, name, 0) do
-    #   raise ArgumentError,
-    #         "[#{inspect(module)}] relationship field name #{inspect(type_field)} is already taken."
-    # end
+    if List.keyfind(struct_fields, name, 0) do
+      raise ArgumentError,
+            "[#{inspect(module)}] relationship field name #{inspect(name)} is already taken."
+    end
+
     unless List.keyfind(struct_fields, name, 0) do
       Module.put_attribute(module, :struct_fields, {type_field, rel_not_loaded})
     end
@@ -518,6 +527,7 @@ defmodule Seraph.Schema.Node do
     cardinality = Keyword.get(opts, :cardinality, :many)
 
     data = %{
+      direction: direction,
       start_node: start_node,
       end_node: end_node,
       field: field,
