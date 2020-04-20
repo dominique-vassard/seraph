@@ -26,10 +26,15 @@ defmodule Seraph.Schema.Helper do
   Check if the given property has a valid type.
   """
   @spec check_property_type!(atom, atom) :: nil
+  def check_property_type!(:id, _) do
+    raise ArgumentError, ":id is not an authorized name for property.
+    It conflicts with Neo4j internal id."
+  end
+
   def check_property_type!(name, type) do
     unless type in valid_types() do
-      raise raise ArgumentError,
-                  "invalid or unknown type #{inspect(type)} for field #{inspect(name)}"
+      raise ArgumentError,
+            "invalid or unknown type #{inspect(type)} for field #{inspect(name)}"
     end
   end
 

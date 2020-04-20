@@ -279,10 +279,10 @@ defmodule Seraph.Repo.NodeTest do
     defmodule NoIdentifier do
       use Seraph.Schema.Node
       @identifier false
-      @merge_keys [:id]
+      @merge_keys [:ids]
 
       node "NoIdentifier" do
-        property :id, :string
+        property :ids, :string
       end
     end
 

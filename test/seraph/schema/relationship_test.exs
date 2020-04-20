@@ -104,4 +104,19 @@ defmodule Seraph.Schema.RelationshipTest do
       end
     end
   end
+
+  test ":id property is not valid" do
+    assert_raise ArgumentError, fn ->
+      defmodule InvalidProp do
+        use Seraph.Schema.Relationship
+
+        relationship "INVALID" do
+          start_node Seraph.Test.Post
+          end_node Seraph.Test.User
+
+          property :id, :integer
+        end
+      end
+    end
+  end
 end

@@ -279,6 +279,31 @@ defmodule Seraph.Schema.NodeTest do
     # end
   end
 
+  test ":id property is not valid" do
+    assert_raise ArgumentError, fn ->
+      defmodule InvalidProp do
+        use Seraph.Schema.Node
+
+        node "Invalid" do
+          property :id, :integer
+        end
+      end
+    end
+  end
+
+  test ":id identifier is not valid" do
+    assert_raise ArgumentError, fn ->
+      defmodule InvalidProp do
+        use Seraph.Schema.Node
+
+        @identifier {:id, :integer, []}
+
+        node "Invalid" do
+        end
+      end
+    end
+  end
+
   describe "Naming convention enforcement" do
     test "Invalid node name" do
       assert_raise ArgumentError, fn ->
