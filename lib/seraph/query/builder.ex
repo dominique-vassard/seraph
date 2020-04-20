@@ -86,7 +86,7 @@ defmodule Seraph.Query.Builder do
     defstruct [:alias, :variable, :name]
 
     @type t :: %__MODULE__{
-            alias: String.t(),
+            alias: nil | String.t(),
             variable: String.t(),
             name: atom()
           }

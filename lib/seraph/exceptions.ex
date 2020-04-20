@@ -1,3 +1,7 @@
+defmodule Seraph.Exception do
+  defexception [:message]
+end
+
 defmodule Seraph.InvalidChangesetError do
   @moduledoc """
   Raised when action cannot be performed due to an invalid changeset

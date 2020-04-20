@@ -218,6 +218,47 @@ defmodule Seraph.Repo.Node.Repo do
         def delete!(struct_or_changeset) do
           Node.Schema.delete!(@repo, struct_or_changeset)
         end
+
+        @doc """
+        Preload relationships / related nodes on the given Node or Nodes.
+        Either a relationship type field or a node list field can be passed as preload.
+
+        By default relationships and related nodes will be loaded.
+
+        In case the association was already loaded, preload won't attempt to reload it.
+
+        Options:
+          * `:load` - Define the type of data for load:
+            - `:all`: Loads relationships and related nodes data. (default)
+            - `:nodes`: Loads only related nodes data
+            - `:relationships`: Loads only relationships data
+          * `:force` - Set to `true` force the reload of an already loaded relation.
+          Default: false
+          * `:limit` - To limit the number of preloaded data. Note that results
+          are ordered by the Node identifier key.
+
+        ## Example
+
+          # Use a single atom to preload single relationship type data
+          person = MyRepo.Node.preload(person, :acted_in)
+
+          # Use a single atom to preload only the nodes
+          person = MyRepo.Node.preload(person, :acted_in, load: :nodes)
+
+          # Use a list of atoms to preload multiple relationship type data
+          person = MyRepo.Node.preload(person, [:acted_in, :directed])
+
+          # Limit number of preload
+          person = MyRepo.Node.preload(person, :acted_in, limit: 50)
+
+          # Forece preload on an alredy preloaded struct
+          person = MyRepo.Node.preload(person, :acted_in, force: true)
+        """
+        @spec preload(Seraph.Schema.Node.t(), atom | [atom], Keyword.t()) ::
+                Seraph.Schema.Node.t()
+        def preload(struct, preloads, opts \\ []) do
+          Node.Preloader.preload(@repo, struct, preloads, opts)
+        end
       end
     end
   end
