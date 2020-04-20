@@ -145,20 +145,16 @@ defmodule Seraph.Schema.Relationship do
     Struct returned by relationships when they are not loaded.
 
     Fields are:
-      * `__start_node__`: The start node schema
-      * `__end_node__`: The end node schema
       * `__type__`: The relationship type
     """
-    defstruct [:__start_node__, :__end_node__, :__type__]
+    defstruct [:__type__]
 
     @type t :: %__MODULE__{
-            __start_node__: module,
-            __end_node__: module,
             __type__: String.t()
           }
     defimpl Inspect do
       def inspect(not_loaded, _opts) do
-        msg = "relation :#{not_loaded.__type__} is not loaded"
+        msg = "relationships :#{not_loaded.__type__} are not loaded"
         ~s(#Seraph.Schema.Relationship.NotLoaded<#{msg}>)
       end
     end

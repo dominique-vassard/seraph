@@ -112,17 +112,18 @@ defmodule Seraph.Schema.Node do
       * `__primary_label__`: The primary label of the related node
       * `__type__`: The relationship type considered
     """
-    defstruct [:__primary_label__, :__type__]
+    defstruct [:__label__, :__type__]
 
     @type t :: %__MODULE__{
-            __primary_label__: String.t(),
+            __label__: String.t(),
             __type__: String.t()
           }
+
     defimpl Inspect do
       @spec inspect(NotLoaded.t(), Keyword.t()) :: String.t()
       def inspect(not_loaded, _opts) do
         msg =
-          "nodes #{not_loaded.__primary_label__} through relation #{not_loaded.__type__} are not loaded"
+          "nodes (#{not_loaded.__label__}) through relationship :#{not_loaded.__type__} are not loaded"
 
         ~s(#Seraph.Schema.Node.NotLoaded<#{msg}>)
       end
@@ -509,10 +510,15 @@ defmodule Seraph.Schema.Node do
       Module.put_attribute(module, attr_name, type_field)
     end
 
+    node_name =
+      related_node
+      |> Module.split()
+      |> List.last()
+
     Module.put_attribute(
       module,
       :struct_fields,
-      {name, %NotLoaded{__primary_label__: "t", __type__: type}}
+      {name, %NotLoaded{__label__: node_name, __type__: type}}
     )
   end
 
