@@ -1,0 +1,17 @@
+language: elixir
+sudo: required
+services: docker
+env:
+  - NEO4J_VERSION=3.0
+  - NEO4J_VERSION=3.4
+  - NEO4J_VERSION=3.5
+  - NEO4J_VERSION=4.0
+elixir:
+  - 1.9
+otp_release:
+  - 22.1
+before_install:
+  - docker run --name neo4j -d -p 7687:7687 -e 'NEO4J_AUTH=neo4j/test' neo4j:$NEO4J_VERSION
+  - docker logs -f neo4j | sed /Bolt\ enabled/q
+script:
+  - MIX_ENV=test mix test
