@@ -4,7 +4,7 @@ defmodule Seraph.Schema.RelationshipTest do
   defmodule WroteSimpleSchema do
     use Seraph.Schema.Relationship
 
-    @cardinality :one
+    @cardinality [outgoing: :one]
 
     relationship "WROTE" do
       start_node Seraph.Test.Post
@@ -19,13 +19,16 @@ defmodule Seraph.Schema.RelationshipTest do
     import Seraph.Schema.Relationship
 
     defrelationship("READ", Seraph.Test.User, Seraph.Test.Post)
-    defrelationship("FOLLOWS", Seraph.Test.User, Seraph.Test.User, cardinality: :one)
-    defrelationship("EDITED_BY", Seraph.Test.Post, Seraph.Test.User, cardinality: :one)
+    defrelationship("FOLLOWS", Seraph.Test.User, Seraph.Test.User, cardinality: [incoming: :one])
+
+    defrelationship("EDITED_BY", Seraph.Test.Post, Seraph.Test.User,
+      cardinality: [outgoing: :one, incoming: :one]
+    )
   end
 
   test "schema metadata" do
     assert WroteSimpleSchema.__schema__(:type) == "WROTE"
-    assert WroteSimpleSchema.__schema__(:cardinality) == :one
+    assert WroteSimpleSchema.__schema__(:cardinality) == [incoming: :many, outgoing: :one]
 
     assert WroteSimpleSchema.__schema__(:properties) == [:at, :virtual]
     assert WroteSimpleSchema.__schema__(:type, :at) == :utc_datetime
@@ -44,7 +47,11 @@ defmodule Seraph.Schema.RelationshipTest do
   describe "defrelationship/4" do
     test "ok: no opts" do
       assert NoPropsRelationships.UserToPost.Read.__schema__(:type) == "READ"
-      assert NoPropsRelationships.UserToPost.Read.__schema__(:cardinality) == :many
+
+      assert NoPropsRelationships.UserToPost.Read.__schema__(:cardinality) == [
+               outgoing: :many,
+               incoming: :many
+             ]
 
       assert NoPropsRelationships.UserToPost.Read.__schema__(:properties) == []
 
@@ -58,7 +65,11 @@ defmodule Seraph.Schema.RelationshipTest do
 
     test "ok: with :cardinality" do
       assert NoPropsRelationships.UserToUser.Follows.__schema__(:type) == "FOLLOWS"
-      assert NoPropsRelationships.UserToUser.Follows.__schema__(:cardinality) == :one
+
+      assert NoPropsRelationships.UserToUser.Follows.__schema__(:cardinality) == [
+               outgoing: :many,
+               incoming: :one
+             ]
 
       assert NoPropsRelationships.UserToUser.Follows.__schema__(:properties) == []
 

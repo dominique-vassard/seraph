@@ -97,7 +97,17 @@ defmodule Seraph.Schema.Relationship do
     @moduledoc false
     defmacro __using__(_) do
       quote do
-        defstruct [:start_node, :end_node, :field, :type, :cardinality, :schema]
+        defstruct [:direction, :start_node, :end_node, :field, :type, :cardinality, :schema]
+
+        @type t :: %__MODULE__{
+                direction: :outgoing | :incoming,
+                start_node: Seraph.Repo.queryable(),
+                end_node: Seraph.Repo.queryable(),
+                field: atom,
+                type: String.t(),
+                cardinality: :one | :many,
+                schema: Seraph.Repo.queryable()
+              }
       end
     end
   end
@@ -165,6 +175,8 @@ defmodule Seraph.Schema.Relationship do
     :cardinality
   ]
 
+  @type cardinality :: [outgoing: :one | :many, incoming: :one | :many]
+
   @type t :: %{
           __struct__: atom,
           __meta__: Metadata.t(),
@@ -174,7 +186,7 @@ defmodule Seraph.Schema.Relationship do
           start_node: Seraph.Schema.Node.t(),
           end_node: Seraph.Schema.Node.t(),
           properties: Ecto.Schema.t(),
-          cardinality: :one | :many
+          cardinality: cardinality()
         }
 
   @doc false
@@ -182,7 +194,7 @@ defmodule Seraph.Schema.Relationship do
     quote do
       import Seraph.Schema.Relationship
 
-      @cardinality :many
+      @cardinality [outgoing: :many, incoming: :many]
 
       Module.register_attribute(__MODULE__, :properties, accumulate: true)
       Module.register_attribute(__MODULE__, :changeset_properties, accumulate: true)
@@ -205,6 +217,12 @@ defmodule Seraph.Schema.Relationship do
   defmacro relationship(rel_type, do: block) do
     prelude =
       quote do
+        default_cardinality = [outgoing: :many, incoming: :many]
+
+        cardinality =
+          Keyword.merge(default_cardinality, Module.get_attribute(__MODULE__, :cardinality))
+
+        Module.put_attribute(__MODULE__, :cardinality, cardinality)
         Module.register_attribute(__MODULE__, :struct_fields, accumulate: true)
         Module.register_attribute(__MODULE__, :properties, accumulate: true)
 
@@ -409,7 +427,7 @@ defmodule Seraph.Schema.Relationship do
       start_node = unquote(start_node)
       end_node = unquote(end_node)
       opts = unquote(opts)
-      cardinality = Keyword.get(opts, :cardinality, :many)
+      cardinality = Keyword.get(opts, :cardinality, [])
 
       nodes_module_name =
         [start_node, end_node]
