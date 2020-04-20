@@ -24,3 +24,4 @@ neo4jex-*.tar
 
 # Vs code artifacts
 .elixir_ls
+.vscode
