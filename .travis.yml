@@ -2,7 +2,6 @@ language: elixir
 sudo: required
 services: docker
 env:
-  - NEO4J_VERSION=3.0
   - NEO4J_VERSION=3.4
   - NEO4J_VERSION=3.5
   - NEO4J_VERSION=4.0
