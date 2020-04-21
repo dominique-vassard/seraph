@@ -5,9 +5,12 @@ defmodule Seraph.MixProject do
 
   def project do
     [
+      name: "Seraph",
       app: :seraph,
       version: @version,
       elixir: "~> 1.8",
+      package: package(),
+      description: "A toolkit for data mapping an querying Neo4j database in Elixir",
       start_permanent: Mix.env() == :prod,
       docs: docs(),
       deps: deps(),
@@ -27,6 +30,14 @@ defmodule Seraph.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(:dev), do: ["lib", "examples"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp package() do
+    %{
+      licenses: ["Apache-2.0"],
+      maintainers: ["Dominique VASSARD"],
+      links: %{"Github" => "https://github.com/dominique-vassard/seraph"}
+    }
+  end
 
   defp docs do
     [
