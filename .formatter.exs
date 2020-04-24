@@ -1,14 +1,14 @@
 locals_without_parens = [
   property: 2,
   property: 3,
-  outgoing_relationship: 2,
-  outgoing_relationship: 3,
   outgoing_relationship: 4,
-  incoming_relationship: 2,
-  incoming_relationship: 3,
+  outgoing_relationship: 5,
   incoming_relationship: 4,
+  incoming_relationship: 5,
   start_node: 1,
-  end_node: 1
+  end_node: 1,
+  defrelationship: 3,
+  defrelationship: 4
 ]
 
 # Used by "mix format"
