@@ -10,7 +10,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
   """
   @spec get(
           Seraph.Repo.t(),
-          Seraph.Repo.Queryable.t(),
+          Seraph.Repo.queryable(),
           Seraph.Schema.Node.t() | map,
           Seraph.Schema.Node.t() | map
         ) :: nil | Seraph.Schema.Relationship.t()
@@ -65,7 +65,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
   """
   @spec get!(
           Seraph.Repo.t(),
-          Queryable.t(),
+          Seraph.Repo.queryable(),
           Seraph.Schema.Node.t() | map,
           Seraph.Schema.Node.t() | map
         ) :: Seraph.Schema.Relationship.t()
@@ -84,7 +84,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
     end
   end
 
-  @spec node_data(String.t(), Seraph.Repo.Queryable.t(), Seraph.Schema.Node.t() | map) ::
+  @spec node_data(String.t(), Seraph.Repo.queryable(), Seraph.Schema.Node.t() | map) ::
           {Builder.NodeExpr.t(), map}
   defp node_data(node_var, queryable, %{__struct__: _} = data) do
     id_field = Seraph.Repo.Helper.identifier_field(queryable)
@@ -123,7 +123,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
     {node, query_node_data.params}
   end
 
-  @spec format_result(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Relationship.t()
+  @spec format_result(Seraph.Repo.queryable(), map) :: Seraph.Schema.Relationship.t()
   defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
     props =
       rel_data.properties
@@ -135,7 +135,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
     struct(queryable, props)
   end
 
-  @spec build_node(Seraph.Repo.Queryable.t(), map) :: Seraph.Schema.Node.t()
+  @spec build_node(Seraph.Repo.queryable(), map) :: Seraph.Schema.Node.t()
   defp build_node(queryable, node_data) do
     props =
       node_data.properties

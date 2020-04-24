@@ -153,7 +153,7 @@ defmodule Seraph.Repo.Relationship.Repo do
             end
         """
         @spec merge(
-                Seraph.Repo.Queryable.t(),
+                Seraph.Repo.queryable(),
                 Seraph.Schema.Node.t(),
                 Seraph.Schema.Node.t(),
                 Keyword.t()
@@ -166,8 +166,8 @@ defmodule Seraph.Repo.Relationship.Repo do
         @doc """
         Same as merge/4 but raise in case of error
         """
-        @spec merge(
-                Seraph.Repo.Queryable.t(),
+        @spec merge!(
+                Seraph.Repo.queryable(),
                 Seraph.Schema.Node.t(),
                 Seraph.Schema.Node.t(),
                 Keyword.t()
@@ -234,8 +234,7 @@ defmodule Seraph.Repo.Relationship.Repo do
 
         """
         @spec set(Seraph.Changeset.t(), Keyword.t()) ::
-                {:ok, Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()}
-                | {:error, Seraph.Changeset.t()}
+                {:ok, Seraph.Schema.Relationship.t()} | {:error, Seraph.Changeset.t()}
         def set(changeset, opts \\ []) do
           Relationship.Schema.set(@repo, changeset, opts)
         end
@@ -243,8 +242,7 @@ defmodule Seraph.Repo.Relationship.Repo do
         @doc """
         Same as set/2 but raise in case of error
         """
-        @spec set!(Seraph.Changeset.t(), Keyword.t()) ::
-                Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
+        @spec set!(Seraph.Changeset.t(), Keyword.t()) :: Seraph.Schema.Relationship.t()
         def set!(changeset, opts \\ []) do
           Relationship.Schema.set!(@repo, changeset, opts)
         end

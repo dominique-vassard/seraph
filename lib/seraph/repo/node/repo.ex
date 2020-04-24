@@ -47,7 +47,7 @@ defmodule Seraph.Repo.Node.Repo do
 
             MyRepo.Node.get(Person, 42)
         """
-        @spec get(Seraph.Repo.Queryable.t(), any) ::
+        @spec get(Seraph.Repo.queryable(), any) ::
                 nil | Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
         def get(queryable, identifier_value) do
           Node.Queryable.get(@repo, queryable, identifier_value)
@@ -56,7 +56,7 @@ defmodule Seraph.Repo.Node.Repo do
         @doc """
         Same as get/2 but raise if more than Node is found.
         """
-        @spec get!(Seraph.Repo.Queryable.t(), any) ::
+        @spec get!(Seraph.Repo.queryable(), any) ::
                 Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
         def get!(queryable, identifier_value) do
           Node.Queryable.get!(@repo, queryable, identifier_value)
@@ -146,7 +146,7 @@ defmodule Seraph.Repo.Node.Repo do
               {:error, changeset} -> # Something went wrong
             end
         """
-        @spec merge(Seraph.Repo.Queryable.t(), map, Keyword.t()) ::
+        @spec merge(Seraph.Repo.queryable(), map, Keyword.t()) ::
                 {:ok, Seraph.Schema.Node.t()} | {:error, Seraph.Changeset.t()}
         def merge(queryable, merge_keys_data, opts) do
           Node.Schema.merge(@repo, queryable, merge_keys_data, opts)
@@ -155,7 +155,7 @@ defmodule Seraph.Repo.Node.Repo do
         @doc """
         Same as merge/3 but raise in case of error
         """
-        @spec merge(Seraph.Repo.Queryable.t(), map, Keyword.t()) :: Seraph.Schema.Node.t()
+        @spec merge!(Seraph.Repo.queryable(), map, Keyword.t()) :: Seraph.Schema.Node.t()
         def merge!(queryable, merge_keys_data, opts) do
           Node.Schema.merge!(@repo, queryable, merge_keys_data, opts)
         end

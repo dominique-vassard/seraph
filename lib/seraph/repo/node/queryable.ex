@@ -7,7 +7,7 @@ defmodule Seraph.Repo.Node.Queryable do
 
   Returns `nil` if no result was found
   """
-  @spec get(Seraph.Repo.t(), Seraph.Repo.Queryable.t(), any) :: nil | Seraph.Schema.Node.t()
+  @spec get(Seraph.Repo.t(), Seraph.Repo.queryable(), any) :: nil | Seraph.Schema.Node.t()
   def get(repo, queryable, id_value) do
     id_field = Seraph.Repo.Helper.identifier_field(queryable)
 
@@ -61,7 +61,7 @@ defmodule Seraph.Repo.Node.Queryable do
   @doc """
   Same as `get/3` but raises when no result is found.
   """
-  @spec get!(Seraph.Repo.t(), Queryable.t(), any) :: Seraph.Schema.Node.t()
+  @spec get!(Seraph.Repo.t(), Seraph.Repo.queryable(), any) :: Seraph.Schema.Node.t()
   def get!(repo, queryable, id_value) do
     case get(repo, queryable, id_value) do
       nil -> raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: id_value

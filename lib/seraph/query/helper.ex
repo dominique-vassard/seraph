@@ -13,10 +13,9 @@ defmodule Seraph.Query.Helper do
   """
   @spec build_where_from_merge_keys(
           Seraph.Query.Builder.NodeExpr.t(),
-          Seraph.Repo.Queryable.t(),
+          Seraph.Repo.queryable(),
           Seraph.Schema.Node.t()
-        ) ::
-          Seraph.Repo.Queryable.merge_keys_data()
+        ) :: merge_keys_data()
   def build_where_from_merge_keys(entity, queryable, data) do
     merge_keys = queryable.__schema__(:merge_keys)
 

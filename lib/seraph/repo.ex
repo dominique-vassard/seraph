@@ -77,7 +77,7 @@ defmodule Seraph.Repo do
       @doc """
       Same as `query/3` but raise i ncase of error.
       """
-      @spec query(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
+      @spec query!(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
       def query!(statement, params \\ %{}, opts \\ []) do
         Seraph.Query.Planner.query!(__MODULE__, statement, params, opts)
       end

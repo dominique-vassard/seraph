@@ -3,6 +3,11 @@ defmodule Seraph.Repo.Node.Schema do
 
   alias Seraph.Query.{Builder, Helper, Planner}
 
+  @type sets_data :: %{
+          sets: [Builder.SetExpr.t()],
+          params: map
+        }
+
   @doc """
   Creates a node in database with the given data.
   """
@@ -449,8 +454,7 @@ defmodule Seraph.Repo.Node.Schema do
     {:ok, %{sets: [], params: %{}}}
   end
 
-  @spec build_set(Builder.NodeExpr.t(), Seraph.Schema.Node.t()) ::
-          Seraph.Repo.Queryable.sets_data()
+  @spec build_set(Builder.NodeExpr.t(), Seraph.Schema.Node.t()) :: sets_data()
   defp build_set(entity, data, prop_prefix \\ "") do
     Enum.reduce(data, %{sets: [], params: %{}}, fn {prop_name, prop_value}, sets_data ->
       bound_name = entity.variable <> "_" <> prop_prefix <> "_" <> Atom.to_string(prop_name)
