@@ -41,25 +41,52 @@ defmodule Seraph.MixProject do
 
   defp docs do
     [
+      assets: "assets",
       source_ref: "v#{@version}",
-      groups_for_modules: [
-        "Example Repo": [
-          Seraph.Example.Repo,
-          Seraph.Example.Repo.Node,
-          Seraph.Example.Repo.Relationship
-        ],
-        Schema: [
-          Seraph.Schema.Node,
-          Seraph.Schema.Node.Metadata,
-          Seraph.Schema.Relationship,
-          Seraph.Schema.Relationship.Metadata
-        ],
-        "(Not) Loaded struct info": [
-          Seraph.Schema.Node.NotLoaded,
-          Seraph.Schema.Relationship.NotLoaded,
-          Seraph.Schema.Relationship.Outgoing,
-          Seraph.Schema.Relationship.Incoming
-        ]
+      main: "readme",
+      extras: extras(),
+      groups_for_extras: groups_for_extras(),
+      groups_for_modules: groups_for_modules()
+    ]
+  end
+
+  defp extras do
+    [
+      "README.md",
+      "guide/up_and_running.md",
+      "guide/schema.md",
+      "guide/creating.md",
+      "guide/getting.md",
+      "guide/setting.md",
+      "guide/merging.md",
+      "guide/deleting.md"
+    ]
+  end
+
+  defp groups_for_extras do
+    [
+      Guide: ~r/guide\/[^\/]+\.md/
+    ]
+  end
+
+  defp groups_for_modules do
+    [
+      "Example Repo": [
+        Seraph.Example.Repo,
+        Seraph.Example.Repo.Node,
+        Seraph.Example.Repo.Relationship
+      ],
+      Schema: [
+        Seraph.Schema.Node,
+        Seraph.Schema.Node.Metadata,
+        Seraph.Schema.Relationship,
+        Seraph.Schema.Relationship.Metadata
+      ],
+      "(Not) Loaded struct info": [
+        Seraph.Schema.Node.NotLoaded,
+        Seraph.Schema.Relationship.NotLoaded,
+        Seraph.Schema.Relationship.Outgoing,
+        Seraph.Schema.Relationship.Incoming
       ]
     ]
   end
