@@ -1,6 +1,7 @@
 defmodule Seraph.Repo.Node.Queryable do
   @moduledoc false
   alias Seraph.Query.{Builder, Condition, Planner}
+  alias Seraph.Repo.Helper
 
   @doc """
   Fetch a single struct from the Neo4j datababase with the given identifier value.
@@ -13,38 +14,17 @@ defmodule Seraph.Repo.Node.Queryable do
 
     node_to_get = %Builder.NodeExpr{
       variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    condition = %Condition{
-      source: node_to_get.variable,
-      field: id_field,
-      operator: :==,
-      value: Atom.to_string(id_field)
+      labels: [queryable.__schema__(:primary_label)],
+      properties: Map.put(%{}, id_field, Atom.to_string(id_field))
     }
 
     params = Map.put(%{}, id_field, id_value)
 
-    fields =
-      Enum.map(queryable.__schema__(:properties), fn property ->
-        %Builder.FieldExpr{
-          variable: node_to_get.variable,
-          name: property,
-          alias: Atom.to_string(property)
-        }
-      end)
-
-    id_expr = %Builder.Fragment{
-      expr: "id(#{node_to_get.variable})",
-      alias: "__id__"
-    }
-
     {statement, params} =
       Builder.new()
       |> Builder.match([node_to_get])
-      |> Builder.where(condition)
       |> Builder.params(params)
-      |> Builder.return(%Builder.ReturnExpr{fields: [id_expr | fields]})
+      |> Builder.return(%Builder.ReturnExpr{fields: [node_to_get]})
       |> Builder.to_string()
 
     {:ok, results} = Planner.query(repo, statement, params)
@@ -54,7 +34,7 @@ defmodule Seraph.Repo.Node.Queryable do
         nil
 
       res ->
-        struct(queryable, Enum.map(res, fn {k, v} -> {String.to_atom(k), v} end))
+        Helper.build_node(queryable, res["n"])
     end
   end
 
