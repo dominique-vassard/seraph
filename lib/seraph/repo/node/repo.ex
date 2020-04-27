@@ -43,6 +43,8 @@ defmodule Seraph.Repo.Node.Repo do
 
         Returns `nil` if no result was found.
 
+        Raise if more than one Node is found.
+
         ## Example
 
             MyRepo.Node.get(Person, 42)
@@ -54,12 +56,36 @@ defmodule Seraph.Repo.Node.Repo do
         end
 
         @doc """
-        Same as get/2 but raise if more than Node is found.
+        Same as get/2 but raise if no Node is found.
+
+        Raise if more than one Node is found.
         """
         @spec get!(Seraph.Repo.queryable(), any) ::
                 Seraph.Schema.Node.t() | Seraph.Schema.Relationship.t()
         def get!(queryable, identifier_value) do
           Node.Queryable.get!(@repo, queryable, identifier_value)
+        end
+
+        @doc """
+        Fetche a single result from the query.
+
+        Return nil if no result was found.
+
+        Raise if more than one entry.
+        """
+        @spec get_by(Seraph.Repo.queryable(), Keyword.t() | map) :: nil | Seraph.Schema.Node.t()
+        def get_by(queryable, clauses) do
+          Node.Queryable.get_by(@repo, queryable, clauses)
+        end
+
+        @doc """
+        Same as get_by/2 but raise if no Node is found.
+
+        Raise if more than one Node is found.
+        """
+        @spec get_by!(Seraph.Repo.queryable(), Keyword.t() | map) :: Seraph.Schema.Node.t()
+        def get_by!(queryable, clauses) do
+          Node.Queryable.get_by!(@repo, queryable, clauses)
         end
 
         @doc """

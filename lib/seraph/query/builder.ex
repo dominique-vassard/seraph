@@ -668,6 +668,20 @@ defmodule Seraph.Query.Builder do
   # defp stringify_match_entity(%NodeExpr{variable: variable, labels: [label]}) do
   #   "(#{variable}:#{label})"
   # end
+  defp stringify_match_entity(%NodeExpr{
+         variable: variable,
+         labels: labels,
+         properties: properties
+       })
+       when is_list(labels) and map_size(properties) == 0 do
+    labels_str =
+      Enum.map(labels, fn label ->
+        ":#{label}"
+      end)
+      |> Enum.join()
+
+    "(#{variable}#{labels_str})"
+  end
 
   defp stringify_match_entity(%NodeExpr{
          variable: variable,

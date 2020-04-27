@@ -299,6 +299,100 @@ defmodule Seraph.Repo.NodeTest do
     end
   end
 
+  describe "get_by/2" do
+    test "ok with one clause" do
+      data = add_fixtures()
+      uuid = data.uuid
+
+      retrieved_user = TestRepo.Node.get_by(User, firstName: "John")
+
+      assert %User{
+               uuid: ^uuid,
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
+             } = retrieved_user
+
+      refute is_nil(retrieved_user.__id__)
+    end
+
+    test "ok with more than one clause" do
+      data = add_fixtures()
+      uuid = data.uuid
+
+      retrieved_user = TestRepo.Node.get_by(User, firstName: "John", lastName: "Doe")
+
+      assert %User{
+               uuid: ^uuid,
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
+             } = retrieved_user
+
+      refute is_nil(retrieved_user.__id__)
+    end
+
+    test "ok with map" do
+      data = add_fixtures()
+      uuid = data.uuid
+
+      retrieved_user = TestRepo.Node.get_by(User, %{firstName: "John"})
+
+      assert %User{
+               uuid: ^uuid,
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
+             } = retrieved_user
+
+      refute is_nil(retrieved_user.__id__)
+    end
+
+    test "ok with additional labels" do
+      data = add_fixtures()
+      uuid = data.uuid
+
+      cql = """
+      MATCH
+        (n:User {uuid: $uuid})
+      SET
+        n:Buyer
+      """
+
+      TestRepo.query!(cql, %{uuid: data.uuid})
+
+      assert retrieved_user =
+               TestRepo.Node.get_by(User, additionalLabels: ["Buyer"], firstName: "John")
+
+      assert %User{
+               additionalLabels: ["Buyer"],
+               uuid: ^uuid,
+               firstName: "John",
+               lastName: "Doe",
+               viewCount: 5
+             } = retrieved_user
+    end
+
+    test "no result returns nil" do
+      assert is_nil(TestRepo.Node.get_by(User, firstName: "non-existent"))
+    end
+
+    test "raise: when more than one result" do
+      add_fixtures()
+      add_fixtures()
+
+      assert_raise Seraph.MultipleNodesError, fn ->
+        TestRepo.Node.get_by(User, %{firstName: "John"})
+      end
+    end
+
+    test "raise when no result and used with!" do
+      assert_raise Seraph.NoResultsError, fn ->
+        assert is_nil(TestRepo.Node.get_by!(User, firstName: "non-existent"))
+      end
+    end
+  end
+
   describe "create_or_set/2" do
     test "ok with changeset: node creation" do
       params = %{

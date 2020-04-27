@@ -39,6 +39,28 @@ defmodule Seraph.NoResultsError do
   end
 end
 
+defmodule Seraph.MultipleNodesError do
+  @doc """
+  Raised when there is more than one Node found when only one is expected.
+  """
+
+  defexception [:message]
+
+  def exception(opts) do
+    queryable = Keyword.fetch!(opts, :queryable)
+    count = Keyword.fetch!(opts, :count)
+    params = Keyword.get(opts, :params)
+
+    msg = """
+    expected at most one node but got #{count} when retrieving: #{inspect(queryable)}
+    params:
+    #{inspect(params)}
+    """
+
+    %__MODULE__{message: msg}
+  end
+end
+
 defmodule Seraph.MultipleRelationshipsError do
   @moduledoc """
   Raised when there is more than one relstionship found when only one is exoected.

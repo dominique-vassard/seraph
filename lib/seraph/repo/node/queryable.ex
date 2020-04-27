@@ -68,4 +68,70 @@ defmodule Seraph.Repo.Node.Queryable do
       result -> result
     end
   end
+
+  @spec get_by(Seraph.Repo.t(), Seraph.Repo.queryable(), Keyword.t() | map) ::
+          nil | Seraph.Schema.Node.t()
+  def get_by(repo, queryable, clauses) do
+    {additional_labels, cond_clauses} =
+      clauses
+      |> Enum.to_list()
+      |> Keyword.pop(:additionalLabels, [])
+
+    node_to_get = %Builder.NodeExpr{
+      variable: "n",
+      labels: [queryable.__schema__(:primary_label) | additional_labels]
+    }
+
+    conditions =
+      Enum.reduce(cond_clauses, %{condition: nil, params: %{}}, fn {prop_key, prop_value},
+                                                                   clauses ->
+        condition = %Condition{
+          source: node_to_get.variable,
+          field: prop_key,
+          operator: :==,
+          value: Atom.to_string(prop_key)
+        }
+
+        %{
+          clauses
+          | condition: Condition.join_conditions(clauses.condition, condition),
+            params: Map.put(clauses.params, prop_key, prop_value)
+        }
+      end)
+
+    {statement, params} =
+      Builder.new()
+      |> Builder.match([node_to_get])
+      |> Builder.where(conditions.condition)
+      |> Builder.return(%Builder.ReturnExpr{
+        fields: [node_to_get]
+      })
+      |> Builder.params(conditions.params)
+      |> Builder.to_string()
+
+    {:ok, results} = Planner.query(repo, statement, params)
+
+    case length(results) do
+      0 ->
+        nil
+
+      1 ->
+        Seraph.Repo.Helper.build_node(queryable, List.first(results)["n"])
+
+      count ->
+        raise Seraph.MultipleNodesError, queryable: queryable, count: count, params: clauses
+    end
+  end
+
+  @doc """
+  Same as `get/3` but raises when no result is found.
+  """
+  @spec get_by!(Seraph.Repo.t(), Seraph.Repo.queryable(), Keyword.t() | map) ::
+          Seraph.Schema.Node.t()
+  def get_by!(repo, queryable, clauses) do
+    case get_by(repo, queryable, clauses) do
+      nil -> raise Seraph.NoResultsError, queryable: queryable, function: :get!, params: clauses
+      result -> result
+    end
+  end
 end
