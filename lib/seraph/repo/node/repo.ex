@@ -1,4 +1,8 @@
 defmodule Seraph.Repo.Node.Repo do
+  @moduledoc """
+  See `Seraph.Example.Repo.Node`
+  """
+
   defmacro __using__(repo_module) do
     quote do
       repo_module = unquote(repo_module)
@@ -67,7 +71,7 @@ defmodule Seraph.Repo.Node.Repo do
         end
 
         @doc """
-        Fetche a single result from the query.
+        Fetch a single result from the query.
 
         Return nil if no result was found.
 

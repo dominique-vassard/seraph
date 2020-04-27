@@ -49,6 +49,11 @@ defmodule Seraph.Repo.Node.Queryable do
     end
   end
 
+  @doc """
+  Fetch a single struct from the Neo4j datababase with the given data.
+
+  Returns `nil` if no result was found
+  """
   @spec get_by(Seraph.Repo.t(), Seraph.Repo.queryable(), Keyword.t() | map) ::
           nil | Seraph.Schema.Node.t()
   def get_by(repo, queryable, clauses) do

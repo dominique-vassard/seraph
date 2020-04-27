@@ -1,4 +1,8 @@
 defmodule Seraph.Repo.Relationship.Repo do
+  @moduledoc """
+  See `Seraph.Example.Repo.Relationship`
+  """
+
   defmacro __using__(repo_module) do
     quote do
       repo_module = unquote(repo_module)
