@@ -1079,12 +1079,12 @@ defmodule Seraph.Repo.RelationshipTest do
     end
 
     test "ok: with rel clause" do
-      relationship = add_fixtures(:relationship)
+      add_fixtures(:relationship)
       add_fixtures(:relationship, %{at: nil})
 
       retrieved =
         TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"}, %{
-          at: relationship.at
+          at: nil
         })
 
       assert %Seraph.Test.UserToPost.Wrote{
@@ -1103,7 +1103,7 @@ defmodule Seraph.Repo.RelationshipTest do
              } = retrieved
 
       refute is_nil(retrieved.__id__)
-      refute is_nil(retrieved.at)
+      assert is_nil(retrieved.at)
       refute is_nil(retrieved.start_node.__id__)
       refute is_nil(retrieved.start_node.uuid)
       refute is_nil(retrieved.end_node.__id__)

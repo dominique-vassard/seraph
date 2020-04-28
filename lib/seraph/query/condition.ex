@@ -86,6 +86,14 @@ defmodule Seraph.Query.Condition do
   def stringify_condition(%Condition{
         source: source,
         field: field,
+        value: nil
+      }) do
+    stringify_condition(%Condition{source: source, field: field, operator: :is_nil})
+  end
+
+  def stringify_condition(%Condition{
+        source: source,
+        field: field,
         operator: operator,
         value: value
       }) do

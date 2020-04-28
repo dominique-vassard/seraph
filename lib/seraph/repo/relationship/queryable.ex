@@ -1,7 +1,7 @@
 defmodule Seraph.Repo.Relationship.Queryable do
   @moduledoc false
 
-  alias Seraph.Query.{Builder, Planner}
+  alias Seraph.Query.{Builder, Condition, Planner}
 
   @doc """
   Fetch a single struct from the Neo4j datababase with the given start and end node data/struct.
@@ -97,14 +97,16 @@ defmodule Seraph.Repo.Relationship.Queryable do
           Keyword.t() | map
         ) :: nil | Seraph.Schema.Relationship.t()
   def get_by(repo, queryable, start_node_clauses, end_node_clauses, relationship_clauses) do
-    {start_node, start_params} =
+    {start_node, start_condition, start_params} =
       build_get_by_node(queryable.__schema__(:start_node), start_node_clauses, :start_node)
 
-    {end_node, end_params} =
+    {end_node, end_condition, end_params} =
       build_get_by_node(queryable.__schema__(:end_node), end_node_clauses, :end_node)
 
-    %{properties: rel_props, params: rel_params} =
-      Seraph.Repo.Helper.to_props_and_params(relationship_clauses, "rel")
+    nodes_condition = Condition.join_conditions(start_condition, end_condition)
+
+    %{properties: rel_props, condition: rel_condition, params: rel_params} =
+      Seraph.Repo.Helper.to_props_and_conditions(relationship_clauses, "rel")
 
     rel_to_get = %Builder.RelationshipExpr{
       start: start_node,
@@ -114,6 +116,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
       properties: rel_props
     }
 
+    condition = Condition.join_conditions(nodes_condition, rel_condition)
+
     params =
       start_params
       |> Map.merge(end_params)
@@ -122,6 +126,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
     {statement, params} =
       Builder.new()
       |> Builder.match([rel_to_get])
+      |> Builder.where(condition)
       |> Builder.return(%Builder.ReturnExpr{
         fields: [start_node, end_node, rel_to_get]
       })
@@ -190,8 +195,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
         :end_node -> "end"
       end
 
-    %{properties: properties, params: params} =
-      Seraph.Repo.Helper.to_props_and_params(cond_clauses, variable)
+    %{properties: properties, condition: condition, params: params} =
+      Seraph.Repo.Helper.to_props_and_conditions(cond_clauses, variable)
 
     node = %Builder.NodeExpr{
       variable: variable,
@@ -199,7 +204,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
       properties: properties
     }
 
-    {node, params}
+    {node, condition, params}
   end
 
   @spec node_data(String.t(), Seraph.Repo.queryable(), Seraph.Schema.Node.t() | map) ::
