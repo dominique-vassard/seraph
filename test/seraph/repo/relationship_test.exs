@@ -1048,6 +1048,94 @@ defmodule Seraph.Repo.RelationshipTest do
     end
   end
 
+  describe "get_by/5" do
+    test "ok: without rel clause" do
+      add_fixtures(:relationship)
+
+      retrieved =
+        TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"})
+
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
+                 additionalLabels: [],
+                 text: "This is the first post of all times.",
+                 title: "First post"
+               },
+               start_node: %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 5
+               },
+               type: "WROTE"
+             } = retrieved
+
+      refute is_nil(retrieved.__id__)
+      refute is_nil(retrieved.at)
+      refute is_nil(retrieved.start_node.__id__)
+      refute is_nil(retrieved.start_node.uuid)
+      refute is_nil(retrieved.end_node.__id__)
+      refute is_nil(retrieved.end_node.uuid)
+    end
+
+    test "ok: with rel clause" do
+      relationship = add_fixtures(:relationship)
+      add_fixtures(:relationship, %{at: nil})
+
+      retrieved =
+        TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"}, %{
+          at: relationship.at
+        })
+
+      assert %Seraph.Test.UserToPost.Wrote{
+               end_node: %Seraph.Test.Post{
+                 additionalLabels: [],
+                 text: "This is the first post of all times.",
+                 title: "First post"
+               },
+               start_node: %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 5
+               },
+               type: "WROTE"
+             } = retrieved
+
+      refute is_nil(retrieved.__id__)
+      refute is_nil(retrieved.at)
+      refute is_nil(retrieved.start_node.__id__)
+      refute is_nil(retrieved.start_node.uuid)
+      refute is_nil(retrieved.end_node.__id__)
+      refute is_nil(retrieved.end_node.uuid)
+    end
+
+    test "ok: return nil when no relationship found" do
+      assert is_nil(
+               TestRepo.Relationship.get_by(Wrote, %{firstName: "Inexistent"}, %{
+                 firstName: "Noone"
+               })
+             )
+    end
+
+    test "raise: when more than one result" do
+      add_fixtures(:relationship)
+      add_fixtures(:relationship)
+
+      assert_raise Seraph.MultipleRelationshipsError, fn ->
+        TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"})
+      end
+    end
+
+    test "raise: when used with !" do
+      %{firstName: "Noone"}
+
+      assert_raise Seraph.NoResultsError, fn ->
+        TestRepo.Relationship.get_by!(Wrote, %{firstName: "Inexistent"}, %{firstName: "Noone"})
+      end
+    end
+  end
+
   describe "set/2" do
     test "ok with data" do
       relationship = add_fixtures(:relationship)

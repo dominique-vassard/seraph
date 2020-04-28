@@ -214,6 +214,50 @@ defmodule Seraph.Repo.Relationship.Repo do
         end
 
         @doc """
+        Fetch a single relationship from the query.
+
+        Return nil if no relationship was found.
+
+        Raise if more than one relationship.
+        """
+        @spec get_by(
+                Seraph.Repo.queryable(),
+                Keyword.t() | map,
+                Keyword.t() | map,
+                Keyword.t() | map
+              ) :: nil | Seraph.Schema.Relationship.t()
+        def get_by(queryable, start_node_clauses, end_node_clauses, relationship_clauses \\ %{}) do
+          Relationship.Queryable.get_by(
+            @repo,
+            queryable,
+            start_node_clauses,
+            end_node_clauses,
+            relationship_clauses
+          )
+        end
+
+        @doc """
+        Same as get_by/2 but raise if no Node is found.
+
+        Raise if more than one Relationship is found.
+        """
+        @spec get_by!(
+                Seraph.Repo.queryable(),
+                Keyword.t() | map,
+                Keyword.t() | map,
+                Keyword.t() | map
+              ) :: Seraph.Schema.Relationship.t()
+        def get_by!(queryable, start_node_clauses, end_node_clauses, relationship_clauses \\ %{}) do
+          Relationship.Queryable.get_by!(
+            @repo,
+            queryable,
+            start_node_clauses,
+            end_node_clauses,
+            relationship_clauses
+          )
+        end
+
+        @doc """
         Updates a changeset using  its :end_node and :start_node
 
         This function allows to set new relationship data, but also to set new :start_node

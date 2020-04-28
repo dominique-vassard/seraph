@@ -67,7 +67,7 @@ defmodule Seraph.Query.Builder do
 
   defmodule RelationshipExpr do
     @moduledoc false
-    defstruct [:index, :variable, :start, :end, :type, :alias]
+    defstruct [:index, :variable, :start, :end, :type, :alias, properties: %{}]
 
     @type t :: %__MODULE__{
             index: nil | integer(),
@@ -75,7 +75,8 @@ defmodule Seraph.Query.Builder do
             start: NodeExpr.t(),
             end: NodeExpr.t(),
             type: String.t(),
-            alias: nil | String.t()
+            alias: nil | String.t(),
+            properties: map
           }
   end
 
@@ -712,6 +713,25 @@ defmodule Seraph.Query.Builder do
       |> Enum.join()
 
     "(#{labels_str})"
+  end
+
+  defp stringify_match_entity(%RelationshipExpr{
+         start: start_node,
+         end: end_node,
+         type: rel_type,
+         variable: variable,
+         properties: properties
+       })
+       when map_size(properties) > 0 do
+    cql_type =
+      unless is_nil(rel_type) do
+        ":#{rel_type}"
+      end
+
+    props = stringify_entity_props(properties)
+
+    stringify_match_entity(start_node) <>
+      "-[#{variable}#{cql_type}#{props}]->" <> stringify_match_entity(end_node)
   end
 
   defp stringify_match_entity(%RelationshipExpr{
