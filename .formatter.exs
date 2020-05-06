@@ -8,7 +8,10 @@ locals_without_parens = [
   start_node: 1,
   end_node: 1,
   defrelationship: 3,
-  defrelationship: 4
+  defrelationship: 4,
+
+  # Query
+  match: 2
 ]
 
 # Used by "mix format"

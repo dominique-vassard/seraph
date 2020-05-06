@@ -123,3 +123,28 @@ defmodule Seraph.StaleEntryError do
     %__MODULE__{message: msg}
   end
 end
+
+defmodule Seraph.QueryError do
+  @moduledoc """
+  Raised at runtime when the query is invalid.
+  """
+  defexception [:message]
+
+  def exception(opts) do
+    message = Keyword.fetch!(opts, :message)
+    query = Keyword.fetch!(opts, :query)
+
+    # message = """
+    # #{message} in query:
+
+    # #{Seraph.Query.Builder.to_string(query)}
+    # """
+
+    message = """
+    #{message} in query:
+    #{query}
+    """
+
+    %__MODULE__{message: message}
+  end
+end

@@ -21,12 +21,39 @@ defmodule Seraph.Repo.Helper do
   Build a node schema from a Bolt.Sips.Node
   """
   @spec build_node(Seraph.Repo.queryable(), map) :: Seraph.Schema.Node.t()
-  def build_node(queryable, node_data) do
+
+  def build_node(queryable, %Bolt.Sips.Types.Node{} = node_data) do
     props =
       node_data.properties
       |> atom_map()
       |> Map.put(:__id__, node_data.id)
       |> Map.put(:additionalLabels, node_data.labels -- [queryable.__schema__(:primary_label)])
+
+    struct(queryable, props)
+  end
+
+  def build_node(_, built_node) do
+    built_node
+  end
+
+  def build_relationship(queryable, rel_data, nil, nil) do
+    props =
+      rel_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(:start_node, nil)
+      |> Map.put(:end_node, nil)
+
+    struct(queryable, props)
+  end
+
+  def build_relationship(queryable, rel_data, start_data, end_data) do
+    props =
+      rel_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
+      |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
 
     struct(queryable, props)
   end
