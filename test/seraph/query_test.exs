@@ -819,7 +819,8 @@ defmodule Seraph.QueryTest do
       assert %Seraph.Query{
                literal: ["match:\n\t{u, User}", "return:\n\tu"],
                operations: operations,
-               params: []
+               params: [],
+               result_aliases: [u: Seraph.Test.User]
              } =
                match([{u, User}])
                |> return([u])
@@ -842,7 +843,8 @@ defmodule Seraph.QueryTest do
       assert %Seraph.Query{
                literal: ["match:\n\t{u, User}", "return:\n\tu.uuid"],
                operations: operations,
-               params: []
+               params: [],
+               result_aliases: []
              } =
                match([{u, User}])
                |> return([u.uuid])
@@ -851,6 +853,26 @@ defmodule Seraph.QueryTest do
                distinct?: false,
                fields: [%Seraph.Query.Builder.FieldExpr{alias: nil, name: :uuid, variable: "u"}]
              } == operations[:return]
+    end
+
+    test "ok: aliased returns" do
+      assert %Seraph.Query{operations: operations, result_aliases: [res_node: Seraph.Test.User]} =
+               match([{u, User}])
+               |> return(res_node: u, res_prop: u.uuid)
+
+      assert %Seraph.Query.Builder.ReturnExpr{
+               distinct?: false,
+               fields: [
+                 %Seraph.Query.Builder.FieldExpr{alias: "res_prop", name: :uuid, variable: "u"},
+                 %Seraph.Query.Builder.NodeExpr{
+                   alias: "res_node",
+                   index: nil,
+                   labels: ["User"],
+                   properties: %{},
+                   variable: "u"
+                 }
+               ]
+             } = operations[:return]
     end
 
     test "raise: unknwon alias" do

@@ -1,5 +1,5 @@
 defmodule Seraph.Query do
-  defstruct aliases: [], params: [], operations: [], literal: []
+  defstruct aliases: [], params: [], operations: [], literal: [], result_aliases: []
 
   @type operation :: :match | :where | :return
 
@@ -7,7 +7,8 @@ defmodule Seraph.Query do
           aliases: [{atom, {Seraph.Repo.queryable(), Seraph.Query.Builder.entity_expr()}}],
           params: [{atom, any()}],
           operations: [{operation(), any()}],
-          literal: [String.t()]
+          literal: [String.t()],
+          result_aliases: [{atom, Seraph.Repo.queryable()}]
         }
 
   defmacro match(expr, operations \\ []) do
@@ -117,7 +118,27 @@ defmodule Seraph.Query do
       |> String.replace("()", "")
 
     quote bind_quoted: [query: query, return: return, literal: literal] do
-      check_aliases_and_props(query, return)
+      prop_check =
+        return
+        |> Enum.map(fn {entity_alias, property, _} -> {entity_alias, property} end)
+
+      check_aliases_and_props(query, prop_check)
+
+      result_aliases =
+        return
+        |> Enum.map(fn
+          {entity_alias, nil, nil} ->
+            {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
+            {entity_alias, queryable}
+
+          {entity_alias, nil, result_alias} ->
+            {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
+            {result_alias, queryable}
+
+          _ ->
+            nil
+        end)
+        |> Enum.reject(&is_nil/1)
 
       return_expr = %Seraph.Query.Builder.ReturnExpr{
         fields: Seraph.Query.Return.finalize_build(query.aliases, return)
@@ -126,7 +147,8 @@ defmodule Seraph.Query do
       %{
         query
         | operations: query.operations ++ [return: return_expr],
-          literal: query.literal ++ ["return:\n\t" <> literal]
+          literal: query.literal ++ ["return:\n\t" <> literal],
+          result_aliases: result_aliases
       }
     end
   end

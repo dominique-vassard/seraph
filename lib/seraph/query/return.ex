@@ -7,28 +7,48 @@ defmodule Seraph.Query.Return do
   end
 
   def build(ast) do
-    Enum.reduce(ast, [], fn
-      {{:., _, [{entity_alias, _, _}, field]}, _, _}, returns ->
-        [{entity_alias, field} | returns]
+    Enum.map(ast, &do_build/1)
+  end
 
-      {entity_alias, _, _}, returns ->
-        [{entity_alias, nil} | returns]
-    end)
+  @spec do_build(Macro.t()) :: {atom, nil | atom, atom}
+  defp do_build({{:., _, [{entity_alias, _, _}, property]}, _, _}) do
+    {entity_alias, property, nil}
+  end
+
+  defp do_build({result_alias, {{:., _, [{entity_alias, _, _}, property]}, _, _}}) do
+    {entity_alias, property, result_alias}
+  end
+
+  defp do_build({entity_alias, _, _}) do
+    {entity_alias, nil, nil}
+  end
+
+  defp do_build({result_alias, {entity_alias, _, _}}) do
+    {entity_alias, nil, result_alias}
   end
 
   @spec finalize_build(Keyword.t(), Keyword.t()) :: [Seraph.Query.Builder.entity_expr()]
   def finalize_build(aliases, return) do
     Enum.map(return, fn
-      {entity_alias, nil} ->
+      {entity_alias, nil, result_alias} ->
         {_, entity} = Keyword.fetch!(aliases, entity_alias)
-        entity
+        alias_entity(entity, result_alias)
 
-      {entity_alias, field} ->
+      {entity_alias, property, result_alias} ->
         %Builder.FieldExpr{
           variable: Atom.to_string(entity_alias),
-          name: field
+          name: property
         }
+        |> alias_entity(result_alias)
     end)
     |> Enum.reverse()
+  end
+
+  defp alias_entity(result, nil) do
+    result
+  end
+
+  defp alias_entity(result, result_alias) do
+    Map.put(result, :alias, Atom.to_string(result_alias))
   end
 end
