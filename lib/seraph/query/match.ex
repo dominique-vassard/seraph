@@ -1,5 +1,16 @@
 defmodule Seraph.Query.Match do
   alias Seraph.Query.Builder
+  alias Seraph.Query.Match
+
+  defstruct [:entity_alias, :entity, queryable: nil, params: [], prop_check: []]
+
+  @type t :: %__MODULE__{
+          entity_alias: atom,
+          entity: Builder.entity_expr(),
+          queryable: nil | Seraph.Repo.queryable(),
+          params: Keyword.t(),
+          prop_check: [tuple]
+        }
 
   @spec build(Macro.t(), any) :: {[Builder.entity_expr()], Keyword.t(), Keyword.t(), [tuple()]}
   def build(ast, env) do
@@ -10,14 +21,14 @@ defmodule Seraph.Query.Match do
     nodes_aliases_list =
       nodes
       |> Enum.reject(fn
-        {nil, _, _, _, _} -> true
-        {_, _, _, _, _} -> false
+        %Match{entity_alias: nil} -> true
+        _ -> false
       end)
       |> build_aliases()
 
     aliases =
       rels
-      |> Enum.map(fn [start_data, end_data, {_, queryable, _, _, _} = rel_data] ->
+      |> Enum.map(fn [start_data, end_data, %Match{queryable: queryable} = rel_data] ->
         [
           fill_queryable(start_data, queryable, :start_node),
           fill_queryable(end_data, queryable, :end_node),
@@ -26,58 +37,67 @@ defmodule Seraph.Query.Match do
       end)
       |> List.flatten()
       |> Enum.reject(fn
-        {nil, _, _, _, _} -> true
-        {_, _, _, _, _} -> false
+        %Match{entity_alias: nil} -> true
+        _ -> false
       end)
-      |> build_aliases(:from_rels, nodes_aliases_list)
+      |> build_aliases(:from_rel, nodes_aliases_list)
 
     {match, params, prop_check} =
       entity_list
       |> Enum.reduce({[], [], []}, fn
         [
-          {_, _, _, start_params, start_prop_check},
-          {_, _, _, end_params, end_prop_check},
+          %Match{params: start_params, prop_check: start_prop_check},
+          %Match{params: end_params, prop_check: end_prop_check},
           rel_data
         ],
         {match, params, prop_check} ->
-          {_, _, rel, rel_params, rel_prop_check} = rel_data
-
           new_params =
             params
             |> Keyword.merge(start_params)
             |> Keyword.merge(end_params)
-            |> Keyword.merge(rel_params)
+            |> Keyword.merge(rel_data.params)
 
-          {[rel | match], new_params,
-           prop_check ++ start_prop_check ++ end_prop_check ++ rel_prop_check}
+          {[rel_data.entity | match], new_params,
+           prop_check ++ start_prop_check ++ end_prop_check ++ rel_data.prop_check}
 
-        {_, _, node_data, node_params, node_prop_check}, {match, params, prop_check} ->
-          {[node_data | match], Keyword.merge(params, node_params), prop_check ++ node_prop_check}
+        node_data, {match, params, prop_check} ->
+          {[node_data.entity | match], Keyword.merge(params, node_data.params),
+           prop_check ++ node_data.prop_check}
       end)
 
     {match, aliases, params, prop_check}
   end
 
-  defp fill_queryable({node_alias, nil, node_data, params, prop_check}, queryable, node_type)
-       when not is_nil(queryable) do
-    {node_alias, queryable.__schema__(node_type), node_data, params, prop_check}
+  @spec fill_queryable(Match.t(), Seraph.Repo.queryable(), :start_node | :end_node) :: Match.t()
+  defp fill_queryable(%Match{queryable: nil} = node_data, rel_queryable, node_type)
+       when not is_nil(rel_queryable) do
+    Map.put(node_data, :queryable, rel_queryable.__schema__(node_type))
   end
 
   defp fill_queryable(node_data, _, _) do
     node_data
   end
 
+  @spec build_aliases([Match.t()], :from_node | :from_rel, Keyword.t()) :: Keyword.t()
   defp build_aliases(entity_data, from_entity_type \\ :from_node, aliases_list \\ [])
 
   defp build_aliases([], _, aliases_list) do
     aliases_list
   end
 
-  defp build_aliases([{entity_alias, queryable, entity, _, _} | t], from_entity_type, []) do
+  defp build_aliases(
+         [%Match{entity_alias: entity_alias, entity: entity, queryable: queryable} | t],
+         from_entity_type,
+         []
+       ) do
     build_aliases(t, from_entity_type, Keyword.put([], entity_alias, {queryable, entity}))
   end
 
-  defp build_aliases([{entity_alias, queryable, entity, _, _} | t], :from_node, aliases_list) do
+  defp build_aliases(
+         [%Match{entity_alias: entity_alias, entity: entity, queryable: queryable} | t],
+         :from_node,
+         aliases_list
+       ) do
     cond do
       Keyword.has_key?(aliases_list, entity_alias) ->
         raise ArgumentError,
@@ -89,24 +109,31 @@ defmodule Seraph.Query.Match do
   end
 
   defp build_aliases(
-         [{entity_alias, queryable, %Builder.NodeExpr{} = entity, _, _} | t],
-         :from_rels,
+         [
+           %Match{
+             entity_alias: entity_alias,
+             entity: %Builder.NodeExpr{} = entity,
+             queryable: queryable
+           }
+           | t
+         ],
+         :from_rel,
          aliases_list
        ) do
     existence = Keyword.get(aliases_list, entity_alias)
 
     cond do
       Kernel.match?({nil, _}, existence) ->
-        build_aliases(t, :from_rels, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
+        build_aliases(t, :from_rel, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
 
       Kernel.match?({^queryable, _}, existence) ->
-        build_aliases(t, :from_rels, aliases_list)
+        build_aliases(t, :from_rel, aliases_list)
 
       Keyword.has_key?(aliases_list, entity_alias) and is_nil(queryable) ->
-        build_aliases(t, :from_rels, aliases_list)
+        build_aliases(t, :from_rel, aliases_list)
 
       not Keyword.has_key?(aliases_list, entity_alias) ->
-        build_aliases(t, :from_rels, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
+        build_aliases(t, :from_rel, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
 
       true ->
         raise ArgumentError,
@@ -115,13 +142,20 @@ defmodule Seraph.Query.Match do
   end
 
   defp build_aliases(
-         [{entity_alias, queryable, %Builder.RelationshipExpr{} = entity, _, _} | t],
-         :from_rels,
+         [
+           %Match{
+             entity_alias: entity_alias,
+             entity: %Builder.RelationshipExpr{} = entity,
+             queryable: queryable
+           }
+           | t
+         ],
+         :from_rel,
          aliases_list
        ) do
     cond do
       not Keyword.has_key?(aliases_list, entity_alias) ->
-        build_aliases(t, :from_rels, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
+        build_aliases(t, :from_rel, Keyword.put(aliases_list, entity_alias, {queryable, entity}))
 
       true ->
         raise ArgumentError,
@@ -129,6 +163,7 @@ defmodule Seraph.Query.Match do
     end
   end
 
+  @spec extract_entity(Macro.t(), Macro.Env.t()) :: Match.t()
   defp extract_entity(
          {:{}, _,
           [
@@ -153,7 +188,13 @@ defmodule Seraph.Query.Match do
         {node_alias, prop_key, prop_value}
       end)
 
-    {node_alias, queryable, node, params, prop_check}
+    %Match{
+      entity_alias: node_alias,
+      queryable: queryable,
+      entity: node,
+      params: params,
+      prop_check: prop_check
+    }
   end
 
   defp extract_entity({{node_alias, _, _}, {:%{}, _, properties}}, _env) do
@@ -164,7 +205,11 @@ defmodule Seraph.Query.Match do
       properties: props
     }
 
-    {node_alias, nil, node, params, []}
+    %Match{
+      entity_alias: node_alias,
+      entity: node,
+      params: params
+    }
   end
 
   defp extract_entity({{node_alias, _, _}, {:__aliases__, _, _} = queryable_ast}, env) do
@@ -175,7 +220,11 @@ defmodule Seraph.Query.Match do
       labels: [Macro.expand(queryable, env).__schema__(:primary_label)]
     }
 
-    {node_alias, queryable, node, [], []}
+    %Match{
+      entity_alias: node_alias,
+      queryable: queryable,
+      entity: node
+    }
   end
 
   defp extract_entity({:{}, _, [{:__aliases__, _, _} = queryable_ast]}, env) do
@@ -185,7 +234,11 @@ defmodule Seraph.Query.Match do
       labels: [Macro.expand(queryable, env).__schema__(:primary_label)]
     }
 
-    {nil, queryable, node, [], []}
+    %Match{
+      entity_alias: nil,
+      queryable: queryable,
+      entity: node
+    }
   end
 
   defp extract_entity({:{}, _, [{node_alias, _, _}]}, _env) do
@@ -193,7 +246,10 @@ defmodule Seraph.Query.Match do
       variable: Atom.to_string(node_alias)
     }
 
-    {node_alias, nil, node, [], []}
+    %Match{
+      entity_alias: node_alias,
+      entity: node
+    }
   end
 
   defp extract_entity({:{}, _, []}, _env) do
@@ -204,18 +260,15 @@ defmodule Seraph.Query.Match do
     start_data = extract_empty_node(start_ast, env) || extract_entity(start_ast, env)
     end_data = extract_empty_node(end_ast, env) || extract_entity(end_ast, env)
 
-    {_, _, start_node, _, _} = start_data
-    {_, _, end_node, _, _} = end_data
-
     result = [
       start_data,
       end_data,
-      extract_relationship(relationship_ast, start_node, end_node, env)
+      extract_relationship(relationship_ast, start_data.entity, end_data.entity, env)
     ]
 
     all_empty? =
       Enum.all?(result, fn
-        {nil, nil, _, _, _} -> true
+        %Match{entity_alias: nil, queryable: nil} -> true
         _ -> false
       end)
 
@@ -226,16 +279,21 @@ defmodule Seraph.Query.Match do
     result
   end
 
+  @spec extract_empty_node(Macro.t(), Macro.Env.t()) :: nil | Match.t()
   defp extract_empty_node({:{}, _, []}, _env) do
     node = %Builder.NodeExpr{}
 
-    {nil, nil, node, [], []}
+    %Match{
+      entity_alias: nil,
+      entity: node
+    }
   end
 
   defp extract_empty_node(_, _) do
     nil
   end
 
+  @spec extract_relationship(Macro.t(), Match.t(), Match.t(), Macro.Env.t()) :: Match.t()
   defp extract_relationship([{rel_alias, _, nil}], start_node, end_node, _env) do
     rel = %Builder.RelationshipExpr{
       start: start_node,
@@ -243,7 +301,10 @@ defmodule Seraph.Query.Match do
       variable: Atom.to_string(rel_alias)
     }
 
-    {rel_alias, nil, rel, [], []}
+    %Match{
+      entity_alias: rel_alias,
+      entity: rel
+    }
   end
 
   defp extract_relationship([{:__aliases__, _, _} = queryable_ast], start_node, end_node, env) do
@@ -255,7 +316,11 @@ defmodule Seraph.Query.Match do
       type: Macro.expand(queryable, env).__schema__(:type)
     }
 
-    {nil, queryable, rel, [], []}
+    %Match{
+      entity_alias: nil,
+      queryable: queryable,
+      entity: rel
+    }
   end
 
   defp extract_relationship(
@@ -273,7 +338,11 @@ defmodule Seraph.Query.Match do
       type: Macro.expand(queryable, env).__schema__(:type)
     }
 
-    {rel_alias, queryable, rel, [], []}
+    %Match{
+      entity_alias: rel_alias,
+      queryable: queryable,
+      entity: rel
+    }
   end
 
   defp extract_relationship(
@@ -299,7 +368,13 @@ defmodule Seraph.Query.Match do
         {rel_alias, prop_key, prop_value}
       end)
 
-    {rel_alias, queryable, rel, params, prop_check}
+    %Match{
+      entity_alias: rel_alias,
+      queryable: queryable,
+      entity: rel,
+      params: params,
+      prop_check: prop_check
+    }
   end
 
   defp extract_relationship(
@@ -322,7 +397,12 @@ defmodule Seraph.Query.Match do
         {rel_alias, prop_key, prop_value}
       end)
 
-    {rel_alias, nil, rel, params, prop_check}
+    %Match{
+      entity_alias: rel_alias,
+      entity: rel,
+      params: params,
+      prop_check: prop_check
+    }
   end
 
   defp extract_relationship([], start_node, end_node, _env) do
@@ -331,9 +411,13 @@ defmodule Seraph.Query.Match do
       end: end_node
     }
 
-    {nil, nil, rel, [], []}
+    %Match{
+      entity_alias: nil,
+      entity: rel
+    }
   end
 
+  @spec extract_properties(atom, Keyword.t()) :: %{props: map, params: Keyword.t()}
   defp extract_properties(entity_alias, properties) do
     Enum.reduce(properties, %{props: %{}, params: []}, fn {k, v}, data ->
       key = Atom.to_string(entity_alias) <> "_" <> Atom.to_string(k)
@@ -346,6 +430,7 @@ defmodule Seraph.Query.Match do
     end)
   end
 
+  @spec interpolate(Macro.t()) :: Macro.t()
   defp interpolate({:^, _, [{name, _ctx, _env} = v]}) when is_atom(name) do
     v
   end
