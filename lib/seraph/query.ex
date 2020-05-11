@@ -105,6 +105,10 @@ defmodule Seraph.Query do
 
   @doc false
   @spec build_return(Macro.t(), Macro.t(), any) :: Macro.t()
+  def build_return(query, expr, env) when not is_list(expr) do
+    build_return(query, [expr], env)
+  end
+
   def build_return(query, expr, _env) do
     return =
       expr
@@ -172,6 +176,7 @@ defmodule Seraph.Query do
     Enum.each(aliases_and_props, &do_check_aliases_and_props(query, &1))
   end
 
+  @spec do_check_aliases_and_props(Seraph.Query.t(), tuple) :: :ok | {:error, String.t()}
   defp do_check_aliases_and_props(query, {entity_alias, nil}) do
     if :error == Keyword.fetch(query.aliases, entity_alias) do
       raise Seraph.QueryError,
@@ -180,7 +185,6 @@ defmodule Seraph.Query do
     end
   end
 
-  @spec do_check_aliases_and_props(Seraph.Query.t(), tuple) :: :ok | {:error, String.t()}
   defp do_check_aliases_and_props(query, {entity_alias, property}) do
     case Keyword.fetch(query.aliases, entity_alias) do
       {:ok, {queryable, _}} ->
