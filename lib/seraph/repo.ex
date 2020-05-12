@@ -8,6 +8,7 @@ defmodule Seraph.Repo do
   """
   @type t :: module
   @type queryable :: module
+  # other values :no_nodes, :full
 
   alias Seraph.Query.Builder
 
@@ -18,6 +19,8 @@ defmodule Seraph.Repo do
       alias Seraph.{Condition, Query}
 
       @module __MODULE__
+      @relationship_result :contextual
+      @default_opts [relationship_result: @relationship_result]
 
       @doc false
       def child_spec(opts) do
@@ -94,96 +97,115 @@ defmodule Seraph.Repo do
         Seraph.Query.Planner.raw_query!(__MODULE__, statement, params, opts)
       end
 
-      def all(query) do
-        statement =
-          query.operations
-          |> Enum.reverse()
-          |> Enum.map(&Seraph.Query.Stringifier.stringify/1)
-          |> Enum.reject(&is_nil/1)
-          |> Enum.join("\n")
+      def all(query, opts \\ []) do
+        do_all(query, manage_opts(opts))
+      end
+
+      defp do_all(query, {:error, error}) do
+        raise ArgumentError, error
+      end
+
+      defp do_all(query, opts) do
+        query = Seraph.Query.prepare(query, opts)
+
+        statement = Seraph.Query.to_string(query, opts)
 
         Seraph.Query.Planner.query!(__MODULE__, statement, Enum.into(query.params, %{}))
-        |> IO.inspect(label: "RESULTS")
-        |> Enum.map(fn results ->
-          results
-          |> Enum.sort(fn {_, v1}, {_, v2} -> v1 <= v2 end)
-          # |> Enum.into(%{})
-          |> IO.inspect(label: "SORTED")
-          |> Enum.reduce(%{}, fn {key, result}, res ->
-            formated_res =
-              case Keyword.fetch(query.aliases, String.to_atom(key)) do
-                {:ok, {nil, %Seraph.Query.Builder.NodeExpr{} = node_data}} ->
-                  IO.inspect(key, label: "KEY")
+        |> format_results(query, opts)
+      end
 
-                  Keyword.fetch(query.aliases, String.to_atom(key))
-                  |> IO.inspect(label: "SEARCHED")
+      defp format_results(results, query, opts, formated \\ [])
 
-                  Seraph.Node.map(result)
+      defp format_results([], _, _, formated) do
+        formated
+      end
 
-                {:ok, {queryable, %Seraph.Query.Builder.NodeExpr{}}} ->
-                  Seraph.Repo.Helper.build_node(queryable, result)
+      defp format_results([result | t], query, opts, formated) do
+        formated_res =
+          Enum.map(result, &format_result(&1, query, result, opts))
+          |> Enum.reduce(%{}, &Map.merge/2)
+          |> remove_internal_results(query, Keyword.fetch!(opts, :relationship_result))
 
-                {:ok, {queryable, %Seraph.Query.Builder.RelationshipExpr{} = rel_data}} ->
-                  %Builder.NodeExpr{variable: start_var} = rel_data.start
-                  %Builder.NodeExpr{variable: end_var} = rel_data.end
+        format_results(t, query, opts, formated ++ [formated_res])
+      end
 
-                  start_node = res[start_var]
-                  end_node = res[end_var]
+      defp format_result({result_alias, result}, query, results, opts) do
+        formated =
+          case result_queryable(String.to_atom(result_alias), query) do
+            {:ok, {nil, %Seraph.Query.Builder.NodeExpr{} = node_data}} ->
+              Seraph.Node.map(result)
 
-                  Seraph.Repo.Helper.build_relationship(queryable, result, start_node, end_node)
+            {:ok, {queryable, %Seraph.Query.Builder.NodeExpr{}}} ->
+              Seraph.Repo.Helper.build_node(queryable, result)
 
-                :error ->
-                  result
-              end
+            {:ok, {queryable, %Seraph.Query.Builder.RelationshipExpr{} = rel_data}} ->
+              %Builder.NodeExpr{variable: start_var, alias: start_alias} = rel_data.start
+              %Builder.NodeExpr{variable: end_var, alias: end_alias} = rel_data.end
 
-            Map.put(res, key, formated_res)
-          end)
+              relationship_result = Keyword.get(opts, :relationship_result, @relationship_result)
 
-          # Enum.into(results, %{}, fn {key, result} ->
-          #   formated_res =
-          #     case Keyword.fetch(query.aliases, String.to_atom(key)) do
-          #       {:ok, {nil, %Seraph.Query.Builder.NodeExpr{} = node_data}} ->
-          #         Seraph.Node.map(result)
+              {start_node, end_node} =
+                case relationship_result do
+                  :no_nodes ->
+                    {nil, nil}
 
-          #       {:ok, {queryable, %Seraph.Query.Builder.NodeExpr{}}} ->
-          #         Seraph.Repo.Helper.build_node(queryable, result)
+                  _ ->
+                    {results[start_alias] || results[start_var],
+                     results[end_alias] || results[end_var]}
+                end
 
-          #       {:ok, {queryable, %Seraph.Query.Builder.RelationshipExpr{} = rel_data}} ->
-          #         %Builder.NodeExpr{variable: start_var} = rel_data.start
-          #         %Builder.NodeExpr{variable: end_var} = rel_data.end
+              Seraph.Repo.Helper.build_relationship(queryable, result, start_node, end_node)
 
-          #         start_node = results[start_var]
-          #         end_node = results[end_var]
+            :error ->
+              result
+          end
 
-          #         Seraph.Repo.Helper.build_relationship(queryable, result, start_node, end_node)
+        Map.put(%{}, result_alias, formated)
+      end
 
-          #       # result_id = result.id
+      defp result_queryable(result_alias, query) do
+        case Keyword.fetch(query.result_aliases, result_alias) do
+          {:ok, entity_alias} ->
+            Keyword.fetch(query.aliases, entity_alias)
 
-          #       # Enum.find(results, fn
-          #       #   {_, %Bolt.Sips.Types.Node{id: id}} when id == result_id ->
-          #       #     true
+          :error ->
+            Keyword.fetch(query.aliases, result_alias)
+        end
+      end
 
-          #       #   {_, %Seraph.Node{__id__: id}} when id == result_id ->
-          #       #     true
+      defp remove_internal_results(results, query, :full) do
+        to_exclude =
+          query.result_aliases
+          |> Keyword.keys()
+          |> Enum.map(&Atom.to_string/1)
+          |> Enum.filter(fn str_key -> String.starts_with?(str_key, "__seraph_") end)
 
-          #       #   {_, %{__metadata__: %Seraph.Schema.Node.Metadata{}, __id__: id}}
-          #       #   when id == result_id ->
-          #       #     true
+        Map.drop(results, to_exclude)
+      end
 
-          #       #   d ->
-          #       #     IO.inspect(result_id, label: "RESULT ID")
-          #       #     IO.inspect(d, label: "DATA")
-          #       #     false
-          #       # end)
-          #       # |> IO.inspect(label: "FOUND")
+      defp remove_internal_results(results, query, _) do
+        results
+      end
 
-          #       :error ->
-          #         result
-          #     end
+      defp manage_opts(opts, final_opts \\ @default_opts)
 
-          #   {key, formated_res}
-          # end)
-        end)
+      defp manage_opts([], final_opts) do
+        final_opts
+      end
+
+      defp manage_opts([{:relationship_result, relationship_result} | t], final_opts) do
+        valid_values = [:full, :no_nodes, :contextual]
+
+        if relationship_result in valid_values do
+          Keyword.put(final_opts, :relationship_result, relationship_result)
+        else
+          {:error,
+           "Invalid value for options :relationshp_result. Valid values: #{inspect(valid_values)}."}
+        end
+      end
+
+      defp manage_opts([{invalid_opt, _} | _], _opts) do
+        {:error, "#{inspect(invalid_opt)} is not a valid option."}
       end
 
       use Seraph.Repo.Node.Repo, __MODULE__

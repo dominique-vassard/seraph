@@ -1,7 +1,7 @@
 defmodule Seraph.Query.Where do
   alias Seraph.Query.Condition
 
-  @valid_operators [:and, :==]
+  @valid_operators [:and, :==, :or]
   @spec build(Macro.t(), Keyword.t(), Keyword.t()) ::
           {Seraph.Query.Condition.t() | map, Keyword.t(), Keyword.t()}
   def build(ast, params \\ [], condition_fields \\ [])

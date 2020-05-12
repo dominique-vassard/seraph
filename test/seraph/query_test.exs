@@ -8,6 +8,130 @@ defmodule Seraph.QueryTest do
   import Seraph.Query
   alias Seraph.Query.Builder
 
+  test "exploration" do
+    # n(u in User)
+
+    uuid = "uuid-3"
+    at2 = DateTime.utc_now() |> DateTime.truncate(:second)
+    at = DateTime.utc_now() |> DateTime.truncate(:second)
+    f_name = "John"
+
+    # query =
+    #   match([
+    #     {v},
+    #     {Seraph.Test.User},
+    #     {p, Post},
+    #     {u, User, %{uuid: "azeazrazr-23234234"}},
+    #     [{u}, [rel], {v}],
+    #     [{u}, [Wrote], {w}],
+    #     [{u}, [rel2, Wrote], {v}],
+    #     # [{User}, [rel3, Wrote, %{at: 5}], {Post}],
+    #     [{User}, [rel3, Wrote, %{at: ^at2}], {Post}],
+    #     [{u2, User}, [rel4, Wrote, %{at: ^at}], {p2, Post}],
+    #     [{u3, User, %{firstName: ^f_name}}, [rel5, Wrote], {p3, Post}]
+
+    #     # node_(u),
+    #     # node_(User),
+    #     # node_(u, User),
+    #     # node_(v, User, %{uuid: "uuid-1", value: 3}),
+    #     # rel_(u, Wrote, v),
+    #     # rel_(node_(User), Wrote, node_(Post))
+    #     # rel_(node_(User), [rel, Wrote], node_(Post))
+    #     # rel_(node_(User), [rel, Wrote, %{uuid: "uuid-1", value: 3}], node_(Post))
+    #   ])
+    #   |> where(u.uuid == ^uuid and p.uuid == 6)
+    #   |> return([u, u2.uuid])
+
+    # IO.puts("<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1ST QUERY END")
+
+    # # |> IO.inspect(label: "QUERY")
+
+    # # |> IO.inspect()
+
+    # query =
+    #   match([[{u}, [rel, Wrote], {p, Post}]])
+    #   |> return([u, rel, p, u.uuid])
+
+    # query =
+    #   match([[{u}, [rel, Wrote], {p, Post}]],
+    #     where: u.firstName == "John",
+    #     return: [u, rel, p, u.uuid]
+    #   )
+    #   |> IO.inspect(label: "DSL")
+
+    # return_fields = Keyword.get(query.operations, :return)
+
+    # {statement, params} =
+    #   Builder.new()
+    #   # |> Builder.match(query.match)
+    #   # |> Builder.where(query.where)
+    #   # |> Builder.return(%Builder.ReturnExpr{fields: query.return})
+    #   |> Builder.match(Keyword.get(query.operations, :match))
+    #   |> Builder.where(Keyword.get(query.operations, :where))
+    #   # |> Builder.return(%Builder.ReturnExpr{fields: return_fields})
+    #   |> Builder.return(Keyword.get(query.operations, :return))
+    #   |> Builder.params(Enum.into(query.params, %{}))
+    #   |> Builder.to_string()
+
+    # # IO.puts(statement)
+    # # IO.inspect(params)
+
+    # IO.puts(">>>>>>>>>>>>>>>>>>>")
+    # IO.inspect(query.operations)
+    # # IO.inspect(query)
+
+    # # IO.puts(">>>>>>>>>>>>>>>>>>>")
+
+    # # query.operations
+    # # |> Enum.reverse()
+    # # |> Enum.map(&Seraph.Query.Stringifier.stringify/1)
+    # # |> Enum.reject(&is_nil/1)
+    # # |> Enum.join("\n")
+    # # |> IO.puts()
+
+    # TestRepo.all(query)
+    # |> IO.inspect()
+
+    # query.literal
+    # |> Enum.join("\n")
+    # |> IO.puts()
+
+    # |> where(p.uuid == ^uuid and (not is_nil(u2.firstName) or not is_nil(u.firstName)))
+
+    # |> IO.inspect()
+  end
+
+  # describe "DSL + PIPED" do
+  #   test "piped" do
+  #     IO.puts("PIPED SYNTAX -------------------------------------------")
+
+  #     uuid = "uuid-3"
+  #     # uuid = 3
+  #     uuid2 = "uuid-unkown"
+
+  #     query =
+  #       match([[{u}, [rel, Wrote], {p, Post, %{uuid: ^uuid, title: "John"}}]])
+  #       |> where(u.firstName == "John" and u.uuid == ^uuid2)
+  #       # |> return([[fnode: u], rel, p, u.uuid])
+  #       |> IO.inspect(label: "PIPED RESULT")
+  #   end
+
+  #   test "dsl" do
+  #     IO.puts("DSL SYNTAX -------------------------------------------")
+  #     uuid = "uuid-3"
+  #     uuid2 = "uuid-unkown"
+
+  #     query =
+  #       match [[{u}, [rel, Wrote], {p, Post, %{uuid: ^uuid}}]],
+  #         where: u.firstName == "John" and u.uuid == ^uuid2,
+  #         return: [u, rel, p, u.uuid]
+
+  #     # Repo.all(query)
+
+  #     IO.inspect(query, label: "DSL RESULT")
+  #   end
+  # end
+
   describe "match node" do
     test "ok: {u}" do
       assert %Seraph.Query{
@@ -323,10 +447,14 @@ defmodule Seraph.QueryTest do
                  match: [
                    %Seraph.Query.Builder.RelationshipExpr{
                      alias: nil,
-                     end: %Seraph.Query.Builder.NodeExpr{},
+                     end: %Seraph.Query.Builder.NodeExpr{
+                       labels: ["Post"]
+                     },
                      index: nil,
                      properties: %{},
-                     start: %Seraph.Query.Builder.NodeExpr{},
+                     start: %Seraph.Query.Builder.NodeExpr{
+                       labels: ["User"]
+                     },
                      type: "WROTE",
                      variable: "rel"
                    }
@@ -820,7 +948,7 @@ defmodule Seraph.QueryTest do
                literal: ["match:\n\t{u, User}", "return:\n\tu"],
                operations: operations,
                params: [],
-               result_aliases: [u: Seraph.Test.User]
+               result_aliases: []
              } =
                match([{u, User}])
                |> return([u])
@@ -856,7 +984,7 @@ defmodule Seraph.QueryTest do
     end
 
     test "ok: aliased returns" do
-      assert %Seraph.Query{operations: operations, result_aliases: [res_node: Seraph.Test.User]} =
+      assert %Seraph.Query{operations: operations, result_aliases: [res_node: :u]} =
                match([{u, User}])
                |> return(res_node: u, res_prop: u.uuid)
 
@@ -898,5 +1026,8 @@ defmodule Seraph.QueryTest do
     test "ok: match" do
       assert %Seraph.Query{} = match([])
     end
+  end
+
+  describe "to_string/2" do
   end
 end

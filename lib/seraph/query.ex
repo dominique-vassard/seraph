@@ -1,4 +1,5 @@
 defmodule Seraph.Query do
+  alias Seraph.Query.Builder
   defstruct aliases: [], params: [], operations: [], literal: [], result_aliases: []
 
   @type operation :: :match | :where | :return
@@ -131,13 +132,13 @@ defmodule Seraph.Query do
       result_aliases =
         return
         |> Enum.map(fn
-          {entity_alias, nil, nil} ->
-            {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
-            {entity_alias, queryable}
+          # {entity_alias, nil, nil} ->
+          #   {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
+          #   {entity_alias, queryable}
 
-          {entity_alias, nil, result_alias} ->
-            {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
-            {result_alias, queryable}
+          {entity_alias, nil, result_alias} when not is_nil(result_alias) ->
+            # {queryable, _} = Keyword.fetch!(query.aliases, entity_alias)
+            {result_alias, entity_alias}
 
           _ ->
             nil
@@ -155,6 +156,18 @@ defmodule Seraph.Query do
           result_aliases: result_aliases
       }
     end
+  end
+
+  def prepare(query, opts) do
+    relationship_result = Keyword.fetch!(opts, :relationship_result)
+    adapt_for_result(query, relationship_result)
+  end
+
+  def to_string(query, _opts \\ []) do
+    query.operations
+    |> Enum.map(&Seraph.Query.Stringifier.stringify/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n")
   end
 
   @doc false
@@ -275,5 +288,185 @@ defmodule Seraph.Query do
       _ ->
         :ok
     end
+  end
+
+  @spec adapt_for_result(Seraph.Query.t(), :full | :no_nodes | :contextual) :: Seraph.Query.t()
+  defp adapt_for_result(query, :full) do
+    # TODO: Should work also with non-return queries...
+
+    updated_rel_list =
+      Enum.reduce(query.operations[:return].fields, [], fn
+        %Builder.RelationshipExpr{} = rel, rel_list ->
+          new_rel =
+            rel
+            |> fill_node_alias(rel.start, :start)
+            |> fill_node_alias(rel.end, :end)
+
+          [new_rel | rel_list]
+
+        _, rel_list ->
+          rel_list
+      end)
+
+    {new_aliases, new_return, new_result_aliases} =
+      updated_rel_list
+      |> Enum.reduce([], fn %Builder.RelationshipExpr{start: start_node, end: end_node} = rel,
+                            to_add ->
+        to_add
+        |> add_new_returns(start_node, query, rel, :start_node, is_in_return?(query, start_node))
+        |> add_new_returns(end_node, query, rel, :end_node, is_in_return?(query, end_node))
+      end)
+      |> Enum.reduce(
+        {query.aliases, query.operations[:return], query.result_aliases},
+        fn {node_alias, node_queryable, node_data}, {aliases, return, result_aliases} ->
+          new_return = %Builder.ReturnExpr{return | fields: return.fields ++ [node_data]}
+
+          new_aliases =
+            case Keyword.fetch(aliases, node_alias) do
+              {:ok, {nil, alias_data}} ->
+                Keyword.put(aliases, node_alias, {node_queryable, alias_data})
+
+              {:ok, _} ->
+                aliases
+
+              :error ->
+                Keyword.put(aliases, node_alias, {node_queryable, node_data})
+            end
+
+          new_result_aliases = [{String.to_atom(node_data.alias), node_alias} | result_aliases]
+
+          {new_aliases, new_return, new_result_aliases}
+        end
+      )
+
+    new_rel_list =
+      Enum.reduce(updated_rel_list, %{}, fn
+        %Builder.RelationshipExpr{variable: variable} = rel, new_rels ->
+          Map.put(new_rels, variable, rel)
+      end)
+
+    new_rel_aliases = Map.keys(new_rel_list)
+
+    new_match =
+      Enum.map(query.operations[:match], fn
+        %Builder.RelationshipExpr{variable: variable} = rel_data ->
+          if variable in new_rel_aliases do
+            Map.fetch!(new_rel_list, variable)
+          else
+            rel_data
+          end
+
+        entity_data ->
+          entity_data
+      end)
+
+    new_return_fields =
+      Enum.map(new_return.fields, fn
+        %Builder.RelationshipExpr{variable: variable} = rel_data ->
+          if variable in new_rel_aliases do
+            Map.fetch!(new_rel_list, variable)
+          else
+            rel_data
+          end
+
+        entity_data ->
+          entity_data
+      end)
+
+    new_return = %{new_return | fields: new_return_fields}
+
+    new_aliases =
+      Enum.reduce(new_rel_list, new_aliases, fn {rel_var, rel_data}, aliases ->
+        rel_alias = String.to_atom(rel_var)
+        {queryable, _} = Keyword.fetch!(aliases, rel_alias)
+        Keyword.put(aliases, rel_alias, {queryable, rel_data})
+      end)
+
+    new_ops =
+      Enum.map(query.operations, fn
+        {:return, _} ->
+          {:return, new_return}
+
+        {:match, _} ->
+          {:match, new_match}
+
+        operation ->
+          operation
+      end)
+
+    %{query | aliases: new_aliases, operations: new_ops, result_aliases: new_result_aliases}
+  end
+
+  defp adapt_for_result(query, _) do
+    query
+  end
+
+  defp add_new_returns(to_add, _node_data, _query, _rel, _node_type, true) do
+    to_add
+  end
+
+  defp add_new_returns(to_add, node_data, query, rel, node_type, false) do
+    %Builder.RelationshipExpr{variable: variable} = rel
+
+    rel_alias = Seraph.Repo.Helper.result_queryable(String.to_atom(variable), query)
+
+    node_alias = String.to_atom(node_data.variable)
+
+    node_info =
+      case rel_alias do
+        :error ->
+          {node_alias, nil, node_data}
+
+        {:ok, {rel_queryable, _}} ->
+          {node_alias, rel_queryable.__schema__(node_type), node_data}
+      end
+
+    [node_info | to_add]
+  end
+
+  defp is_in_return?(query, node_data) do
+    node_alias = String.to_atom(node_data.variable)
+    node_variable = node_data.variable
+
+    case Enum.find(query.result_aliases, fn {_, v} -> v == node_alias end) do
+      {_, _} ->
+        true
+
+      nil ->
+        Enum.any?(query.operations[:return].fields, fn
+          %Builder.NodeExpr{variable: ^node_variable} ->
+            true
+
+          _ ->
+            false
+        end)
+    end
+  end
+
+  defp fill_node_alias(
+         relationship,
+         %Builder.NodeExpr{variable: nil} = node_data,
+         node_type
+       ) do
+    node_alias = "__seraph_" <> Atom.to_string(node_type) <> "_" <> relationship.variable
+
+    new_node_data = %{
+      node_data
+      | variable: node_alias,
+        alias: node_alias
+    }
+
+    Map.put(relationship, node_type, new_node_data)
+  end
+
+  defp fill_node_alias(relationship, node_data, node_type) do
+    node_alias = "__seraph_" <> Atom.to_string(node_type) <> "_" <> relationship.variable
+
+    new_node_data = %{
+      node_data
+      | alias: node_alias
+    }
+
+    Map.put(relationship, node_type, new_node_data)
   end
 end

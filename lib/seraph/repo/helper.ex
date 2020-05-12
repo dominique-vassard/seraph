@@ -36,6 +36,9 @@ defmodule Seraph.Repo.Helper do
     built_node
   end
 
+  def build_relationship(nil, rel_data, start_node, end_node) do
+  end
+
   def build_relationship(queryable, rel_data, nil, nil) do
     props =
       rel_data.properties
@@ -44,7 +47,13 @@ defmodule Seraph.Repo.Helper do
       |> Map.put(:start_node, nil)
       |> Map.put(:end_node, nil)
 
-    struct(queryable, props)
+    case queryable do
+      nil ->
+        Seraph.Relationship.map(rel_data.type, props)
+
+      queryable ->
+        struct(queryable, props)
+    end
   end
 
   def build_relationship(queryable, rel_data, start_data, end_data) do
@@ -154,6 +163,16 @@ defmodule Seraph.Repo.Helper do
           %{acc | condition: Condition.join_conditions(acc.condition, condition)}
       end
     end)
+  end
+
+  def result_queryable(result_alias, query) do
+    case Keyword.fetch(query.result_aliases, result_alias) do
+      {:ok, entity_alias} ->
+        Keyword.fetch(query.aliases, entity_alias)
+
+      :error ->
+        Keyword.fetch(query.aliases, result_alias)
+    end
   end
 
   defp bound_name(property_name, nil) do

@@ -71,7 +71,12 @@ defmodule Seraph.Query.Match do
   @spec fill_queryable(Match.t(), Seraph.Repo.queryable(), :start_node | :end_node) :: Match.t()
   defp fill_queryable(%Match{queryable: nil} = node_data, rel_queryable, node_type)
        when not is_nil(rel_queryable) do
-    Map.put(node_data, :queryable, rel_queryable.__schema__(node_type))
+    node_queryable = rel_queryable.__schema__(node_type)
+    entity = Map.put(node_data.entity, :labels, [node_queryable.__schema__(:primary_label)])
+
+    node_data
+    |> Map.put(:queryable, node_queryable)
+    |> Map.put(:entity, entity)
   end
 
   defp fill_queryable(node_data, _, _) do
@@ -260,10 +265,20 @@ defmodule Seraph.Query.Match do
     start_data = extract_empty_node(start_ast, env) || extract_entity(start_ast, env)
     end_data = extract_empty_node(end_ast, env) || extract_entity(end_ast, env)
 
+    rel = extract_relationship(relationship_ast, start_data.entity, end_data.entity, env)
+
+    start_d = fill_queryable(start_data, rel.queryable, :start_node)
+    end_d = fill_queryable(end_data, rel.queryable, :end_node)
+
+    relationship =
+      rel.entity
+      |> Map.put(:start, start_d.entity)
+      |> Map.put(:end, end_d.entity)
+
     result = [
-      start_data,
-      end_data,
-      extract_relationship(relationship_ast, start_data.entity, end_data.entity, env)
+      start_d,
+      end_d,
+      Map.put(rel, :entity, relationship)
     ]
 
     all_empty? =

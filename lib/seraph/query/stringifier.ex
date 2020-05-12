@@ -60,8 +60,17 @@ defimpl Stringifier, for: Builder.NodeExpr do
     "(#{variable}#{labels_str}#{props})"
   end
 
-  def stringify(%Builder.NodeExpr{variable: variable}, _) do
-    "(#{variable})"
+  def stringify(
+        %Builder.NodeExpr{
+          variable: variable,
+          properties: properties
+        },
+        _
+      )
+      when map_size(properties) > 0 do
+    props = Stringifier.Helper.stringify_props(properties)
+
+    "(#{variable}#{props})"
   end
 
   def stringify(%Builder.NodeExpr{labels: labels}, _) when is_list(labels) do
@@ -72,6 +81,10 @@ defimpl Stringifier, for: Builder.NodeExpr do
       |> Enum.join()
 
     "(#{labels_str})"
+  end
+
+  def stringify(%Builder.NodeExpr{variable: variable}, _) do
+    "(#{variable})"
   end
 end
 
@@ -184,8 +197,7 @@ defmodule Seraph.Query.Stringifier.Operation do
     end
   end
 
-  def stringify(operation, data) do
-    # IO.inspect(data)
-    "stringify #{inspect(operation)}"
+  def stringify(operation, _data) do
+    raise ArgumentError, "Unavailable operation: #{inspect(operation)}"
   end
 end
