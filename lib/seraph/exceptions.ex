@@ -134,15 +134,12 @@ defmodule Seraph.QueryError do
     message = Keyword.fetch!(opts, :message)
     query = Keyword.fetch!(opts, :query)
 
-    # message = """
-    # #{message} in query:
-
-    # #{Seraph.Query.Builder.to_string(query)}
-    # """
+    query_str = Enum.join(query, "\n")
 
     message = """
     #{message} in query:
-    #{query}
+
+    #{query_str}
     """
 
     %__MODULE__{message: message}

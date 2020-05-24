@@ -20,7 +20,11 @@ defmodule Seraph.Repo.Helper do
   @doc """
   Build a node schema from a Bolt.Sips.Node
   """
-  @spec build_node(Seraph.Repo.queryable(), map) :: Seraph.Schema.Node.t()
+  @spec build_node(Seraph.Repo.queryable(), nil | map) ::
+          nil | Seraph.Schema.Node.t() | Seraph.Node.t()
+  def build_node(Seraph.Node, %Bolt.Sips.Types.Node{} = node_data) do
+    Seraph.Node.map(node_data)
+  end
 
   def build_node(queryable, %Bolt.Sips.Types.Node{} = node_data) do
     props =
@@ -32,11 +36,8 @@ defmodule Seraph.Repo.Helper do
     struct(queryable, props)
   end
 
-  def build_node(_, built_node) do
-    built_node
-  end
-
-  def build_relationship(nil, rel_data, start_node, end_node) do
+  def build_node(_, nil) do
+    nil
   end
 
   def build_relationship(queryable, rel_data, nil, nil) do
@@ -56,15 +57,56 @@ defmodule Seraph.Repo.Helper do
     end
   end
 
-  def build_relationship(queryable, rel_data, start_data, end_data) do
+  # def build_relationship(queryable, rel_data, start_data, end_data) do
+  #   props =
+  #     rel_data.properties
+  #     |> atom_map()
+  #     |> Map.put(:__id__, rel_data.id)
+  #     |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
+  #     |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
+
+  #   struct(queryable, props)
+  # end
+
+  # def build_relationship(queryable, rel_data, start_data, end_data) do
+  #   props =
+  #     rel_data.properties
+  #     |> atom_map()
+  #     |> Map.put(:__id__, rel_data.id)
+  #     |> Map.put(:start_node, build_node(start_data.queryable, start_data))
+  #     |> Map.put(:end_node, build_node(end_data.queryable, end_data))
+
+  #   case queryable do
+  #     Seraph.Relationship ->
+  #       Seraph.Relationship.map(rel_data.type, props)
+
+  #     queryable ->
+  #       struct(queryable, props)
+  #   end
+  # end
+
+  def build_relationship(
+        queryable,
+        rel_data,
+        start_queryable,
+        start_data,
+        end_queryable,
+        end_data
+      ) do
     props =
       rel_data.properties
       |> atom_map()
       |> Map.put(:__id__, rel_data.id)
-      |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
-      |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
+      |> Map.put(:start_node, build_node(start_queryable, start_data))
+      |> Map.put(:end_node, build_node(end_queryable, end_data))
 
-    struct(queryable, props)
+    case queryable do
+      Seraph.Relationship ->
+        Seraph.Relationship.map(rel_data.type, props)
+
+      queryable ->
+        struct(queryable, props)
+    end
   end
 
   @doc """

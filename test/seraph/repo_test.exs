@@ -23,7 +23,7 @@ defmodule Seraph.RepoTest do
 
   describe "all/2 with query" do
     # ##############################################NODE
-    test "ok: no result returns [" do
+    test "ok: no result returns []" do
       query =
         match [{u, User, %{uuid: "non-existing"}}],
           return: u
@@ -113,7 +113,7 @@ defmodule Seraph.RepoTest do
              ] = TestRepo.all(query)
     end
 
-    # ############################################## RELATIONSHIP
+    # # ############################################## RELATIONSHIP
 
     test "ok: relationship with queryable" do
       query =
@@ -545,21 +545,373 @@ defmodule Seraph.RepoTest do
 
       results = TestRepo.all(query)
 
+      Enum.map(results, fn result ->
+        assert %{"rel" => _} = result
+        assert map_size(result) == 1
+      end)
+
       assert is_list(results)
       assert length(results) == 21
     end
 
-    # test "relationship without queryable and start / end node in query result" do
-    #   query =
-    #     match [[{u, User}, [rel], {a, Admin}]],
-    #       return: [u, rel, a]
+    test "relationship without queryable and start / end node in query result (relationship_result: contextual)" do
+      query =
+        match [[{u, User}, [rel], {a, Admin}]],
+          return: [u, rel, a]
 
-    #   TestRepo.all(query)
-    #   |> IO.inspect()
-    # end
+      assert [
+               %{
+                 "a" => %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 "rel" => %Seraph.Relationship{
+                   end_node: %Seraph.Test.Admin{
+                     additionalLabels: []
+                   },
+                   properties: %{},
+                   start_node: %Seraph.Test.User{
+                     additionalLabels: [],
+                     firstName: "John",
+                     lastName: "Doe",
+                     viewCount: 0
+                   },
+                   type: "IS_A"
+                 },
+                 "u" => %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "John",
+                   lastName: "Doe",
+                   viewCount: 0
+                 }
+               },
+               %{
+                 "a" => %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 "rel" => %Seraph.Relationship{
+                   end_node: %Seraph.Test.Admin{
+                     additionalLabels: []
+                   },
+                   properties: %{},
+                   start_node: %Seraph.Test.User{
+                     additionalLabels: [],
+                     firstName: "John",
+                     lastName: "Doe",
+                     viewCount: 0
+                   },
+                   type: "IS_A"
+                 },
+                 "u" => %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "John",
+                   lastName: "Doe",
+                   viewCount: 0
+                 }
+               },
+               %{
+                 "a" => %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 "rel" => %Seraph.Relationship{
+                   end_node: %Seraph.Test.Admin{
+                     additionalLabels: []
+                   },
+                   properties: %{},
+                   start_node: %Seraph.Test.User{
+                     additionalLabels: [],
+                     firstName: "James",
+                     lastName: "Who",
+                     viewCount: 0
+                   },
+                   type: "IS_A"
+                 },
+                 "u" => %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 }
+               }
+             ] =
+               TestRepo.all(query)
+               |> Enum.sort()
+    end
 
-    # test "relationship without queryable and only start node in query result"
-    # test "relationship without queryable and only end node in query result"
-    # test "relationship without queryable and without related nodes in query result"
+    test "relationship without queryable and only end node in query result (relationship_result: contextual)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {a, Admin}]],
+          return: [a, rel]
+
+      assert [result] = TestRepo.all(query)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               },
+               "a" => %Seraph.Test.Admin{
+                 additionalLabels: []
+               }
+             } = result
+    end
+
+    test "relationship without queryable and only start node in query result (relationship_result: contextual)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [u, rel]
+
+      assert [result] = TestRepo.all(query)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 },
+                 type: "IS_A"
+               },
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "James",
+                 lastName: "Who",
+                 viewCount: 0
+               }
+             } = result
+    end
+
+    test "relationship without queryable and without related nodes in query result (relationship_result: contextual)" do
+      query =
+        match [[{User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [rel]
+
+      assert [result] = TestRepo.all(query)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               }
+             } = result
+    end
+
+    test "relationship without queryable and start / end node in query result (relationship_result: no_nodes)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {a, Admin}]],
+          return: [u, rel, a]
+
+      assert [result] = TestRepo.all(query, relationship_result: :no_nodes)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               },
+               "a" => %Seraph.Test.Admin{
+                 additionalLabels: []
+               },
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "James",
+                 lastName: "Who",
+                 viewCount: 0
+               }
+             } = result
+    end
+
+    test "relationship without queryable and only end node in query result (relationship_result: no_nodes)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {a, Admin}]],
+          return: [a, rel]
+
+      assert [result] = TestRepo.all(query, relationship_result: :no_nodes)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               },
+               "a" => %Seraph.Test.Admin{
+                 additionalLabels: []
+               }
+             } = result
+    end
+
+    test "relationship without queryable and only start node in query result (relationship_result: no_nodes)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [rel, u]
+
+      assert [result] = TestRepo.all(query, relationship_result: :no_nodes)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               },
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "James",
+                 lastName: "Who",
+                 viewCount: 0
+               }
+             } = result
+    end
+
+    test "relationship without queryable and without related nodes in query result (relationship_result: no_nodes)" do
+      query =
+        match [[{User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [rel]
+
+      assert [result] = TestRepo.all(query, relationship_result: :no_nodes)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: nil,
+                 properties: %{},
+                 start_node: nil,
+                 type: "IS_A"
+               }
+             } = result
+    end
+
+    test "relationship without queryable and start / end node in query result (relationship_result: :full)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {a, Admin}]],
+          return: [u, rel, a]
+
+      assert [result] = TestRepo.all(query, relationship_result: :full)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 properties: %{},
+                 start_node: %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 },
+                 type: "IS_A"
+               },
+               "a" => %Seraph.Test.Admin{
+                 additionalLabels: []
+               },
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "James",
+                 lastName: "Who",
+                 viewCount: 0
+               }
+             } = result
+    end
+
+    test "relationship without queryable and only end node in query result (relationship_result: full)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {a, Admin}]],
+          return: [a, rel]
+
+      assert [result] = TestRepo.all(query, relationship_result: :full)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 properties: %{},
+                 start_node: %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 },
+                 type: "IS_A"
+               },
+               "a" => %Seraph.Test.Admin{
+                 additionalLabels: []
+               }
+             } = result
+    end
+
+    test "relationship without queryable and only start node in query result (relationship_result: full)" do
+      query =
+        match [[{u, User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [rel, u]
+
+      assert [result] = TestRepo.all(query, relationship_result: :full)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 properties: %{},
+                 start_node: %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 },
+                 type: "IS_A"
+               },
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "James",
+                 lastName: "Who",
+                 viewCount: 0
+               }
+             } = result
+    end
+
+    test "relationship without queryable and without related nodes in query result (relationship_result: full)" do
+      query =
+        match [[{User, %{firstName: "James"}}, [rel], {Admin}]],
+          return: [rel]
+
+      assert [result] = TestRepo.all(query, relationship_result: :full)
+
+      assert %{
+               "rel" => %Seraph.Relationship{
+                 end_node: %Seraph.Test.Admin{
+                   additionalLabels: []
+                 },
+                 properties: %{},
+                 start_node: %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: "James",
+                   lastName: "Who",
+                   viewCount: 0
+                 },
+                 type: "IS_A"
+               }
+             } = result
+    end
+
+    test "relationship by string type" do
+      query =
+        match [[{User}, ["WROTE"], {n}]],
+          return: [node_labels: collect(distinct(labels(n)))]
+
+      assert [%{"node_labels" => node_labels}] = TestRepo.all(query)
+
+      assert ["Comment", "Post"] == node_labels |> List.flatten() |> Enum.sort()
+    end
   end
 end

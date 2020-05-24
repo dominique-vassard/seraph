@@ -108,7 +108,12 @@ defmodule Seraph.Repo do
       defp do_all(query, opts) do
         query = Seraph.Query.prepare(query, opts)
 
-        statement = Seraph.Query.to_string(query, opts)
+        statement =
+          query.operations
+          |> Enum.map(fn {_op, operation_data} ->
+            Seraph.Query.Cypher.encode(operation_data)
+          end)
+          |> Enum.join("\n")
 
         Seraph.Query.Planner.query!(__MODULE__, statement, Enum.into(query.params, %{}))
         |> format_results(query, opts)
@@ -131,16 +136,13 @@ defmodule Seraph.Repo do
 
       defp format_result({result_alias, result}, query, results, opts) do
         formated =
-          case result_queryable(String.to_atom(result_alias), query) do
-            {:ok, {nil, %Seraph.Query.Builder.NodeExpr{} = node_data}} ->
-              Seraph.Node.map(result)
-
-            {:ok, {queryable, %Seraph.Query.Builder.NodeExpr{}}} ->
+          case Map.fetch(query.operations[:return].variables, result_alias) do
+            {:ok, %Builder.Entity.Node{queryable: queryable}} ->
               Seraph.Repo.Helper.build_node(queryable, result)
 
-            {:ok, {queryable, %Seraph.Query.Builder.RelationshipExpr{} = rel_data}} ->
-              %Builder.NodeExpr{variable: start_var, alias: start_alias} = rel_data.start
-              %Builder.NodeExpr{variable: end_var, alias: end_alias} = rel_data.end
+            {:ok, %Builder.Entity.Relationship{queryable: queryable} = rel_data} ->
+              %Builder.Entity.Node{identifier: start_id, alias: start_alias} = rel_data.start
+              %Builder.Entity.Node{identifier: end_id, alias: end_alias} = rel_data.end
 
               relationship_result = Keyword.get(opts, :relationship_result, @relationship_result)
 
@@ -150,17 +152,31 @@ defmodule Seraph.Repo do
                     {nil, nil}
 
                   _ ->
-                    {results[start_alias] || results[start_var],
-                     results[end_alias] || results[end_var]}
+                    {results[start_alias] || results[start_id],
+                     results[end_alias] || results[end_id]}
                 end
 
-              Seraph.Repo.Helper.build_relationship(queryable, result, start_node, end_node)
+              Seraph.Repo.Helper.build_relationship(
+                queryable,
+                result,
+                rel_data.start.queryable,
+                start_node,
+                rel_data.end.queryable,
+                end_node
+              )
+
+            {:ok, %Builder.Return.Function{}} ->
+              result
 
             :error ->
               result
           end
 
-        Map.put(%{}, result_alias, formated)
+        if String.starts_with?(result_alias, "__seraph_") do
+          %{}
+        else
+          Map.put(%{}, result_alias, formated)
+        end
       end
 
       defp result_queryable(result_alias, query) do

@@ -184,7 +184,7 @@ defmodule Seraph.Query.Match do
 
     node = %Builder.NodeExpr{
       variable: Atom.to_string(node_alias),
-      labels: [Macro.expand(queryable, env).__schema__(:primary_label)],
+      labels: [Macro.expand(queryable_ast, env).__schema__(:primary_label)],
       properties: props
     }
 
