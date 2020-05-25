@@ -1080,11 +1080,13 @@ defmodule Seraph.Repo.RelationshipTest do
 
     test "ok: with rel clause" do
       add_fixtures(:relationship)
-      add_fixtures(:relationship, %{at: nil})
+      {:ok, datetime, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+      new_date = DateTime.truncate(datetime, :second)
+      add_fixtures(:relationship, %{at: new_date})
 
       retrieved =
         TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"}, %{
-          at: nil
+          at: new_date
         })
 
       assert %Seraph.Test.UserToPost.Wrote{
@@ -1103,7 +1105,8 @@ defmodule Seraph.Repo.RelationshipTest do
              } = retrieved
 
       refute is_nil(retrieved.__id__)
-      assert is_nil(retrieved.at)
+      refute is_nil(retrieved.at)
+      assert DateTime.truncate(retrieved.at, :second) == new_date
       refute is_nil(retrieved.start_node.__id__)
       refute is_nil(retrieved.start_node.uuid)
       refute is_nil(retrieved.end_node.__id__)

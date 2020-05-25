@@ -1,15 +1,14 @@
 defmodule Seraph.Query do
   alias Seraph.Query.Builder
-  defstruct identifiers: [], params: [], operations: [], literal: [], result_aliases: []
+  defstruct identifiers: %{}, params: [], operations: [], literal: []
 
   @type operation :: :match | :where | :return
 
   @type t :: %__MODULE__{
-          identifiers: [{atom, {Seraph.Repo.queryable(), Seraph.Query.Builder.entity_expr()}}],
+          identifiers: %{String.t() => Builder.Entity.t()},
           params: [{atom, any()}],
           operations: [{operation(), any()}],
-          literal: [String.t()],
-          result_aliases: [{atom, Seraph.Repo.queryable()}]
+          literal: [String.t()]
         }
 
   defmacro match(expr, operations \\ []) do
@@ -58,7 +57,7 @@ defmodule Seraph.Query do
           ] do
       %{
         query
-        | identifiers: query.identifiers ++ identifiers,
+        | identifiers: Map.merge(query.identifiers, identifiers),
           operations: query.operations ++ [match: match],
           params: query.params ++ params,
           literal: query.literal ++ ["match:\n\t" <> literal]

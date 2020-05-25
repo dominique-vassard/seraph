@@ -1,7 +1,39 @@
 defmodule Seraph.Repo.Node.Queryable do
   @moduledoc false
-  alias Seraph.Query.{Builder, Condition, Planner}
-  alias Seraph.Repo.Helper
+  alias Seraph.Query.Builder
+
+  @spec to_query(Seraph.Repo.queryable(), map | Keyword.t()) :: Seraph.Query.t()
+  def to_query(queryable, properties \\ %{}) do
+    properties = Enum.into(properties, %{})
+
+    %{entity: node, params: query_params} =
+      Builder.Entity.Node.from_queryable(queryable, properties)
+
+    {_, func_atom, _, _} =
+      Process.info(self(), :current_stacktrace)
+      |> elem(1)
+      |> Enum.at(2)
+
+    literal = "#{func_atom}(#{inspect(properties)})"
+
+    %Seraph.Query{
+      identifiers: Map.put(%{}, "n", node),
+      operations: [
+        match: %Builder.Match{
+          entities: [node]
+        },
+        return: %Builder.Return{
+          raw_data: [
+            %Builder.Return.EntityData{
+              entity_identifier: :n
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
 
   @doc """
   Fetch a single struct from the Neo4j datababase with the given identifier value.
@@ -12,29 +44,17 @@ defmodule Seraph.Repo.Node.Queryable do
   def get(repo, queryable, id_value) do
     id_field = Seraph.Repo.Helper.identifier_field(queryable)
 
-    node_to_get = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)],
-      properties: Map.put(%{}, id_field, Atom.to_string(id_field))
-    }
-
-    params = Map.put(%{}, id_field, id_value)
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([node_to_get])
-      |> Builder.params(params)
-      |> Builder.return(%Builder.ReturnExpr{fields: [node_to_get]})
-      |> Builder.to_string()
-
-    {:ok, results} = Planner.query(repo, statement, params)
+    results =
+      queryable
+      |> to_query(Map.put(%{}, id_field, id_value))
+      |> repo.all()
 
     case List.first(results) do
       nil ->
         nil
 
       res ->
-        Helper.build_node(queryable, res["n"])
+        res["n"]
     end
   end
 
@@ -57,51 +77,17 @@ defmodule Seraph.Repo.Node.Queryable do
   @spec get_by(Seraph.Repo.t(), Seraph.Repo.queryable(), Keyword.t() | map) ::
           nil | Seraph.Schema.Node.t()
   def get_by(repo, queryable, clauses) do
-    {additional_labels, cond_clauses} =
-      clauses
-      |> Enum.to_list()
-      |> Keyword.pop(:additionalLabels, [])
-
-    node_to_get = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label) | additional_labels]
-    }
-
-    conditions =
-      Enum.reduce(cond_clauses, %{condition: nil, params: %{}}, fn {prop_key, prop_value},
-                                                                   clauses ->
-        condition = %Condition{
-          source: node_to_get.variable,
-          field: prop_key,
-          operator: :==,
-          value: Atom.to_string(prop_key)
-        }
-
-        %{
-          clauses
-          | condition: Condition.join_conditions(clauses.condition, condition),
-            params: Map.put(clauses.params, prop_key, prop_value)
-        }
-      end)
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([node_to_get])
-      |> Builder.where(conditions.condition)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [node_to_get]
-      })
-      |> Builder.params(conditions.params)
-      |> Builder.to_string()
-
-    {:ok, results} = Planner.query(repo, statement, params)
+    results =
+      queryable
+      |> to_query(clauses)
+      |> repo.all()
 
     case length(results) do
       0 ->
         nil
 
       1 ->
-        Seraph.Repo.Helper.build_node(queryable, List.first(results)["n"])
+        List.first(results)["n"]
 
       count ->
         raise Seraph.MultipleNodesError, queryable: queryable, count: count, params: clauses

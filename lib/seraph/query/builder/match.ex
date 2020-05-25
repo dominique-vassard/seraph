@@ -20,7 +20,8 @@ defmodule Seraph.Query.Builder.Match do
         entity_list,
         %{entities: [], identifiers: %{}, params: []},
         fn entity, query_data ->
-          %{entity: new_entity, params: updated_params} = manage_params(entity, query_data.params)
+          %{entity: new_entity, params: updated_params} =
+            Entity.manage_params(entity, query_data.params)
 
           check_identifier_presence(query_data.identifiers, new_entity.identifier)
 
@@ -52,11 +53,15 @@ defmodule Seraph.Query.Builder.Match do
   @spec check_properties([Entity.Property.t()], Keyword.t()) :: :ok | {:error, String.t()}
   defp check_properties(properties, query_params) do
     Enum.reduce_while(properties, :ok, fn property, _ ->
-      value = Keyword.fetch!(query_params, String.to_atom(property.bound_name))
+      case Keyword.fetch!(query_params, String.to_atom(property.bound_name)) do
+        nil ->
+          {:halt, {:error, "`nil` is not a valid value. Use `is_nil(property)` instead."}}
 
-      case Helper.check_property(property.entity_queryable, property.name, value) do
-        :ok -> {:cont, :ok}
-        error -> {:halt, error}
+        value ->
+          case Helper.check_property(property.entity_queryable, property.name, value) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
       end
     end)
   end

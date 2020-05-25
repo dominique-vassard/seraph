@@ -207,16 +207,6 @@ defmodule Seraph.Repo.Helper do
     end)
   end
 
-  def result_queryable(result_alias, query) do
-    case Keyword.fetch(query.result_aliases, result_alias) do
-      {:ok, entity_alias} ->
-        Keyword.fetch(query.aliases, entity_alias)
-
-      :error ->
-        Keyword.fetch(query.aliases, result_alias)
-    end
-  end
-
   defp bound_name(property_name, nil) do
     Atom.to_string(property_name)
   end

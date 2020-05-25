@@ -1,4 +1,5 @@
 defmodule Seraph.Query.Builder.Entity.Node do
+  alias Seraph.Query.Builder.Entity
   alias Seraph.Query.Builder.Entity.Node
   alias Seraph.Query.Builder.Entity.Property
 
@@ -13,17 +14,31 @@ defmodule Seraph.Query.Builder.Entity.Node do
           properties: [Property.t()]
         }
 
-  @spec from_queryable(Seraph.Repo.queryable(), map) :: Node.t()
-  def from_queryable(queryable, properties) do
+  @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t()) :: %{
+          entity: Node.t(),
+          params: Keyword.t()
+        }
+  def from_queryable(queryable, properties) when is_list(properties) do
+    props = Enum.into(properties, %{})
+
+    from_queryable(queryable, props)
+  end
+
+  def from_queryable(queryable, properties, identifier \\ "n") do
+    additional_labels = Map.get(properties, :additionalLabels, [])
+    new_props = Map.drop(properties, [:additionalLabels])
+
     node = %Node{
       queryable: queryable,
-      identifier: "n",
-      labels: [queryable.__schema__(:primary_label)]
+      identifier: identifier,
+      labels: [queryable.__schema__(:primary_label) | additional_labels]
     }
 
-    props = Property.from_map(properties, node)
+    props = Property.from_map(new_props, node)
 
-    Map.put(node, :properties, props)
+    node
+    |> Map.put(:properties, props)
+    |> Entity.manage_params([])
   end
 
   defimpl Seraph.Query.Cypher, for: Node do

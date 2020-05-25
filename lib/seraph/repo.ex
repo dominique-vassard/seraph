@@ -129,7 +129,6 @@ defmodule Seraph.Repo do
         formated_res =
           Enum.map(result, &format_result(&1, query, result, opts))
           |> Enum.reduce(%{}, &Map.merge/2)
-          |> remove_internal_results(query, Keyword.fetch!(opts, :relationship_result))
 
         format_results(t, query, opts, formated ++ [formated_res])
       end
@@ -177,30 +176,6 @@ defmodule Seraph.Repo do
         else
           Map.put(%{}, result_alias, formated)
         end
-      end
-
-      defp result_queryable(result_alias, query) do
-        case Keyword.fetch(query.result_aliases, result_alias) do
-          {:ok, entity_alias} ->
-            Keyword.fetch(query.aliases, entity_alias)
-
-          :error ->
-            Keyword.fetch(query.aliases, result_alias)
-        end
-      end
-
-      defp remove_internal_results(results, query, :full) do
-        to_exclude =
-          query.result_aliases
-          |> Keyword.keys()
-          |> Enum.map(&Atom.to_string/1)
-          |> Enum.filter(fn str_key -> String.starts_with?(str_key, "__seraph_") end)
-
-        Map.drop(results, to_exclude)
-      end
-
-      defp remove_internal_results(results, query, _) do
-        results
       end
 
       defp manage_opts(opts, final_opts \\ @default_opts)
