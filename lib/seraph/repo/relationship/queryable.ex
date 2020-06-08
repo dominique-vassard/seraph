@@ -17,7 +17,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
         queryable,
         start_struct_or_data,
         end_struct_or_data,
-        rel_properties
+        rel_properties,
+        "match__"
       )
 
     {_, func_atom, _, _} =
@@ -43,8 +44,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
           entities: [relationship]
         },
         return: %Builder.Return{
-          raw_data: [
-            %Builder.Return.EntityData{
+          raw_variables: [
+            %Builder.Entity.EntityData{
               entity_identifier: :rel
             }
           ]

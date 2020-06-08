@@ -145,3 +145,25 @@ defmodule Seraph.QueryError do
     %__MODULE__{message: message}
   end
 end
+
+defmodule Seraph.MultipleResultsError do
+  @moduledoc """
+  Raised when more than one is found when only one is expected.
+  """
+  defexception [:message]
+
+  def exception(opts) do
+    query = Keyword.fetch!(opts, :query)
+    count = Keyword.fetch!(opts, :count)
+
+    query_str = Enum.join(query, "\n")
+
+    message = """
+    #{count} resutls found when only one was expected in query:
+
+    #{query_str}
+    """
+
+    %__MODULE__{message: message}
+  end
+end

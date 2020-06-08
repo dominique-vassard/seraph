@@ -61,10 +61,6 @@ defmodule Seraph.Test.User do
     def changeset(user, params \\ %{}) do
       user
       |> cast(params, [:firstName, :lastName, :viewCount, :additionalLabels])
-
-      # |> cast_relationship("WROTE", params[:new_post])
-      # |> cast_relationship(Seraph.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])
-      # |> put_related_nodes(:wrote, [])
     end
 
     def update_viewcount_changeset(user, params \\ %{}) do
@@ -113,5 +109,16 @@ defmodule Seraph.Test.Post do
   def changeset(post, params \\ %{}) do
     post
     |> cast(params, [:title, :text])
+  end
+end
+
+defmodule Seraph.Test.MergeKeys do
+  use Seraph.Schema.Node
+
+  @merge_keys [:mkField1, :mkField2]
+
+  node "MegeKeys" do
+    property :mkField1, :string
+    property :mkField2, :string
   end
 end

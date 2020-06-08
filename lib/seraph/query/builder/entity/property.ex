@@ -26,14 +26,73 @@ defmodule Seraph.Query.Builder.Entity.Property do
     end)
   end
 
+  def extract_params(%Property{} = property, current_params, prefix) do
+    value = property.value
+
+    bound_name =
+      case value do
+        {pinned_name, _, _} when is_atom(pinned_name) ->
+          Atom.to_string(pinned_name)
+
+        _ ->
+          bound_prefix =
+            if is_nil(property.entity_identifier) do
+              prefix <> "prop__" <> Atom.to_string(property.name)
+            else
+              property.entity_identifier <> "_" <> Atom.to_string(property.name)
+            end
+
+          suffix =
+            Enum.filter(current_params, fn {param_name, _} ->
+              String.starts_with?(Atom.to_string(param_name), bound_prefix)
+            end)
+            |> Enum.count()
+
+          bound_prefix <> "_" <> Integer.to_string(suffix)
+      end
+
+    new_prop =
+      property
+      |> Map.put(:bound_name, bound_name)
+      |> Map.put(:value, nil)
+
+    {
+      new_prop,
+      Keyword.put(current_params, String.to_atom(bound_name), value)
+    }
+  end
+
   defimpl Seraph.Query.Cypher, for: Property do
     @spec encode(Seraph.Query.Builder.Entity.Property.t(), Keyword.t()) :: String.t()
-    def encode(%Property{bound_name: bound_name, name: name}, _) do
-      "#{Atom.to_string(name)}: $#{bound_name}"
+    def encode(%Property{alias: prop_alias, entity_identifier: entity_identifier, name: name},
+          operation: :return
+        )
+        when not is_nil(prop_alias) do
+      "#{entity_identifier}.#{name} AS #{prop_alias}"
     end
 
     def encode(%Property{entity_identifier: entity_identifier, name: name}, operation: :return) do
       "#{entity_identifier}.#{name}"
+    end
+
+    def encode(
+          %Property{entity_identifier: entity_identifier, name: name, value: value},
+          operation: :set
+        )
+        when not is_nil(value) do
+      "#{entity_identifier}.#{Atom.to_string(name)} = " <>
+        Seraph.Query.Cypher.encode(value, operation: :set)
+    end
+
+    def encode(
+          %Property{entity_identifier: entity_identifier, bound_name: bound_name, name: name},
+          operation: :set
+        ) do
+      "#{entity_identifier}.#{Atom.to_string(name)} = $#{bound_name}"
+    end
+
+    def encode(%Property{bound_name: bound_name, name: name}, _) do
+      "#{Atom.to_string(name)}: $#{bound_name}"
     end
   end
 end

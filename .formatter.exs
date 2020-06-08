@@ -11,7 +11,9 @@ locals_without_parens = [
   defrelationship: 4,
 
   # Query
-  match: 2
+  match: 2,
+  create: 2,
+  merge: 2
 ]
 
 # Used by "mix format"

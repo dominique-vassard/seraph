@@ -14,17 +14,122 @@ defmodule Seraph.Query.Builder.Entity.Node do
           properties: [Property.t()]
         }
 
-  @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t()) :: %{
+  @spec from_ast(Macro.t(), Macro.Env.t()) :: Node.t()
+  # Node with identifier, queryable and properties
+  # {u, User, %{uuid: "uuid-2"}}
+  # {u, User, %{uuid: ^uuid}}
+  def from_ast(
+        {:{}, _,
+         [
+           {node_identifier, _, _},
+           {:__aliases__, _, _} = queryable_ast,
+           {:%{}, _, properties}
+         ]},
+        env
+      ) do
+    queryable = Macro.expand(queryable_ast, env)
+    identifier = Atom.to_string(node_identifier)
+
+    %Node{
+      queryable: queryable,
+      identifier: identifier,
+      labels: [queryable.__schema__(:primary_label)],
+      properties: Entity.build_properties(queryable, identifier, properties)
+    }
+  end
+
+  # Node with node identifier, queryable, properties
+  # {User, %{uuid: ^user_uuid}
+  def from_ast({{:__aliases__, _, _} = queryable_ast, {:%{}, _, properties}}, env) do
+    queryable = Macro.expand(queryable_ast, env)
+
+    %Node{
+      queryable: queryable,
+      identifier: nil,
+      labels: [queryable.__schema__(:primary_label)],
+      properties: Entity.build_properties(queryable, nil, properties)
+    }
+  end
+
+  # Node with identifier, no queryable, properties
+  # {u, %{uuid: ^user_uuid}
+  def from_ast({{node_identifier, _, _}, {:%{}, _, properties}}, _env) do
+    queryable = Seraph.Node
+    identifier = Atom.to_string(node_identifier)
+
+    %Node{
+      queryable: queryable,
+      identifier: identifier,
+      properties: Entity.build_properties(queryable, identifier, properties)
+    }
+  end
+
+  # Node with only a queryable
+  # {User}
+  def from_ast({:{}, _, [{:__aliases__, _, _} = queryable_ast]}, env) do
+    queryable = Macro.expand(queryable_ast, env)
+
+    %Node{
+      queryable: queryable,
+      labels: [queryable.__schema__(:primary_label)]
+    }
+  end
+
+  # Node with no identifier, no queryable, properties
+  # {%{uuid: ^uuid}}
+  def from_ast({:{}, _, [{:%{}, [], properties}]}, _env) do
+    queryable = Seraph.Node
+
+    %Node{
+      queryable: queryable,
+      properties: Entity.build_properties(queryable, nil, properties)
+    }
+  end
+
+  # Node with identifier, no queryable, no properties
+  # {u}
+  def from_ast({:{}, _, [{node_identifier, _, _}]}, _env) do
+    identifier = Atom.to_string(node_identifier)
+
+    %Node{
+      queryable: Seraph.Node,
+      identifier: identifier
+    }
+  end
+
+  # Node with identifier, queryable, no properties
+  # {u, User}
+  def from_ast({{node_identifier, _, _}, {:__aliases__, _, _} = queryable_ast}, env) do
+    queryable = Macro.expand(queryable_ast, env)
+    identifier = Atom.to_string(node_identifier)
+
+    %Node{
+      queryable: queryable,
+      identifier: identifier,
+      labels: [queryable.__schema__(:primary_label)]
+    }
+  end
+
+  # Empty node
+  # {}
+  def from_ast({:{}, _, []}, _env) do
+    %Node{
+      queryable: Seraph.Node,
+      identifier: nil
+    }
+  end
+
+  @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t(), String.t()) :: %{
           entity: Node.t(),
           params: Keyword.t()
         }
-  def from_queryable(queryable, properties) when is_list(properties) do
+  def from_queryable(queryable, properties, prefix) when is_list(properties) do
     props = Enum.into(properties, %{})
 
-    from_queryable(queryable, props)
+    from_queryable(queryable, props, prefix)
   end
 
-  def from_queryable(queryable, properties, identifier \\ "n") do
+  def from_queryable(queryable, properties, identifier \\ "n", prefix) do
     additional_labels = Map.get(properties, :additionalLabels, [])
     new_props = Map.drop(properties, [:additionalLabels])
 
@@ -38,7 +143,7 @@ defmodule Seraph.Query.Builder.Entity.Node do
 
     node
     |> Map.put(:properties, props)
-    |> Entity.manage_params([])
+    |> Entity.extract_params([], prefix)
   end
 
   defimpl Seraph.Query.Cypher, for: Node do

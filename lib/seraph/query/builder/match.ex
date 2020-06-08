@@ -21,7 +21,7 @@ defmodule Seraph.Query.Builder.Match do
         %{entities: [], identifiers: %{}, params: []},
         fn entity, query_data ->
           %{entity: new_entity, params: updated_params} =
-            Entity.manage_params(entity, query_data.params)
+            Entity.extract_params(entity, query_data.params, "match__")
 
           check_identifier_presence(query_data.identifiers, new_entity.identifier)
 
@@ -39,299 +39,78 @@ defmodule Seraph.Query.Builder.Match do
     |> Map.drop([:entities])
   end
 
+  @doc """
+    Check:
+      - property is owned by queryable
+      - property value type is valid
+      - property value exists in params
+  """
   @impl true
   @spec check(Match.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(match_data, query) do
-    Enum.reduce_while(match_data.entities, :ok, fn %{properties: properties}, _ ->
-      case check_properties(properties, query.params) do
-        :ok -> {:cont, :ok}
-        error -> {:halt, error}
-      end
-    end)
+    do_check(match_data.entities, query)
   end
 
-  @spec check_properties([Entity.Property.t()], Keyword.t()) :: :ok | {:error, String.t()}
-  defp check_properties(properties, query_params) do
-    Enum.reduce_while(properties, :ok, fn property, _ ->
-      case Keyword.fetch!(query_params, String.to_atom(property.bound_name)) do
-        nil ->
-          {:halt, {:error, "`nil` is not a valid value. Use `is_nil(property)` instead."}}
+  @spec do_check(Match.t(), Seraph.Query.t(), :ok | {:error, String.t()}) ::
+          :ok | {:error, String.t()}
+  defp do_check(entity_to_check, query, result \\ :ok)
 
-        value ->
-          case Helper.check_property(property.entity_queryable, property.name, value) do
-            :ok -> {:cont, :ok}
-            error -> {:halt, error}
-          end
-      end
-    end)
+  defp do_check([], _, result) do
+    result
   end
 
-  @spec build_entity(Macro.t(), Macro.Env.t(), nil | :from_rel) :: Entity.t()
-  defp build_entity(ast, env, call_from \\ nil)
-  # Node with identifier, queryable and properties
-  # {u, User, %{uuid: "uuid-2"}}
-  # {u, User, %{uuid: ^uuid}}
-  defp build_entity(
-         {:{}, _,
-          [
-            {node_identifier, _, _},
-            {:__aliases__, _, _} = queryable_ast,
-            {:%{}, _, properties}
-          ]},
-         env,
-         _
-       ) do
-    queryable = Macro.expand(queryable_ast, env)
-    identifier = Atom.to_string(node_identifier)
-
-    %Entity.Node{
-      queryable: queryable,
-      identifier: identifier,
-      labels: [queryable.__schema__(:primary_label)],
-      properties: build_properties(queryable, identifier, properties)
-    }
+  defp do_check(_, _, {:error, _} = error) do
+    error
   end
 
-  # Node with node identifier, queryable, properties
-  # {User, %{uuid: ^user_uuid}
-  defp build_entity({{:__aliases__, _, _} = queryable_ast, {:%{}, _, properties}}, env, _) do
-    queryable = Macro.expand(queryable_ast, env)
-
-    %Entity.Node{
-      queryable: queryable,
-      identifier: nil,
-      labels: [queryable.__schema__(:primary_label)],
-      properties: build_properties(queryable, nil, properties)
-    }
+  defp do_check([%{properties: properties} | rest], query, :ok) do
+    result = do_check_properties(properties, query.params)
+    do_check(rest, query, result)
   end
 
-  # Node with no identifier, no queryable, properties
-  # {u, %{uuid: ^user_uuid}
-  defp build_entity({{node_identifier, _, _}, {:%{}, _, properties}}, _env, _) do
-    queryable = Seraph.Node
-    identifier = Atom.to_string(node_identifier)
+  @spec do_check_properties([Entity.Property.t()], Keyword.t(), :ok | {:error, String.t()}) ::
+          :ok | {:error, String.t()}
+  defp do_check_properties(properties_to_check, query_params, result \\ :ok)
 
-    %Entity.Node{
-      queryable: queryable,
-      identifier: identifier,
-      properties: build_properties(queryable, identifier, properties)
-    }
+  defp do_check_properties([], _, result) do
+    result
   end
 
-  # Node with only a queryable: allowed inside a relationship
-  defp build_entity({:{}, _, [{:__aliases__, _, _} = queryable_ast]}, env, :from_rel) do
-    queryable = Macro.expand(queryable_ast, env)
+  defp do_check_properties([property | rest], query_params, :ok) do
+    case Keyword.fetch!(query_params, String.to_atom(property.bound_name)) do
+      nil ->
+        do_check_properties(
+          rest,
+          query_params,
+          {:error, "`nil` is not a valid value. Use `is_nil(property)` instead."}
+        )
 
-    %Entity.Node{
-      queryable: queryable,
-      labels: [queryable.__schema__(:primary_label)]
-    }
+      value ->
+        result = Helper.check_property(property.entity_queryable, property.name, value)
+        do_check_properties(rest, query_params, result)
+    end
   end
 
-  # Node with only a queryable: not allowed in any other case
-  defp build_entity({:{}, _, [{:__aliases__, _, [_]}]}, _env, _) do
-    raise ArgumentError, "Nodes with only a queryable are not allowed except i nrelationships."
+  defp do_check_properties(_, _, {:error, _} = error) do
+    error
   end
 
-  # Node with identifier, no queryable, no properties
-  # {u}
-  defp build_entity({:{}, _, [{node_identifier, _, _}]}, _env, _) do
-    identifier = Atom.to_string(node_identifier)
-
-    %Entity.Node{
-      queryable: Seraph.Node,
-      identifier: identifier
-    }
-  end
-
-  # Node with identifier, queryable, no properties
-  # {u, User}
-  defp build_entity({{node_identifier, _, _}, {:__aliases__, _, _} = queryable_ast}, env, _) do
-    queryable = Macro.expand(queryable_ast, env)
-    identifier = Atom.to_string(node_identifier)
-
-    %Entity.Node{
-      queryable: queryable,
-      identifier: identifier,
-      labels: [queryable.__schema__(:primary_label)]
-    }
-  end
-
-  # Empty node: allowed inside a relationship
-  # {}
-  defp build_entity({:{}, _, []}, _env, :from_rel) do
-    %Entity.Node{
-      queryable: Seraph.Node,
-      identifier: nil
-    }
+  defp build_entity({:{}, _, [{:__aliases__, _, [_]}]}, _env) do
+    raise ArgumentError, "Nodes with only a queryable are not allowed except in relationships."
   end
 
   # Empty node: not allowed in any other case
   # {}
-  defp build_entity({:{}, _, []}, _env, _) do
+  defp build_entity({:{}, _, []}, _env) do
     raise ArgumentError, "Empty nodes are not supported except in relationships."
   end
 
-  # Empty relationship
-  # [{}, [], {}]
-  defp build_entity([{:{}, _, []}, [], {:{}, _, []}], _env, _) do
-    raise ArgumentError, "Empty relationships are not allowed."
+  defp build_entity([_start_ast, _relationship_ast, _end_ast] = ast, env) do
+    Entity.Relationship.from_ast(ast, env)
   end
 
-  # Relationship with no identifier, no queryable, no properties
-  # []
-  defp build_entity([], _env, _) do
-    %Entity.Relationship{}
-  end
-
-  # Relationship with no identifier, queryable, no properties
-  # [Wrote]
-  defp build_entity([{:__aliases__, _, _} = queryable_ast], env, _) do
-    queryable = Macro.expand(queryable_ast, env)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      type: queryable.__schema__(:type)
-    }
-  end
-
-  # Relationship with no identifier, queryable, properties
-  # [Wrote, %{at: ^date}]
-  defp build_entity([{:__aliases__, _, _} = queryable_ast, {:%{}, _, properties}], env, _) do
-    queryable = Macro.expand(queryable_ast, env)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      identifier: nil,
-      type: queryable.__schema__(:type),
-      properties: build_properties(queryable, nil, properties)
-    }
-  end
-
-  # Relationship with identifier, queryable, no properties
-  # [rel, Wrote]
-  defp build_entity([{rel_identifier, _, _}, {:__aliases__, _, _} = queryable_ast], env, _) do
-    queryable = Macro.expand(queryable_ast, env)
-    identifier = Atom.to_string(rel_identifier)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      identifier: identifier,
-      type: queryable.__schema__(:type)
-    }
-  end
-
-  # Relationship with identifier, no queryable, properties
-  # [rel, %{at: ^date}]
-  defp build_entity([{rel_identifier, _, _}, {:%{}, _, properties}], _env, _) do
-    queryable = Seraph.Relationship
-    identifier = Atom.to_string(rel_identifier)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      identifier: identifier,
-      properties: build_properties(queryable, identifier, properties)
-    }
-  end
-
-  # Relationship with identifier, no queryable, no properties
-  # [rel]
-  defp build_entity([{rel_identifier, _, _}], _env, _) do
-    identifier = Atom.to_string(rel_identifier)
-
-    %Entity.Relationship{
-      queryable: Seraph.Relationship,
-      identifier: identifier
-    }
-  end
-
-  # Relationship with no identifier, string queryable, no properties
-  # ["WROTE"]
-  defp build_entity([rel_type], _env, _) when is_bitstring(rel_type) do
-    rel_type = String.upcase(rel_type)
-    check_string_relationship_type(rel_type)
-
-    %Entity.Relationship{
-      queryable: Seraph.Relationship,
-      type: rel_type
-    }
-  end
-
-  # Relationship with identifier, string queryable, no properties
-  # [rel, "WROTE"]
-  defp build_entity([{rel_identifier, _, _}, rel_type], _env, _) when is_bitstring(rel_type) do
-    rel_type = String.upcase(rel_type)
-    check_string_relationship_type(rel_type)
-
-    %Entity.Relationship{
-      identifier: Atom.to_string(rel_identifier),
-      queryable: Seraph.Relationship,
-      type: rel_type
-    }
-  end
-
-  # Relationship with identifier, string queryable, properties
-  # [rel, "WROTE, %{at: ^date}]
-  defp build_entity([{rel_identifier, _, _}, rel_type, {:%{}, _, properties}], _env, _)
-       when is_bitstring(rel_type) do
-    queryable = Seraph.Relationship
-    identifier = Atom.to_string(rel_identifier)
-    rel_type = String.upcase(rel_type)
-    check_string_relationship_type(rel_type)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      identifier: identifier,
-      type: rel_type,
-      properties: build_properties(queryable, identifier, properties)
-    }
-  end
-
-  # Relationship with no identifier, string queryable, properties
-  # ["WROTE", %{at: ^date}]
-  defp build_entity([rel_type, {:%{}, _, properties}], _env, _) when is_bitstring(rel_type) do
-    queryable = Seraph.Relationship
-    rel_type = String.upcase(rel_type)
-    check_string_relationship_type(rel_type)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      type: rel_type,
-      properties: build_properties(queryable, nil, properties)
-    }
-  end
-
-  # Relationship with identifier, queryable, properties
-  # [rel, Wrote, %{at: ^date}]
-  defp build_entity(
-         [{rel_identifier, _, _}, {:__aliases__, _, _} = queryable_ast, {:%{}, _, properties}],
-         env,
-         _
-       ) do
-    queryable = Macro.expand(queryable_ast, env)
-    identifier = Atom.to_string(rel_identifier)
-
-    %Entity.Relationship{
-      queryable: queryable,
-      identifier: identifier,
-      type: queryable.__schema__(:type),
-      properties: build_properties(queryable, identifier, properties)
-    }
-  end
-
-  # Match a relationship type and build it
-  defp build_entity([start_ast, relationship_ast, end_ast], env, _) do
-    start_data = build_entity(start_ast, env, :from_rel)
-    end_data = build_entity(end_ast, env, :from_rel)
-
-    relationship = build_entity(relationship_ast, env)
-
-    start_node = fill_queryable(start_data, relationship.queryable, :start_node)
-    end_node = fill_queryable(end_data, relationship.queryable, :end_node)
-
-    relationship
-    |> Map.put(:start, start_node)
-    |> Map.put(:end, end_node)
+  defp build_entity(ast, env) do
+    Entity.Node.from_ast(ast, env)
   end
 
   @spec build_identifiers(Entity.t(), %{String.t() => Entity.t()}) :: %{String.t() => Entity.t()}
@@ -393,15 +172,6 @@ defmodule Seraph.Query.Builder.Match do
     end
   end
 
-  defp check_string_relationship_type(relationship_type) do
-    if not Regex.match?(~r/^[A-Z][A-Z0-9_]*$/, relationship_type) do
-      message =
-        "`#{relationship_type}` is not a valid relationship type. Allowed format: ^[A-Z][A-Z0-9_]*$."
-
-      raise ArgumentError, message
-    end
-  end
-
   @spec check_identifier_presence(map, String.t()) :: :ok
   defp check_identifier_presence(identifiers, candidate) do
     case Map.fetch(identifiers, candidate) do
@@ -410,75 +180,12 @@ defmodule Seraph.Query.Builder.Match do
     end
   end
 
-  @spec build_properties(Seraph.Repo.queryable(), nil | String.t(), Keyword.t()) :: [
-          Entity.Property
-        ]
-  defp build_properties(queryable, identifier, properties) do
-    Enum.reduce(properties, [], fn {prop_key, prop_value}, prop_list ->
-      property = %Entity.Property{
-        entity_identifier: identifier,
-        entity_queryable: queryable,
-        name: prop_key,
-        value: interpolate(prop_value)
-      }
-
-      [property | prop_list]
-    end)
-  end
-
-  @spec interpolate(Macro.t()) :: Macro.t()
-  defp interpolate({:^, _, [{name, _ctx, _env} = value]}) when is_atom(name) do
-    value
-  end
-
-  defp interpolate(value) do
-    value
-  end
-
-  @spec fill_queryable(Entity.Node.t(), Seraph.Repo.queryable(), :start_node | :end_node) ::
-          Entity.Node.t()
-  defp fill_queryable(node_data, Seraph.Relationship, _) do
-    node_data
-  end
-
-  defp fill_queryable(%Entity.Node{queryable: Seraph.Node} = node_data, rel_queryable, node_type) do
-    node_queryable = rel_queryable.__schema__(node_type)
-
-    new_props =
-      node_data.properties
-      |> Enum.map(fn prop ->
-        Map.put(prop, :entity_queryable, node_queryable)
-      end)
-
-    node_data
-    |> Map.put(:queryable, node_queryable)
-    |> Map.put(:labels, [node_queryable.__schema__(:primary_label)])
-    |> Map.put(:properties, new_props)
-  end
-
-  defp fill_queryable(node_data, rel_queryable, node_type) do
-    node_queryable = rel_queryable.__schema__(node_type)
-
-    if node_data.queryable == node_queryable do
-      node_data
-    else
-      message = """
-      `#{inspect(node_data.queryable)}` is not a valid #{inspect(node_type)} for `#{
-        inspect(rel_queryable)
-      }`.
-      It should be a `#{inspect(node_queryable)}`.
-      """
-
-      raise ArgumentError, message
-    end
-  end
-
   defimpl Seraph.Query.Cypher, for: Match do
     def encode(%Match{entities: entities}, _) do
       match_str =
         entities
         |> Enum.map(&Seraph.Query.Cypher.encode(&1, operation: :match))
-        |> Enum.join("\n\t")
+        |> Enum.join(",\n\t")
 
       if String.length(match_str) > 0 do
         """

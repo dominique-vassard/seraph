@@ -97,6 +97,20 @@ defmodule Seraph.Repo do
         Seraph.Query.Planner.raw_query!(__MODULE__, statement, params, opts)
       end
 
+      def one(query, opts \\ []) do
+        do_one(query, manage_opts(opts))
+      end
+
+      defp do_one(query, opts) do
+        results = do_all(query, opts)
+
+        case length(results) do
+          0 -> nil
+          1 -> List.first(results)
+          count -> raise Seraph.MultipleResultsError, query: query.literal, count: count
+        end
+      end
+
       def all(query, opts \\ []) do
         do_all(query, manage_opts(opts))
       end
@@ -164,7 +178,13 @@ defmodule Seraph.Repo do
                 end_node
               )
 
-            {:ok, %Builder.Return.Function{}} ->
+            {:ok, %Builder.Entity.Function{}} ->
+              result
+
+            {:ok, %Builder.Entity.Value{}} ->
+              result
+
+            {:ok, %Builder.Entity.Property{}} ->
               result
 
             :error ->

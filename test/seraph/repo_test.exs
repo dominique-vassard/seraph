@@ -3,13 +3,12 @@ defmodule Seraph.RepoTest do
   alias Seraph.Support.Storage
 
   alias Seraph.TestRepo
-  alias Seraph.Test.{Admin, Post, User}
+  alias Seraph.Test.{Admin, User}
   alias Seraph.Test.UserToPost.Wrote
-  alias Seraph.Test.NoPropsRels.UserToComment
 
   import Seraph.Query
 
-  setup_all do
+  setup do
     Storage.clear(TestRepo)
     Storage.add_fixtures(TestRepo)
   end
@@ -912,6 +911,51 @@ defmodule Seraph.RepoTest do
       assert [%{"node_labels" => node_labels}] = TestRepo.all(query)
 
       assert ["Comment", "Post"] == node_labels |> List.flatten() |> Enum.sort()
+    end
+  end
+
+  describe "one/2" do
+    test "ok: no results return nil" do
+      query =
+        match [{u, User, %{uuid: "non-existing"}}],
+          return: u
+
+      assert is_nil(TestRepo.one(query))
+    end
+
+    test "ok: one result return the result line" do
+      query =
+        match [{u, User, %{firstName: "John"}}],
+          return: u
+
+      assert %{
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: "John",
+                 lastName: "Doe",
+                 viewCount: 0
+               }
+             } = TestRepo.one(query)
+    end
+
+    test "raise: when there is more than one result" do
+      assert_raise Seraph.MultipleResultsError, fn ->
+        query =
+          match [{u, User}],
+            return: u
+
+        assert [] = TestRepo.one(query)
+      end
+    end
+  end
+
+  describe "creation" do
+    test "simple node" do
+      query =
+        create [{u, User, %{uuid: "new-uuid", firstName: "Roger"}}],
+          return: [u]
+
+      TestRepo.all(query)
     end
   end
 end

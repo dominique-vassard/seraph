@@ -1,77 +1,9 @@
 defmodule Seraph.Query.Builder.Return do
   @behaviour Seraph.Query.Operation
-  alias Seraph.Query.Builder.Entity
-  alias Seraph.Query.Builder.Return
-  alias Seraph.Query.Builder.Helper
 
-  defmodule EntityData do
-    defstruct [:alias, :entity_identifier, :property]
+  alias Seraph.Query.Builder.{Entity, Helper, Return}
 
-    @type t :: %__MODULE__{
-            alias: atom,
-            entity_identifier: String.t(),
-            property: nil | atom
-          }
-  end
-
-  defmodule Data do
-    defstruct [:alias, :bound_name, :value]
-
-    @type t :: %__MODULE__{
-            alias: atom,
-            bound_name: String.t(),
-            value: any
-          }
-  end
-
-  defmodule Function do
-    alias Seraph.Query.Builder.Return.Function
-    defstruct [:alias, :name, :args]
-
-    @type t :: %__MODULE__{
-            alias: atom,
-            name: atom,
-            args: [EntityData.t() | Entity.t() | Data.t() | Function.t()]
-          }
-
-    defimpl Seraph.Query.Cypher, for: Function do
-      def encode(%Function{alias: func_alias, name: name, args: args}, opts) do
-        name_str =
-          if name in [:st_dev, :start_node, :end_node] do
-            Inflex.camelize(name, :lower)
-          else
-            name
-            |> Atom.to_string()
-            |> String.upcase()
-          end
-
-        args_str =
-          args
-          |> Enum.map(&Seraph.Query.Cypher.encode(&1, opts))
-          |> Enum.join(", ")
-
-        func_str = "#{name_str}(#{args_str})"
-
-        case func_alias do
-          nil ->
-            func_str
-
-          fn_alias ->
-            func_str <> " AS #{fn_alias}"
-        end
-      end
-    end
-  end
-
-  defmodule Raw do
-    defstruct [:variables]
-
-    @type t :: %__MODULE__{
-            variables: [EntityData.t() | Data.t() | Function.t()]
-          }
-  end
-
-  defstruct [:raw_data, :variables, distinct?: false]
+  defstruct [:raw_variables, :variables, distinct?: false]
 
   @unary_funcs [
     :min,
@@ -81,23 +13,23 @@ defmodule Seraph.Query.Builder.Return do
     :sum,
     :st_dev,
     :collect,
-    :type,
     :id,
     :labels,
     :type,
     :start_node,
-    :end_node
+    :end_node,
+    :size
   ]
   @binary_funcs [:percentile_disc]
   @multi_args_func [:distinct]
   @valid_funcs @unary_funcs ++ @binary_funcs ++ @multi_args_func
 
-  @type entities :: EntityData.t() | Data.t() | Function.t()
+  @type entities :: EntityData.t() | Entity.Value.t() | Function.t()
 
   @type t :: %__MODULE__{
           distinct?: boolean,
-          variables: nil | %{String.t() => Entity.t() | Data.t() | Function.t()},
-          raw_data: nil | [EntityData.t() | Data.t() | Function.t()]
+          variables: nil | %{String.t() => Entity.t() | Entity.Value.t() | Function.t()},
+          raw_variables: nil | [EntityData.t() | Entity.Value.t() | Function.t()]
         }
 
   @spec build(Macro.t(), Macro.Env.t()) :: %{return: Return.t(), params: Keyword.t()}
@@ -110,9 +42,14 @@ defmodule Seraph.Query.Builder.Return do
     %{variables: raw_variables, params: params} =
       Enum.map(ast, &do_build/1)
       |> List.flatten()
-      |> Enum.reduce(%{variables: [], params: []}, &extract_params/2)
+      |> Enum.reduce(%{variables: [], params: []}, fn entity, data ->
+        %{entity: new_entity, params: params} =
+          Entity.extract_params(entity, data.params, "return__")
 
-    %{return: %Return{variables: nil, raw_data: raw_variables}, params: params}
+        %{data | variables: [new_entity | data.variables], params: params}
+      end)
+
+    %{return: %Return{variables: nil, raw_variables: raw_variables}, params: params}
   end
 
   @spec do_build(Macro.t()) :: Return.entities()
@@ -120,9 +57,16 @@ defmodule Seraph.Query.Builder.Return do
   # collect(u)
   # percentile(u.viewCount, 90)
   defp do_build({func, _, raw_args}) when func in @valid_funcs do
-    args = Enum.map(raw_args, &do_build/1)
+    args =
+      Enum.map(raw_args, fn raw_arg ->
+        if Keyword.keyword?(raw_arg) do
+          raise ArgumentError, "Aliases are not allowed in function arguments."
+        end
 
-    %Function{
+        do_build(raw_arg)
+      end)
+
+    %Entity.Function{
       name: func,
       args: args
     }
@@ -130,8 +74,8 @@ defmodule Seraph.Query.Builder.Return do
 
   # pinned var
   # ^uuid
-  defp do_build({:^, _, [{:uuid, _, nil} = value]}) do
-    %Data{
+  defp do_build({:^, _, [{_, _, nil} = value]}) do
+    %Entity.Value{
       value: value
     }
   end
@@ -139,7 +83,7 @@ defmodule Seraph.Query.Builder.Return do
   # property
   # u.uuid
   defp do_build({{:., _, [{entity_identifier, _, _}, property]}, _, _}) do
-    %EntityData{
+    %Entity.EntityData{
       entity_identifier: entity_identifier,
       property: property
     }
@@ -148,7 +92,7 @@ defmodule Seraph.Query.Builder.Return do
   # entity identifier
   # u
   defp do_build({entity_identifier, _, nil}) do
-    %EntityData{
+    %Entity.EntityData{
       entity_identifier: entity_identifier
     }
   end
@@ -160,69 +104,24 @@ defmodule Seraph.Query.Builder.Return do
   # aliased return
   # [person: u]
   defp do_build(aliases_list) when is_list(aliases_list) do
-    Enum.map(aliases_list, fn {return_alias, raw_data} ->
-      do_build(raw_data)
+    Enum.map(aliases_list, fn {return_alias, raw_variables} ->
+      do_build(raw_variables)
       |> Map.put(:alias, return_alias)
     end)
   end
 
   # aliased return without brackets (due to formatter....)
   # person: u, another: v
-  defp do_build({return_alias, raw_data}) when is_atom(return_alias) do
-    do_build(raw_data)
+  defp do_build({return_alias, raw_variables}) when is_atom(return_alias) do
+    do_build(raw_variables)
     |> Map.put(:alias, return_alias)
   end
 
   # Bare value
   # 1
   defp do_build(value) do
-    %Data{
+    %Entity.Value{
       value: value
-    }
-  end
-
-  @spec extract_params(Return.entities(), %{variables: [Return.entities()], params: Keyword.t()}) ::
-          %{variables: [Return.entities()], params: Keyword.t()}
-  defp extract_params(%EntityData{} = entity_data, %{variables: variables, params: params}) do
-    %{variables: [entity_data | variables], params: params}
-  end
-
-  defp extract_params(%Data{} = data, return_data) do
-    bound_name =
-      case data.value do
-        {value_name, _, _} ->
-          Atom.to_string(value_name)
-
-        _ ->
-          index =
-            Enum.filter(return_data.params, fn {key, _} ->
-              String.starts_with?(Atom.to_string(key), "return__")
-            end)
-            |> Enum.count()
-
-          "return__" <> Integer.to_string(index)
-      end
-
-    new_data =
-      data
-      |> Map.put(:bound_name, bound_name)
-      |> Map.put(:value, nil)
-
-    %{
-      return_data
-      | variables: [new_data | return_data.variables],
-        params: Keyword.put(return_data.params, String.to_atom(bound_name), data.value)
-    }
-  end
-
-  defp extract_params(%Function{args: inner_data} = data, return_data) do
-    %{variables: new_args, params: params} =
-      Enum.reduce(inner_data, %{variables: [], params: return_data.params}, &extract_params/2)
-
-    %{
-      return_data
-      | variables: [Map.put(data, :args, new_args) | return_data.variables],
-        params: params
     }
   end
 
@@ -234,73 +133,84 @@ defmodule Seraph.Query.Builder.Return do
       %{alias: data_alias} = data, vars when not is_nil(data_alias) ->
         Map.put(vars, Atom.to_string(data_alias), data)
 
-      %EntityData{entity_identifier: entity_identifier, property: property} = data, vars
+      %Entity.EntityData{entity_identifier: entity_identifier, property: property} = data, vars
       when not is_nil(property) ->
         key = Atom.to_string(entity_identifier) <> "." <> Atom.to_string(property)
 
         Map.put(vars, key, data)
 
-      %EntityData{entity_identifier: entity_identifier} = data, vars ->
+      %Entity.EntityData{entity_identifier: entity_identifier} = data, vars ->
         Map.put(vars, Atom.to_string(entity_identifier), data)
 
-      %Data{bound_name: bound_name}, _ ->
+      %Entity.Value{bound_name: bound_name}, _ ->
         value = Keyword.fetch!(params, String.to_atom(bound_name))
         raise ArgumentError, "Bare value `#{inspect(value)}` must be aliased."
 
-      %Function{name: name}, _ ->
+      %Entity.Function{name: name}, _ ->
         raise ArgumentError, "Function `#{inspect(name)}` must be aliased."
     end)
   end
 
   @impl true
   @spec check(Return.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
-  def check(%Return{raw_data: raw_variables}, query) do
-    Enum.reduce_while(raw_variables, :ok, fn
-      %EntityData{entity_identifier: entity_identifier, property: property}, _
-      when not is_nil(property) ->
-        case Map.fetch(query.identifiers, Atom.to_string(entity_identifier)) do
-          {:ok, entity_data} ->
-            case Helper.check_property(entity_data.queryable, property, nil, false) do
-              :ok -> {:cont, :ok}
-              error -> {:halt, error}
-            end
+  def check(%Return{raw_variables: raw_variables}, query) do
+    do_check(raw_variables, query)
+  end
 
-          :error ->
-            message =
-              "Return entity with identifier `#{inspect(entity_identifier)}` has not been matched"
+  @spec do_check([], Seraph.Query.t(), :ok | {:error, String.t()}) :: :ok | {:error, String.t()}
+  defp do_check(raw_variables, query, result \\ :ok)
 
-            {:halt, {:error, message}}
-        end
+  defp do_check([], _, result) do
+    result
+  end
 
-      %EntityData{entity_identifier: entity_identifier}, _ ->
-        case Map.fetch(query.identifiers, Atom.to_string(entity_identifier)) do
-          {:ok, _} ->
-            {:cont, :ok}
+  defp do_check(_, _, {:error, _} = error) do
+    error
+  end
 
-          :error ->
-            message =
-              "Return entity with identifier `#{inspect(entity_identifier)}` has not been matched"
+  defp do_check([%Entity.EntityData{property: nil} = entity_data | rest], query, _) do
+    case Map.fetch(query.identifiers, Atom.to_string(entity_data.entity_identifier)) do
+      {:ok, _} ->
+        do_check(rest, query, :ok)
 
-            {:halt, {:error, message}}
-        end
+      :error ->
+        message =
+          "Return entity with identifier `#{inspect(entity_data.entity_identifier)}` has not been matched"
 
-      %Data{alias: nil, bound_name: bound_name}, _ ->
-        value = Keyword.fetch!(query.params, String.to_atom(bound_name))
-        error = {:error, "Bare value `#{inspect(value)}` must be aliased."}
-        {:halt, error}
+        {:error, message}
+    end
+  end
 
-      %Function{alias: nil, name: name}, _ ->
-        error = {:error, "Function `#{inspect(name)}` must be aliased."}
-        {:halt, error}
+  defp do_check([%Entity.EntityData{} = entity_data | rest], query, _) do
+    case Map.fetch(query.identifiers, Atom.to_string(entity_data.entity_identifier)) do
+      {:ok, entity} ->
+        result = Helper.check_property(entity.queryable, entity_data.property, nil, false)
+        do_check(rest, query, result)
 
-      _, _ ->
-        {:cont, :ok}
-    end)
+      :error ->
+        message =
+          "Return entity with identifier `#{inspect(entity_data.entity_identifier)}` has not been matched"
+
+        {:error, message}
+    end
+  end
+
+  defp do_check([%Entity.Function{alias: nil, name: name} | _], _, _) do
+    {:error, "Function `#{inspect(name)}` must be aliased."}
+  end
+
+  defp do_check([%Entity.Value{alias: nil, bound_name: bound_name} | _], query, _) do
+    value = Keyword.fetch!(query.params, String.to_atom(bound_name))
+    {:error, "Bare value `#{inspect(value)}` must be aliased."}
+  end
+
+  defp do_check([_ | rest], query, result) do
+    do_check(rest, query, result)
   end
 
   @impl true
   @spec prepare(Return.t(), Seraph.Query.t(), Keyword.t()) :: Return.t()
-  def prepare(%Return{raw_data: raw_variables, variables: nil} = return, query, opts) do
+  def prepare(%Return{raw_variables: raw_variables, variables: nil} = return, query, opts) do
     variables =
       raw_variables
       |> build_variables()
@@ -310,9 +220,12 @@ defmodule Seraph.Query.Builder.Return do
       end)
       |> manage_relationship_results(Keyword.get(opts, :relationship_result))
 
-    return
-    |> Map.put(:raw_data, nil)
-    |> Map.put(:variables, variables)
+    new_return =
+      return
+      |> Map.put(:raw_variables, nil)
+      |> Map.put(:variables, variables)
+
+    %{return: new_return}
   end
 
   def build_variables(raw_variables) do
@@ -320,12 +233,12 @@ defmodule Seraph.Query.Builder.Return do
       %{alias: data_alias} = data, vars when not is_nil(data_alias) ->
         Map.put(vars, Atom.to_string(data_alias), data)
 
-      %EntityData{entity_identifier: entity_identifier, property: property} = data, vars
+      %Entity.EntityData{entity_identifier: entity_identifier, property: property} = data, vars
       when not is_nil(property) ->
         key = Atom.to_string(entity_identifier) <> "." <> Atom.to_string(property)
         Map.put(vars, key, data)
 
-      %EntityData{entity_identifier: entity_identifier} = data, vars ->
+      %Entity.EntityData{entity_identifier: entity_identifier} = data, vars ->
         Map.put(vars, Atom.to_string(entity_identifier), data)
     end)
   end
@@ -334,10 +247,10 @@ defmodule Seraph.Query.Builder.Return do
           Entity.Node.t()
           | Entity.Relationship.t()
           | Entity.Property.t()
-          | Return.Data.t()
-          | Return.Function.t()
+          | Entity.Value.t()
+          | Entity.Function.t()
   defp replace_return_variable(
-         %Return.EntityData{entity_identifier: entity_identifier, property: property} = data,
+         %Entity.EntityData{entity_identifier: entity_identifier, property: property} = data,
          query
        )
        when not is_nil(property) do
@@ -352,30 +265,30 @@ defmodule Seraph.Query.Builder.Return do
   end
 
   defp replace_return_variable(
-         %Return.EntityData{entity_identifier: entity_identifier} = data,
+         %Entity.EntityData{entity_identifier: entity_identifier} = data,
          query
        ) do
     Map.fetch!(query.identifiers, Atom.to_string(entity_identifier))
     |> Map.put(:alias, data.alias)
   end
 
-  defp replace_return_variable(%Return.Function{args: args} = data, query) do
+  defp replace_return_variable(%Entity.Function{args: args} = data, query) do
     replaced_args = Enum.map(args, &replace_return_variable(&1, query))
 
     %{data | args: replaced_args}
   end
 
-  defp replace_return_variable(%Return.Data{} = data, _) do
+  defp replace_return_variable(%Entity.Value{} = data, _) do
     data
   end
 
   @spec manage_relationship_results(
           %{
-            String.t() => Entity.t() | Return.Data.t() | Return.Function.t()
+            String.t() => Entity.t() | Entity.Value.t() | Entity.Function.t()
           },
           :full | atom
         ) :: %{
-          String.t() => Entity.t() | Return.Data.t() | Return.Function.t()
+          String.t() => Entity.t() | Entity.Value.t() | Entity.Function.t()
         }
   defp manage_relationship_results(variables, :full) do
     Enum.reduce(variables, %{}, fn
@@ -414,7 +327,7 @@ defmodule Seraph.Query.Builder.Return do
 
         func_name = Atom.to_string(node_type) <> "_node"
 
-        new_return_data = %Return.Function{
+        new_return_data = %Entity.Function{
           alias: new_node_alias,
           name: String.to_atom(func_name),
           args: [

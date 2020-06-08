@@ -167,15 +167,28 @@ defmodule Seraph.Query.Builder.Where do
   end
 
   @impl true
-  @spec check(Seraph.Query.Builder.Condition.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
-  def check(%Condition{entity_identifier: nil, conditions: inner_conditions}, query)
+  @spec check(
+          Seraph.Query.Builder.Condition.t() | [Seraph.Query.Builder.Condition.t()],
+          Seraph.Query.t()
+        ) :: :ok | {:error, String.t()}
+  def check(condition, query, result \\ :ok)
+
+  def check([], _, result) do
+    result
+  end
+
+  def check(_, _, {:error, _} = error) do
+    error
+  end
+
+  def check([condition, rest], query, :ok) do
+    result = check(condition, query)
+    check(rest, query, result)
+  end
+
+  def check(%Condition{entity_identifier: nil, conditions: inner_conditions}, query, :ok)
       when is_list(inner_conditions) do
-    Enum.reduce_while(inner_conditions, :ok, fn inner_condition, _ ->
-      case check(inner_condition, query) do
-        :ok -> {:cont, :ok}
-        error -> {:halt, error}
-      end
-    end)
+    check(inner_conditions, query)
   end
 
   def check(
@@ -184,7 +197,8 @@ defmodule Seraph.Query.Builder.Where do
           variable: variable,
           bound_name: bound_name
         },
-        query
+        query,
+        :ok
       ) do
     case Map.fetch(query.identifiers, entity_identifier) do
       {:ok, entity} ->

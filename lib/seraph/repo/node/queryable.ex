@@ -7,7 +7,7 @@ defmodule Seraph.Repo.Node.Queryable do
     properties = Enum.into(properties, %{})
 
     %{entity: node, params: query_params} =
-      Builder.Entity.Node.from_queryable(queryable, properties)
+      Builder.Entity.Node.from_queryable(queryable, properties, "match__")
 
     {_, func_atom, _, _} =
       Process.info(self(), :current_stacktrace)
@@ -23,8 +23,8 @@ defmodule Seraph.Repo.Node.Queryable do
           entities: [node]
         },
         return: %Builder.Return{
-          raw_data: [
-            %Builder.Return.EntityData{
+          raw_variables: [
+            %Builder.Entity.EntityData{
               entity_identifier: :n
             }
           ]

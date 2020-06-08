@@ -65,9 +65,21 @@ defmodule Seraph.ExploreTest do
   end
 
   test "2" do
-    query =
-      match([[{User}, [rel], {Post}]])
-      |> prepare([])
+    ln = "Burton"
+
+    # query =
+    #   match([[{u, User}, [rel], {Post}]])
+    #   |> set([
+    #     u.uuid = 5,
+    #     u.firstName = "Jack",
+    #     u.lastName = ^ln,
+    #     {u, NewLabel},
+    #     # {u, nil},
+    #     {u, [Buyer, Recurrent]},
+    #     u.viewCount = u.viewCount + 1
+    #   ])
+    #   |> prepare([])
+    #   |> IO.inspect()
 
     # |> IO.inspect()
 
@@ -79,5 +91,22 @@ defmodule Seraph.ExploreTest do
 
     # prepare(query, [])
     # |> IO.inspect()
+  end
+
+  test "match + create" do
+    # match([{User, %{firstName: "John"}}])
+    # |> create([{User, %{firstName: "Dave"}}])
+    # query =
+    #   match([{u, User, %{firstName: "John"}}])
+    #   |> create([[{u}, [rel, Wrote], {p, Post}]])
+    #   # create([{User, %{firstName: "Dave"}}])
+    #   |> set([p.uuid = "Wow post"])
+    #   |> prepare([])
+    #   |> IO.inspect()
+  end
+
+  test "merge" do
+    merge({u})
+    |> IO.inspect()
   end
 end

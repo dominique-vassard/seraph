@@ -4,7 +4,7 @@ defmodule Seraph.QueryTest do
   import Seraph.Query
   alias Seraph.Query.Builder
 
-  alias Seraph.Test.{Post, User}
+  alias Seraph.Test.{MergeKeys, Post, User}
   alias Seraph.Test.UserToPost.Wrote
 
   describe "match node" do
@@ -83,7 +83,7 @@ defmodule Seraph.QueryTest do
         properties: [
           %Seraph.Query.Builder.Entity.Property{
             alias: nil,
-            bound_name: "prop__uuid_0",
+            bound_name: "match__prop__uuid_0",
             entity_identifier: nil,
             entity_queryable: Seraph.Test.User,
             name: :uuid,
@@ -97,7 +97,7 @@ defmodule Seraph.QueryTest do
       assert %{} = query.identifiers
       assert map_size(query.identifiers) == 0
       assert %Builder.Match{entities: [^node_data]} = query.operations[:match]
-      assert [prop__uuid_0: "uuid-for-query"] == query.params
+      assert [match__prop__uuid_0: "uuid-for-query"] == query.params
     end
 
     test "ok: {u, %{uuid: \"uuid-for-query\"}}" do
@@ -821,7 +821,7 @@ defmodule Seraph.QueryTest do
         properties: [
           %Seraph.Query.Builder.Entity.Property{
             alias: nil,
-            bound_name: "prop__count_0",
+            bound_name: "match__prop__count_0",
             entity_identifier: nil,
             entity_queryable: Seraph.Relationship,
             name: :count,
@@ -842,7 +842,7 @@ defmodule Seraph.QueryTest do
 
       assert %{} == query.identifiers
       assert %Builder.Match{entities: [^rel_data]} = query.operations[:match]
-      assert [prop__count_0: 5] == query.params
+      assert [match__prop__count_0: 5] == query.params
     end
 
     test "fail: empty rel [{}, [], {}]" do
@@ -1038,7 +1038,7 @@ defmodule Seraph.QueryTest do
 
       return = %Seraph.Query.Builder.Return{
         distinct?: false,
-        raw_data: nil,
+        raw_variables: nil,
         variables: %{
           "u" => %Seraph.Query.Builder.Entity.Node{
             alias: nil,
@@ -1062,7 +1062,7 @@ defmodule Seraph.QueryTest do
 
       return = %Seraph.Query.Builder.Return{
         distinct?: false,
-        raw_data: nil,
+        raw_variables: nil,
         variables: %{
           "u.uuid" => %Seraph.Query.Builder.Entity.Property{
             alias: nil,
@@ -1088,7 +1088,7 @@ defmodule Seraph.QueryTest do
 
       return = %Seraph.Query.Builder.Return{
         distinct?: false,
-        raw_data: nil,
+        raw_variables: nil,
         variables: %{
           "res_node" => %Seraph.Query.Builder.Entity.Node{
             alias: :res_node,
@@ -1121,9 +1121,9 @@ defmodule Seraph.QueryTest do
 
       return = %Seraph.Query.Builder.Return{
         distinct?: false,
-        raw_data: nil,
+        raw_variables: nil,
         variables: %{
-          "firstNames" => %Seraph.Query.Builder.Return.Function{
+          "firstNames" => %Seraph.Query.Builder.Entity.Function{
             alias: :firstNames,
             args: [
               %Seraph.Query.Builder.Entity.Property{
@@ -1145,6 +1145,44 @@ defmodule Seraph.QueryTest do
       assert [] == query.params
     end
 
+    test "ok: function in function" do
+      query =
+        match([{u, User}])
+        |> return(firstNames: size(collect(u.firstName)))
+        |> prepare([])
+
+      return = %Seraph.Query.Builder.Return{
+        distinct?: false,
+        raw_variables: nil,
+        variables: %{
+          "firstNames" => %Seraph.Query.Builder.Entity.Function{
+            alias: :firstNames,
+            args: [
+              %Seraph.Query.Builder.Entity.Function{
+                alias: nil,
+                args: [
+                  %Seraph.Query.Builder.Entity.Property{
+                    alias: nil,
+                    bound_name: nil,
+                    entity_identifier: "u",
+                    entity_queryable: Seraph.Test.User,
+                    name: :firstName,
+                    type: nil,
+                    value: nil
+                  }
+                ],
+                name: :collect
+              }
+            ],
+            name: :size
+          }
+        }
+      }
+
+      assert return == query.operations[:return]
+      assert [] == query.params
+    end
+
     test "ok: value" do
       query =
         match([{u, User}])
@@ -1153,9 +1191,9 @@ defmodule Seraph.QueryTest do
 
       return = %Seraph.Query.Builder.Return{
         distinct?: false,
-        raw_data: nil,
+        raw_variables: nil,
         variables: %{
-          "num" => %Seraph.Query.Builder.Return.Data{
+          "num" => %Seraph.Query.Builder.Entity.Value{
             alias: :num,
             bound_name: "return__0",
             value: nil
@@ -1166,6 +1204,84 @@ defmodule Seraph.QueryTest do
       assert return == query.operations[:return]
       assert [return__0: 1] == query.params
     end
+
+    test "raise: aliases inner function" do
+      assert_raise ArgumentError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          match([{u, User}])
+          |> return(firstNames: size(invalid_alias: collect(u.firstName)))
+          |> prepare([])
+        end
+      end
+    end
+  end
+
+  describe "create" do
+    test "ok: create one node" do
+      query = create([{User, %{firstName: "Aron"}}])
+
+      node_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: nil,
+        labels: ["User"],
+        properties: [
+          %Seraph.Query.Builder.Entity.Property{
+            alias: nil,
+            bound_name: "create__prop__firstName_0",
+            entity_identifier: nil,
+            entity_queryable: Seraph.Test.User,
+            name: :firstName,
+            type: nil,
+            value: nil
+          }
+        ],
+        queryable: Seraph.Test.User
+      }
+
+      assert %{} == query.identifiers
+      assert %Builder.Create{raw_entities: [^node_data]} = query.operations[:create]
+      assert [create__prop__firstName_0: "Aron"] == query.params
+    end
+
+    test "ok: create one relationship" do
+      query = create([[{u}, [rel, Wrote], {v}]])
+
+      start_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: "u",
+        labels: [],
+        properties: [],
+        queryable: Seraph.Node
+      }
+
+      end_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: "v",
+        labels: [],
+        properties: [],
+        queryable: Seraph.Node
+      }
+
+      rel_data = %Seraph.Query.Builder.Entity.Relationship{
+        alias: nil,
+        end: end_data,
+        identifier: "rel",
+        properties: [],
+        queryable: Seraph.Test.UserToPost.Wrote,
+        start: start_data,
+        type: "WROTE"
+      }
+
+      assert %{"rel" => ^rel_data, "u" => ^start_data, "v" => ^end_data} = query.identifiers
+      assert map_size(query.identifiers) == 3
+      assert %Builder.Create{raw_entities: [^rel_data]} = query.operations[:create]
+      assert [] == query.params
+    end
+  end
+
+  describe "set" do
   end
 
   describe "prepare/2" do
@@ -1243,6 +1359,100 @@ defmodule Seraph.QueryTest do
       end
     end
 
+    test "create node fail: invalid property" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          create([{u, User, %{firstName: "ok", invalid: 5}}])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "create node fail: invalid property type" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          create([{u, User, %{uuid: :invalid}}])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "merge node fail: invalid property" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          merge({u, User, %{firstName: "ok", invalid: 5}})
+          |> prepare([])
+        end
+      end
+    end
+
+    test "merge node fail: invalid property type" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          merge({u, User, %{uuid: :invalid}})
+          |> prepare([])
+        end
+      end
+    end
+
+    test "set raise: unknown identifier" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> set([p.uuid = 5])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "set raise: invalid property" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> set([u.unknown = 5])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "set raise: invalid property type" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> set([u.uuid = 5])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "set raise: unknown identifierin function" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> set([u.uuid = p.uuid + 2])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "set raise: invalid property in function" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> set([u.uuid = u.unknwon + 4])
+          |> prepare([])
+        end
+      end
+    end
+
     test "return raise: unknown identifier" do
       assert_raise Seraph.QueryError, fn ->
         defmodule Willfail do
@@ -1279,6 +1489,201 @@ defmodule Seraph.QueryTest do
           match([{u, User}])
           |> return([collect(u.firstName)])
           |> prepare([])
+        end
+      end
+    end
+
+    test "match then create: ok with replaced identifiers" do
+      query =
+        match([{u, User, %{firstName: "John"}}])
+        |> create([[{u}, [rel, Wrote], {p, Post, %{uuid: "new-uuid"}}]])
+        |> prepare([])
+
+      start_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: "u",
+        labels: ["User"],
+        properties: [
+          %Seraph.Query.Builder.Entity.Property{
+            alias: nil,
+            bound_name: "u_firstName_0",
+            entity_identifier: "u",
+            entity_queryable: Seraph.Test.User,
+            name: :firstName,
+            type: nil,
+            value: nil
+          }
+        ],
+        queryable: Seraph.Test.User
+      }
+
+      end_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: "p",
+        labels: ["Post"],
+        properties: [
+          %Seraph.Query.Builder.Entity.Property{
+            alias: nil,
+            bound_name: "p_uuid_0",
+            entity_identifier: "p",
+            entity_queryable: Seraph.Test.Post,
+            name: :uuid,
+            type: nil,
+            value: nil
+          }
+        ],
+        queryable: Seraph.Test.Post
+      }
+
+      rel_data = %Seraph.Query.Builder.Entity.Relationship{
+        alias: nil,
+        end: end_data,
+        identifier: "rel",
+        properties: [],
+        queryable: Seraph.Test.UserToPost.Wrote,
+        start: start_data,
+        type: "WROTE"
+      }
+
+      assert %{"rel" => ^rel_data, "u" => ^start_data, "p" => ^end_data} = query.identifiers
+      assert map_size(query.identifiers) == 3
+      assert %Builder.Create{entities: [^rel_data]} = query.operations[:create]
+      assert [u_firstName_0: "John", p_uuid_0: "new-uuid"] == query.params
+    end
+
+    test "post_check: fails when identifier is not set at creation (match + create / create)" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          match([{u, User, %{firstName: "John"}}])
+          |> create([[{u}, [rel, Wrote], {p, Post}]])
+          |> set([p.title = "Wow post"])
+          |> prepare([])
+        end
+      end
+
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          create([{u, User}])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "post_check: fails when identifier is changed at merge (match + set)" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          match([{u, User, %{firstName: "John"}}])
+          |> set([u.uuid = "invalid"])
+          |> prepare([])
+        end
+      end
+    end
+
+    test "post_check: fails when merge_keys is changed at merge (merge)" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail1 do
+          import Seraph.Query
+
+          match([{mk, MergeKeys, %{uuid: "uuid-1"}}])
+          |> set([mk.mkField1 = "not allowed"])
+          |> prepare([])
+        end
+      end
+
+      # assert_raise Seraph.QueryError, fn ->
+      #   defmodule WillFail2 do
+      #     import Seraph.Query
+
+      #     merge({mk, MergeKeys, %{uuid: "uuid-1"}})
+      #     |> set([mk.mkField1 = "not allowed"])
+      #     |> prepare([])
+      #   end
+      # end
+
+      assert_raise Seraph.QueryError, fn ->
+        defmodule WillFail3 do
+          import Seraph.Query
+
+          merge({mk, MergeKeys, %{uuid: "uuid-1"}})
+          |> on_match_set([mk.mkField1 = "not allowed"])
+          |> prepare([])
+        end
+      end
+    end
+  end
+
+  describe "operations order" do
+    test "ok: match as entry point" do
+      assert %Seraph.Query{} = match([{u}])
+    end
+
+    test "ok: match as follow-up operation" do
+      assert %Seraph.Query{} =
+               create([[{u, User}, [Wrote], {p, Post}]])
+               |> match([{u}])
+    end
+
+    test "ok: create as entry point" do
+      assert %Seraph.Query{} = create([[{u, User}, [Wrote], {p, Post}]])
+    end
+
+    test "ok: create as follow-up operation" do
+      assert %Seraph.Query{} =
+               match([{u, User}])
+               |> create([[{u}, [Wrote], {p, Post}]])
+    end
+
+    test "ok: where as follow-up operation" do
+      assert %Seraph.Query{} =
+               match([{u}])
+               |> where(u.uuid == "uuid-3")
+    end
+
+    test "ok: return as follow-up operation" do
+      assert %Seraph.Query{} =
+               match([{u}])
+               |> where(u.uuid == "uuid-3")
+               |> return([u])
+    end
+
+    test "ok: set as follow-up operation" do
+      assert %Seraph.Query{} =
+               create([[{u}, [Wrote], {p, Post}]])
+               |> set([u.firstName = "Hello"])
+    end
+
+    test "fail: where as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule WillFail do
+          import Seraph.Query
+
+          where(u.uuid == "uuid-3")
+        end
+      end
+    end
+
+    test "fail: return as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          return([u])
+        end
+      end
+    end
+
+    test "fail: set as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          set([u.firstName = "John"])
         end
       end
     end
