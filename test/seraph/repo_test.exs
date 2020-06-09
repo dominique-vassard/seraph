@@ -13,14 +13,123 @@ defmodule Seraph.RepoTest do
     Storage.add_fixtures(TestRepo)
   end
 
-  # describe "query/3" do
-  #   test "ok"
-  #   test "no result"
-  #   test "db error"
-  #   test "raise when used with!"
-  # end
+  describe "raw_query/3" do
+    test "ok" do
+      assert {:ok, [%{"num" => 5}]} == TestRepo.raw_query("RETURN $n AS num", %{n: 5})
+    end
+
+    test "no result" do
+      assert {:ok, []} == TestRepo.raw_query("MATCH (x:NonExistent) RETURN x")
+    end
+
+    test "db error" do
+      assert {:error, %Bolt.Sips.Error{}} = TestRepo.raw_query("INVALID CQL")
+    end
+
+    test "with stats" do
+      assert {:ok,
+              %{
+                results: [%{"t" => %Bolt.Sips.Types.Node{}}],
+                stats: %{"labels-added" => 1, "nodes-created" => 1}
+              }} = TestRepo.raw_query("CREATE (t:Test) RETURN t", %{}, with_stats: true)
+    end
+
+    test "raise when used with!" do
+      assert_raise Bolt.Sips.Exception, fn ->
+        TestRepo.raw_query!("INVALID CQL")
+      end
+    end
+  end
+
+  describe "query/3 with Seraph.Query" do
+    test "ok", %{uuids: uuids} do
+      user_uuid = uuids.user1
+
+      assert {:ok,
+              [
+                %{
+                  "u" => %Seraph.Test.User{
+                    additionalLabels: [],
+                    firstName: "John",
+                    lastName: "Doe",
+                    viewCount: 0
+                  }
+                }
+              ]} =
+               match([{u, User, %{uuid: ^user_uuid}}])
+               |> return([u])
+               |> TestRepo.query()
+    end
+
+    test "no result" do
+      assert {:ok, []} ==
+               match([{u, User, %{uuid: "inexistent"}}])
+               |> return([u])
+               |> TestRepo.query()
+    end
+
+    test "db error", %{uuids: uuids} do
+      user_uuid = uuids.user1
+
+      assert {:error, %Seraph.QueryError{}} =
+               match([{u, User, %{uuid: ^user_uuid}}])
+               |> TestRepo.query()
+    end
+
+    test "with stats" do
+      assert {:ok,
+              %{
+                results: [
+                  %{
+                    "u" => %Seraph.Test.User{
+                      additionalLabels: [],
+                      firstName: nil,
+                      lastName: nil,
+                      uuid: "new_uuid",
+                      viewCount: 1
+                    }
+                  }
+                ],
+                stats: %{"labels-added" => 1, "nodes-created" => 1, "properties-set" => 1}
+              }} =
+               create([{u, User, %{uuid: "new_uuid"}}])
+               |> return([u])
+               |> TestRepo.query(with_stats: true)
+    end
+
+    test "raise when used with !", %{uuids: uuids} do
+      user_uuid = uuids.user1
+
+      assert_raise Seraph.QueryError, fn ->
+        assert [] ==
+                 match([{u, User, %{uuid: ^user_uuid}}])
+                 |> TestRepo.query!()
+      end
+    end
+  end
 
   describe "all/2 with query" do
+    test "ok: with stats" do
+      query =
+        create [{u, User, %{uuid: "new-user"}}],
+          return: u
+
+      assert %{
+               results: [
+                 %{
+                   "u" => %Seraph.Test.User{
+                     additionalLabels: [],
+                     firstName: nil,
+                     lastName: nil,
+                     uuid: "new-user",
+                     viewCount: 1
+                   }
+                 }
+               ],
+               stats: %{"labels-added" => 1, "nodes-created" => 1, "properties-set" => 1}
+             } = TestRepo.all(query, with_stats: true)
+    end
+
     # ##############################################NODE
     test "ok: no result returns []" do
       query =
@@ -947,15 +1056,23 @@ defmodule Seraph.RepoTest do
         assert [] = TestRepo.one(query)
       end
     end
-  end
 
-  describe "creation" do
-    test "simple node" do
-      query =
-        create [{u, User, %{uuid: "new-uuid", firstName: "Roger"}}],
-          return: [u]
-
-      TestRepo.all(query)
+    test "ok: with stats" do
+      assert %{
+               results: %{
+                 "u" => %Seraph.Test.User{
+                   additionalLabels: [],
+                   firstName: nil,
+                   lastName: nil,
+                   uuid: "new_uuid",
+                   viewCount: 1
+                 }
+               },
+               stats: %{"labels-added" => 1, "nodes-created" => 1, "properties-set" => 1}
+             } =
+               create([{u, User, %{uuid: "new_uuid"}}])
+               |> return([u])
+               |> TestRepo.one(with_stats: true)
     end
   end
 end

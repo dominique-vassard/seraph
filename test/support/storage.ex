@@ -1,6 +1,6 @@
 defmodule Seraph.Support.Storage do
   def clear(repo) do
-    repo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
+    repo.raw_query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
 
     # [
     #   Seraph.Cypher.Node.list_all_constraints(""),
@@ -12,7 +12,7 @@ defmodule Seraph.Support.Storage do
     # end)
     # |> List.flatten()
     # |> Enum.map(&Seraph.Cypher.Node.drop_constraint_index_from_cql/1)
-    # |> Enum.map(&repo.query/1)
+    # |> Enum.map(&repo.raw_query/1)
   end
 
   def add_fixtures(repo) do
@@ -83,7 +83,7 @@ defmodule Seraph.Support.Storage do
       comment8: UUID.uuid4()
     }
 
-    repo.query!(cql, params)
+    repo.raw_query!(cql, params)
     [uuids: params]
   end
 end

@@ -20,7 +20,7 @@ defmodule Seraph.Repo do
 
       @module __MODULE__
       @relationship_result :contextual
-      @default_opts [relationship_result: @relationship_result]
+      @default_opts [relationship_result: @relationship_result, with_stats: false]
 
       @doc false
       def child_spec(opts) do
@@ -53,7 +53,7 @@ defmodule Seraph.Repo do
       ## Example
 
           # Without params
-          iex> MyRepo.query("CREATE (p:Person {name: 'Collin Chou', role: 'Seraph'}) RETURN p")
+          iex> MyRepo.raw_query("CREATE (p:Person {name: 'Collin Chou', role: 'Seraph'}) RETURN p")
           {:ok,
           [
             %{
@@ -66,35 +66,67 @@ defmodule Seraph.Repo do
           ]}
 
           # With params
-          iex(15)> MyRepo.query("MATCH (p:Person {name: $name}) RETURN p.role", %{name: "Collin Chou"})
+          iex(15)> MyRepo.raw_query("MATCH (p:Person {name: $name}) RETURN p.role", %{name: "Collin Chou"})
           {:ok, [%{"p.role" => "Seraph"}]}
 
           # With :with_stats option
           iex(16)> MyRepo.query("MATCH (p:Person {name: $name}) DETACH DELETE p", %{name: "Collin Chou"}, with_stats: true)
           {:ok, %{results: [], stats: %{"nodes-deleted" => 1}}}
       """
-      @spec query(String.t(), map, Keyword.t()) ::
+      @spec raw_query(String.t(), map, Keyword.t()) ::
               {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
-      def query(statement, params \\ %{}, opts \\ []) do
+
+      def raw_query(statement, params \\ %{}, opts \\ []) do
         Seraph.Query.Planner.query(__MODULE__, statement, params, opts)
       end
 
       @doc """
-      Same as `query/3` but raise i ncase of error.
+      Same as `raw_query/3` but raise in case of error.
       """
-      @spec query!(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
-      def query!(statement, params \\ %{}, opts \\ []) do
+      @spec raw_query!(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
+      def raw_query!(statement, params \\ %{}, opts \\ []) do
         Seraph.Query.Planner.query!(__MODULE__, statement, params, opts)
       end
 
-      @doc false
-      def raw_query(statement, params \\ %{}, opts \\ []) do
-        Seraph.Query.Planner.raw_query(__MODULE__, statement, params, opts)
+      @spec query(Seraph.Query.t(), Keyword.t()) ::
+              {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
+      def query(%Seraph.Query{} = query, opts \\ []) do
+        query = Seraph.Query.prepare(query, opts)
+
+        statement =
+          query.operations
+          |> Enum.map(fn {_op, operation_data} ->
+            Seraph.Query.Cypher.encode(operation_data)
+          end)
+          |> Enum.join("\n")
+
+        case Seraph.Query.Planner.query(__MODULE__, statement, Enum.into(query.params, %{}), opts) do
+          {:ok, raw_results} ->
+            result =
+              if Keyword.get(opts, :with_stats) do
+                %{
+                  results: format_results(raw_results.results, query, opts),
+                  stats: raw_results.stats
+                }
+              else
+                format_results(raw_results, query, opts)
+              end
+
+            {:ok, result}
+
+          {:error, %Bolt.Sips.Error{} = error} ->
+            message = "#{error.code}: #{error.message}"
+            error = Seraph.QueryError.exception(message: message, query: query.literal)
+            {:error, error}
+        end
       end
 
-      @doc false
-      def raw_query!(statement, params \\ %{}, opts \\ []) do
-        Seraph.Query.Planner.raw_query!(__MODULE__, statement, params, opts)
+      @spec query!(Seraph.Query.t(), Keyword.t()) :: {:ok, [map] | %{results: [map], stats: map}}
+      def query!(%Seraph.Query{} = query, opts \\ []) do
+        case query(query, opts) do
+          {:ok, result} -> result
+          {:error, error} -> raise error
+        end
       end
 
       def one(query, opts \\ []) do
@@ -102,8 +134,19 @@ defmodule Seraph.Repo do
       end
 
       defp do_one(query, opts) do
-        results = do_all(query, opts)
+        raw_results = do_all(query, opts)
 
+        if Keyword.get(opts, :with_stats) do
+          %{
+            results: format_one_result(raw_results.results, query),
+            stats: raw_results.stats
+          }
+        else
+          format_one_result(raw_results, query)
+        end
+      end
+
+      defp format_one_result(results, query) do
         case length(results) do
           0 -> nil
           1 -> List.first(results)
@@ -129,8 +172,17 @@ defmodule Seraph.Repo do
           end)
           |> Enum.join("\n")
 
-        Seraph.Query.Planner.query!(__MODULE__, statement, Enum.into(query.params, %{}))
-        |> format_results(query, opts)
+        raw_results =
+          Seraph.Query.Planner.query!(__MODULE__, statement, Enum.into(query.params, %{}), opts)
+
+        if Keyword.get(opts, :with_stats) do
+          %{
+            results: format_results(raw_results.results, query, opts),
+            stats: raw_results.stats
+          }
+        else
+          format_results(raw_results, query, opts)
+        end
       end
 
       defp format_results(results, query, opts, formated \\ [])
@@ -212,6 +264,14 @@ defmodule Seraph.Repo do
         else
           {:error,
            "Invalid value for options :relationshp_result. Valid values: #{inspect(valid_values)}."}
+        end
+      end
+
+      defp manage_opts([{:with_stats, with_stats} | t], final_opts) do
+        if is_boolean(with_stats) do
+          Keyword.put(final_opts, :with_stats, with_stats)
+        else
+          {:error, "Invalid value for option :with_stats. It should be a boolean."}
         end
       end
 

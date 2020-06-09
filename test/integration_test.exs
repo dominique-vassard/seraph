@@ -46,7 +46,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Ben", last_name: "New"}
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "create relationship - direct" do
@@ -92,7 +92,7 @@ defmodule Seraph.IntegrationTest do
       title: "New Post"
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "create/set node " do
@@ -121,7 +121,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Ben", last_name: "New"}
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "match/create/set relationship" do
@@ -169,7 +169,7 @@ defmodule Seraph.IntegrationTest do
       title: "New Post"
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "match/set relationship", %{uuids: uuids} do
@@ -208,7 +208,7 @@ defmodule Seraph.IntegrationTest do
       post_uuid: post_uuid
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "match/set with value", %{uuids: uuids} do
@@ -231,7 +231,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Updated"}
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   test "match/set with function", %{uuids: uuids} do
@@ -254,7 +254,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{user_uuid: user_uuid, view_count: 5}
-    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
   describe "merge on create / on merge" do
@@ -275,7 +275,7 @@ defmodule Seraph.IntegrationTest do
       """
 
       params = %{user_uuid: uuid, first_name: "New User"}
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
     end
 
     test "node creation" do
@@ -296,7 +296,7 @@ defmodule Seraph.IntegrationTest do
       """
 
       params = %{user_uuid: uuid, first_name: "New User"}
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
     end
 
     test "node update", %{uuids: uuids} do
@@ -330,7 +330,7 @@ defmodule Seraph.IntegrationTest do
                    properties: %{"firstName" => "Updated", "lastName" => "Doe", "viewCount" => 0}
                  }
                }
-             ] = TestRepo.query!(cql_check, params)
+             ] = TestRepo.raw_query!(cql_check, params)
     end
 
     test "relationship creation", %{uuids: uuids} do
@@ -369,7 +369,7 @@ defmodule Seraph.IntegrationTest do
         post_uuid: post_uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
     end
 
     test "relationship update", %{uuids: uuids} do
@@ -410,7 +410,7 @@ defmodule Seraph.IntegrationTest do
         date: date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
     end
   end
 end

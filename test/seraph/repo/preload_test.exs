@@ -454,7 +454,7 @@ defmodule Seraph.Repo.PreloadTest do
       p.title = "Updated"
     """
 
-    TestRepo.query!(cql, %{uuid: uuids.post1})
+    TestRepo.raw_query!(cql, %{uuid: uuids.post1})
 
     %User{read_posts: [not_forced_read_posts]} = TestRepo.Node.preload(user, :read)
 
@@ -471,7 +471,7 @@ defmodule Seraph.Repo.PreloadTest do
       p.title = "post1"
     """
 
-    TestRepo.query!(cql, %{uuid: uuids.post1})
+    TestRepo.raw_query!(cql, %{uuid: uuids.post1})
   end
 
   test "raise with invalid_opts", %{uuids: uuids} do

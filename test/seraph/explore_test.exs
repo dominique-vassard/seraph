@@ -18,7 +18,7 @@ defmodule Seraph.ExploreTest do
     # rel, startNode(rel) AS u, endNode(rel) AS p
     # """
 
-    # TestRepo.query!(cql)
+    # TestRepo.raw_query!(cql)
     # |> IO.inspect()
 
     uuid = "uuid-4"
@@ -45,7 +45,7 @@ defmodule Seraph.ExploreTest do
     # queryable = Seraph.Test.User
 
     # res =
-    #   TestRepo.query!("MATCH (n:User) RETURN n.uuid AS uuid LIMIT 1")
+    #   TestRepo.raw_query!("MATCH (n:User) RETURN n.uuid AS uuid LIMIT 1")
     #   |> List.first()
     #   |> IO.inspect()
 
@@ -107,6 +107,11 @@ defmodule Seraph.ExploreTest do
 
   test "merge" do
     merge({u})
+    |> IO.inspect()
+  end
+
+  test "wanted" do
+    TestRepo.raw_query("PROFILE MATCH (n:User {firstName: 'John'}) RETURN n")
     |> IO.inspect()
   end
 end
