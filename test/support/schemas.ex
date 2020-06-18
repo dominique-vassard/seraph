@@ -117,7 +117,7 @@ defmodule Seraph.Test.MergeKeys do
 
   @merge_keys [:mkField1, :mkField2]
 
-  node "MegeKeys" do
+  node "MergeKeys" do
     property :mkField1, :string
     property :mkField2, :string
   end

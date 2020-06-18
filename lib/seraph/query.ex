@@ -144,6 +144,10 @@ defmodule Seraph.Query do
     build_set(query, expr, __CALLER__)
   end
 
+  defmacro remove(query, expr) do
+    build_remove(query, expr, __CALLER__)
+  end
+
   defmacro on_create_set(query, expr) do
     build_on_create_set(query, expr, __CALLER__)
   end
@@ -365,6 +369,26 @@ defmodule Seraph.Query do
         | operations: query.operations ++ [set: set],
           literal: query.literal ++ ["set: \n\t" <> literal],
           params: Keyword.merge(query.params, params)
+      }
+    end
+  end
+
+  def build_remove(query, expr, env) do
+    remove =
+      Seraph.Query.Builder.Remove.build(expr, env)
+      |> Macro.escape()
+
+    literal =
+      expr
+      |> Enum.map(&Macro.to_string/1)
+      |> Enum.join(", \n\t")
+      |> String.replace("()", "")
+
+    quote bind_quoted: [query: query, remove: remove, literal: literal] do
+      %{
+        query
+        | operations: query.operations ++ [remove: remove],
+          literal: query.literal ++ ["remove: \n\t" <> literal]
       }
     end
   end
@@ -616,19 +640,23 @@ defmodule Seraph.Query do
   end
 
   defp do_check_id_field(change) do
-    id_field = Seraph.Repo.Helper.identifier_field(change.queryable)
+    case change.queryable.__schema__(:identifier) do
+      {id_field, _, _} ->
+        case id_field in change.changed_properties do
+          true ->
+            :ok
 
-    case id_field in change.changed_properties do
-      true ->
-        :ok
+          false ->
+            message =
+              "[CREATE / MERGE] Identifier field `#{id_field}` must be set on Node `#{
+                change.identifier
+              }` for `#{change.queryable}`"
+
+            {:error, message}
+        end
 
       false ->
-        message =
-          "[CREATE / MERGE] Identifier field `#{id_field}` must be set on Node `#{
-            change.identifier
-          }` for `#{change.queryable}`"
-
-        {:error, message}
+        :ok
     end
   end
 

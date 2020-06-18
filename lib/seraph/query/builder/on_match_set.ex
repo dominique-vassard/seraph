@@ -41,7 +41,9 @@ defmodule Seraph.Query.Builder.OnMatchSet do
         |> struct!(Map.from_struct(data))
         |> Seraph.Query.Cypher.encode(opts)
 
-      "ON MATCH #{str}"
+      if not is_nil(str) and String.length(str) > 0 do
+        "ON MATCH #{str}"
+      end
     end
   end
 end

@@ -127,7 +127,7 @@ defmodule Seraph.Repo.Helper do
     * `:on_match`
   """
   @spec create_match_merge_opts(Keyword.t(), Keyword.t()) :: Keyword.t() | {:error, String.t()}
-  def create_match_merge_opts(opts, final_opts \\ [])
+  def create_match_merge_opts(opts, final_opts \\ [no_data: false])
 
   def create_match_merge_opts([{:on_create, {data, changeset_fn} = on_create_opts} | rest], opts)
       when is_map(data) and is_function(changeset_fn, 2) do

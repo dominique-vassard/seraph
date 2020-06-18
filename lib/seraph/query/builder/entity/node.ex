@@ -29,11 +29,12 @@ defmodule Seraph.Query.Builder.Entity.Node do
       ) do
     queryable = Macro.expand(queryable_ast, env)
     identifier = Atom.to_string(node_identifier)
+    {additional_labels, properties} = Keyword.pop(properties, :additionalLabels, [])
 
     %Node{
       queryable: queryable,
       identifier: identifier,
-      labels: [queryable.__schema__(:primary_label)],
+      labels: [queryable.__schema__(:primary_label) | additional_labels],
       properties: Entity.build_properties(queryable, identifier, properties)
     }
   end
@@ -42,11 +43,12 @@ defmodule Seraph.Query.Builder.Entity.Node do
   # {User, %{uuid: ^user_uuid}
   def from_ast({{:__aliases__, _, _} = queryable_ast, {:%{}, _, properties}}, env) do
     queryable = Macro.expand(queryable_ast, env)
+    {additional_labels, properties} = Keyword.pop(properties, :additionalLabels, [])
 
     %Node{
       queryable: queryable,
       identifier: nil,
-      labels: [queryable.__schema__(:primary_label)],
+      labels: [queryable.__schema__(:primary_label) | additional_labels],
       properties: Entity.build_properties(queryable, nil, properties)
     }
   end
@@ -56,10 +58,12 @@ defmodule Seraph.Query.Builder.Entity.Node do
   def from_ast({{node_identifier, _, _}, {:%{}, _, properties}}, _env) do
     queryable = Seraph.Node
     identifier = Atom.to_string(node_identifier)
+    {additional_labels, properties} = Keyword.pop(properties, :additionalLabels, [])
 
     %Node{
       queryable: queryable,
       identifier: identifier,
+      labels: additional_labels,
       properties: Entity.build_properties(queryable, identifier, properties)
     }
   end
@@ -79,9 +83,11 @@ defmodule Seraph.Query.Builder.Entity.Node do
   # {%{uuid: ^uuid}}
   def from_ast({:{}, _, [{:%{}, [], properties}]}, _env) do
     queryable = Seraph.Node
+    {additional_labels, properties} = Keyword.pop(properties, :additionalLabels, [])
 
     %Node{
       queryable: queryable,
+      labels: additional_labels,
       properties: Entity.build_properties(queryable, nil, properties)
     }
   end
@@ -123,13 +129,15 @@ defmodule Seraph.Query.Builder.Entity.Node do
           entity: Node.t(),
           params: Keyword.t()
         }
-  def from_queryable(queryable, properties, prefix) when is_list(properties) do
+  def from_queryable(queryable, properties, prefix, identifier \\ "n")
+
+  def from_queryable(queryable, properties, prefix, identifier) when is_list(properties) do
     props = Enum.into(properties, %{})
 
-    from_queryable(queryable, props, prefix)
+    from_queryable(queryable, props, prefix, identifier)
   end
 
-  def from_queryable(queryable, properties, identifier \\ "n", prefix) do
+  def from_queryable(queryable, properties, prefix, identifier) do
     additional_labels = Map.get(properties, :additionalLabels, [])
     new_props = Map.drop(properties, [:additionalLabels])
 

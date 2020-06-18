@@ -522,6 +522,7 @@ defmodule Seraph.Repo.NodeTest do
                user
                |> User.changeset(params)
                |> Seraph.Changeset.apply_changes()
+               |> Map.drop([:uuid])
                |> TestRepo.Node.create_or_set()
 
       cql = """
@@ -936,7 +937,7 @@ defmodule Seraph.Repo.NodeTest do
       end
     end
 
-    test "raise: whne used with an invalid option" do
+    test "raise: when used with an invalid option" do
       assert_raise ArgumentError, fn ->
         TestRepo.Node.merge(User, %{uuid: "some-uuid"}, invalid_option: true)
       end

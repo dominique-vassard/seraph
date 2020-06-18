@@ -46,6 +46,26 @@ defmodule Seraph.Query.Builder.Set do
     %{set: %Set{expressions: entities}, params: params}
   end
 
+  def build_from_map(data_to_set, entity_identifier \\ "n", param_prefix \\ "") do
+    %{entities: entities, params: params} =
+      data_to_set
+      |> Enum.map(fn {property_name, property_value} ->
+        %Entity.Property{
+          entity_identifier: entity_identifier,
+          name: property_name,
+          value: property_value
+        }
+      end)
+      |> Enum.reduce(%{entities: [], params: []}, fn entity, data ->
+        %{entity: entity, params: new_params} =
+          Entity.extract_params(entity, data.params, param_prefix <> "set__")
+
+        %{data | entities: [entity | data.entities], params: new_params}
+      end)
+
+    %{set: %Set{expressions: entities}, params: params}
+  end
+
   @spec check(Set.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Set{expressions: expressions}, %Seraph.Query{} = query) do
     do_check(expressions, query)
@@ -217,10 +237,12 @@ defmodule Seraph.Query.Builder.Set do
         |> Enum.map(&Seraph.Query.Cypher.encode(&1, operation: :set))
         |> Enum.join(", ")
 
-      """
-      SET
-        #{expressions_str}
-      """
+      if String.length(expressions_str) > 0 do
+        """
+        SET
+          #{expressions_str}
+        """
+      end
     end
   end
 end

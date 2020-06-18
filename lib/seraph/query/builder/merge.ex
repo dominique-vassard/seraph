@@ -6,8 +6,8 @@ defmodule Seraph.Query.Builder.Merge do
   defstruct [:entities, :raw_entities]
 
   @type t :: %__MODULE__{
-          raw_entities: [Builder.Entity.t()],
-          entities: [Builder.Entity.t()]
+          raw_entities: Builder.Entity.t(),
+          entities: Builder.Entity.t()
         }
 
   @impl true

@@ -105,13 +105,13 @@ defmodule Seraph.ExploreTest do
     #   |> IO.inspect()
   end
 
-  test "merge" do
-    merge({u})
-    |> IO.inspect()
-  end
+  # test "merge" do
+  #   merge({u})
+  #   |> IO.inspect()
+  # end
 
-  test "wanted" do
-    TestRepo.raw_query("PROFILE MATCH (n:User {firstName: 'John'}) RETURN n")
-    |> IO.inspect()
-  end
+  # test "wanted" do
+  #   TestRepo.raw_query("PROFILE MATCH (n:User {firstName: 'John'}) RETURN n")
+  #   |> IO.inspect()
+  # end
 end

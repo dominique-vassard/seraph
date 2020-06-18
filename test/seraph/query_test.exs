@@ -1687,5 +1687,15 @@ defmodule Seraph.QueryTest do
         end
       end
     end
+
+    test "fail: remove as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          remove([u.firstName])
+        end
+      end
+    end
   end
 end

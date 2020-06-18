@@ -3,7 +3,7 @@ defmodule Seraph.IntegrationTest do
   alias Seraph.Support.Storage
 
   alias Seraph.TestRepo
-  alias Seraph.Test.{Admin, Post, User}
+  alias Seraph.Test.{Post, User}
   alias Seraph.Test.UserToPost.Wrote
 
   import Seraph.Query
@@ -257,7 +257,7 @@ defmodule Seraph.IntegrationTest do
     assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 
-  describe "merge on create / on merge" do
+  describe "merge on create / on match" do
     test "node creation (bare merge)" do
       uuid = UUID.uuid4()
 
@@ -412,5 +412,119 @@ defmodule Seraph.IntegrationTest do
 
       assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
     end
+  end
+
+  test "set label" do
+    uuid = UUID.uuid4()
+
+    {:ok, _} =
+      create([{u, User, %{uuid: ^uuid, firstName: "Ben", lastName: "New"}}])
+      |> return(u)
+      |> TestRepo.query()
+
+    query =
+      match [{u, User, %{uuid: uuid}}],
+        set: [{u, New}],
+        return: [u]
+
+    assert [
+             %{
+               "u" => %Seraph.Test.User{
+                 additionalLabels: ["New"],
+                 firstName: "Ben",
+                 lastName: "New",
+                 viewCount: 1
+               }
+             }
+           ] = TestRepo.query!(query)
+
+    cql_check = """
+    MATCH
+      (u:User:New {uuid: $uuid})
+    WHERE
+      labels(u) = ["User", "New"]
+    RETURN
+      COUNT(u) AS nb_result
+    """
+
+    params = %{uuid: uuid}
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+  end
+
+  test "remove property" do
+    uuid = UUID.uuid4()
+
+    {:ok, _} =
+      create([{u, User, %{uuid: ^uuid, firstName: "Ben", lastName: "New"}}])
+      |> return(u)
+      |> TestRepo.query()
+
+    query =
+      match [{u, User, %{uuid: uuid}}],
+        remove: [u.firstName],
+        return: [u]
+
+    assert [
+             %{
+               "u" => %Seraph.Test.User{
+                 additionalLabels: [],
+                 firstName: nil,
+                 lastName: "New",
+                 viewCount: 1
+               }
+             }
+           ] = TestRepo.query!(query)
+
+    cql_check = """
+    MATCH
+      (u:User {uuid: $uuid})
+    WHERE
+      u.firstName IS NULL
+    RETURN
+      COUNT(u) AS nb_result
+    """
+
+    params = %{uuid: uuid}
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+  end
+
+  test "remove label" do
+    uuid = UUID.uuid4()
+
+    {:ok, _} =
+      create([
+        {u, User,
+         %{additionalLabels: ["New", "Good"], uuid: ^uuid, firstName: "Ben", lastName: "New"}}
+      ])
+      |> return(u)
+      |> TestRepo.query()
+
+    query =
+      match [{u, User, %{uuid: uuid}}],
+        remove: [{u, Good}],
+        return: [u]
+
+    assert [
+             %{
+               "u" => %Seraph.Test.User{
+                 additionalLabels: ["New"],
+                 firstName: "Ben",
+                 lastName: "New",
+                 viewCount: 1
+               }
+             }
+           ] = TestRepo.query!(query)
+
+    cql_check = """
+    MATCH
+      (u:User:New {uuid: $uuid})
+    WHERE
+      labels(u) = ["User", "New"]
+    RETURN
+      COUNT(u) AS nb_result
+    """
+
+    params = %{uuid: uuid}
+    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
 end

@@ -218,10 +218,10 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
     end_queryable = queryable.__schema__(:end_node)
 
     %{entity: start_node, params: start_params} =
-      Entity.Node.from_queryable(start_queryable, start_properties, "start", prefix)
+      Entity.Node.from_queryable(start_queryable, start_properties, prefix, "start")
 
     %{entity: end_node, params: end_params} =
-      Entity.Node.from_queryable(end_queryable, end_properties, "end", prefix)
+      Entity.Node.from_queryable(end_queryable, end_properties, prefix, "end")
 
     relationship =
       %Relationship{

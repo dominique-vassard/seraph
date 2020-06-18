@@ -41,7 +41,9 @@ defmodule Seraph.Query.Builder.OnCreateSet do
         |> struct!(Map.from_struct(data))
         |> Seraph.Query.Cypher.encode(opts)
 
-      "ON CREATE #{str}"
+      if not is_nil(str) and String.length(str) > 0 do
+        "ON CREATE #{str}"
+      end
     end
   end
 end

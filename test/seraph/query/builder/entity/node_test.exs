@@ -60,6 +60,18 @@ defmodule Seraph.Query.Builder.Entity.NodeTest do
            } = Node.from_ast(ast, __ENV__)
   end
 
+  test "ok: {%{additionalLabels: [\"Label1\", \"Label2\"]}}" do
+    ast = quote do: {%{additionalLabels: ["Label1", "Label2"]}}
+
+    assert %Seraph.Query.Builder.Entity.Node{
+             alias: nil,
+             identifier: nil,
+             labels: ["Label1", "Label2"],
+             properties: [],
+             queryable: Seraph.Node
+           } = Node.from_ast(ast, __ENV__)
+  end
+
   test "ok: {u}" do
     ast = quote do: {u}
 
@@ -112,6 +124,18 @@ defmodule Seraph.Query.Builder.Entity.NodeTest do
                  value: "uuid-1"
                }
              ],
+             queryable: Seraph.Node
+           } = Node.from_ast(ast, __ENV__)
+  end
+
+  test "ok: {u, %{additionalLabels: [\"Label1\", \"Label2\"]}}" do
+    ast = quote do: {u, %{additionalLabels: ["Label1", "Label2"]}}
+
+    assert %Seraph.Query.Builder.Entity.Node{
+             alias: nil,
+             identifier: "u",
+             labels: ["Label1", "Label2"],
+             properties: [],
              queryable: Seraph.Node
            } = Node.from_ast(ast, __ENV__)
   end
@@ -172,6 +196,18 @@ defmodule Seraph.Query.Builder.Entity.NodeTest do
            } = Node.from_ast(ast, __ENV__)
   end
 
+  test "ok: {u, User, %{additionalLabels: [\"Label1\", \"Label2\"]}}" do
+    ast = quote do: {u, User, %{additionalLabels: ["Label1", "Label2"]}}
+
+    assert %Seraph.Query.Builder.Entity.Node{
+             alias: nil,
+             identifier: "u",
+             labels: ["User", "Label1", "Label2"],
+             properties: [],
+             queryable: Seraph.Test.User
+           } = Node.from_ast(ast, __ENV__)
+  end
+
   test "ok: {User}" do
     ast = quote do: {User}
 
@@ -224,6 +260,18 @@ defmodule Seraph.Query.Builder.Entity.NodeTest do
                  value: "uuid-1"
                }
              ],
+             queryable: Seraph.Test.User
+           } = Node.from_ast(ast, __ENV__)
+  end
+
+  test "ok: {User, %{additionalLabels: [\"Label1\", \"Label2\"]}}" do
+    ast = quote do: {User, %{additionalLabels: ["Label1", "Label2"]}}
+
+    assert %Seraph.Query.Builder.Entity.Node{
+             alias: nil,
+             identifier: nil,
+             labels: ["User", "Label1", "Label2"],
+             properties: [],
              queryable: Seraph.Test.User
            } = Node.from_ast(ast, __ENV__)
   end

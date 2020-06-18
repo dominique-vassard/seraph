@@ -39,7 +39,16 @@ defmodule Seraph.Query.Builder.Entity.Property do
             if is_nil(property.entity_identifier) do
               prefix <> "prop__" <> Atom.to_string(property.name)
             else
-              property.entity_identifier <> "_" <> Atom.to_string(property.name)
+              # ON_CREATE and ON_MATCH can create see prefix
+              # We nned to differentiate them
+              used_prefix =
+                if prefix in ["on_create__set__", "on_match__set__"] do
+                  prefix
+                else
+                  ""
+                end
+
+              used_prefix <> property.entity_identifier <> "_" <> Atom.to_string(property.name)
             end
 
           suffix =
@@ -71,7 +80,8 @@ defmodule Seraph.Query.Builder.Entity.Property do
       "#{entity_identifier}.#{name} AS #{prop_alias}"
     end
 
-    def encode(%Property{entity_identifier: entity_identifier, name: name}, operation: :return) do
+    def encode(%Property{entity_identifier: entity_identifier, name: name}, operation: operation)
+        when operation in [:return, :remove] do
       "#{entity_identifier}.#{name}"
     end
 
