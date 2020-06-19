@@ -238,7 +238,7 @@ defmodule Seraph.Repo.Node.Queryable do
   """
   @spec get(Seraph.Repo.t(), Seraph.Repo.queryable(), any) :: nil | Seraph.Schema.Node.t()
   def get(repo, queryable, id_value) do
-    id_field = Seraph.Repo.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
 
     results =
       queryable

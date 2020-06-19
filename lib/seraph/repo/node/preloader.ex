@@ -330,7 +330,7 @@ defmodule Seraph.Repo.Node.Preloader do
 
   @spec identifier_props(Seraph.Schema.Node.t()) :: {map, map}
   defp identifier_props(%{__struct__: queryable} = struct) do
-    id_field = Seraph.Repo.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
     bound_name = Atom.to_string(id_field)
 
     props = Map.put(%{}, id_field, bound_name)

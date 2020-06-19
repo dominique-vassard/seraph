@@ -297,7 +297,7 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
   end
 
   def extract_node_properties(%{__struct__: queryable} = node_data) do
-    id_field = Seraph.Repo.Helper.identifier_field(queryable)
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
     id_value = Map.fetch!(node_data, id_field)
 
     Map.put(%{}, id_field, id_value)
@@ -306,19 +306,6 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
   def extract_node_properties(node_properties) do
     node_properties
   end
-
-  # def from_queryable(queryable, _properties \\ %{}, identifier \\ "rel") do
-  #   # relationship = %Relationship{
-  #   %Relationship{
-  #     queryable: queryable,
-  #     identifier: identifier,
-  #     type: queryable.__schema__(:type)
-  #   }
-
-  #   # props = Entity.Property.from_map(properties, relationship)
-
-  #   # Map.put(relationship, :properties, props)
-  # end
 
   defimpl Seraph.Query.Cypher, for: Relationship do
     def encode(%Relationship{alias: rel_alias, identifier: identifier}, operation: :return)

@@ -3,17 +3,27 @@ defmodule Seraph.Repo.Helper do
 
   alias Seraph.Query.Condition
 
-  @doc """
-  Return node schema identifier key if it exists.
-  """
-  @spec identifier_field(Seraph.Repo.queryable()) :: atom
   def identifier_field(queryable) do
     case queryable.__schema__(:identifier) do
       {field, _, _} ->
         field
 
-      _ ->
+      false ->
+        false
+    end
+  end
+
+  @doc """
+  Return node schema identifier key if it exists.
+  """
+  @spec identifier_field!(Seraph.Repo.queryable()) :: atom
+  def identifier_field!(queryable) do
+    case identifier_field(queryable) do
+      false ->
         raise ArgumentError, "No identifier for #{inspect(queryable)}."
+
+      field ->
+        field
     end
   end
 

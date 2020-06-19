@@ -56,7 +56,7 @@ defmodule Seraph.Repo.Node.Schema do
         result
 
       {:error, changeset} ->
-        raise Seraph.InvalidChangesetError, action: :insert, changeset: changeset
+        raise Seraph.InvalidChangesetError, action: :create, changeset: changeset
     end
   end
 

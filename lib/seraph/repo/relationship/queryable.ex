@@ -7,9 +7,10 @@ defmodule Seraph.Repo.Relationship.Queryable do
           Seraph.Repo.queryable(),
           Seraph.Schema.Node.t() | map,
           Seraph.Schema.Node.t() | map,
-          Keyword.t() | map
+          Keyword.t() | map,
+          atom()
         ) :: Seraph.Query.t()
-  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties \\ %{}) do
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :match) do
     rel_properties = Enum.into(rel_properties, %{})
 
     %{entity: relationship, params: query_params} =
@@ -56,6 +57,116 @@ defmodule Seraph.Repo.Relationship.Queryable do
     }
   end
 
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :match_create) do
+    rel_properties = Enum.into(rel_properties, %{})
+
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_struct_or_data,
+        end_struct_or_data,
+        rel_properties,
+        "match_create__"
+      )
+
+    literal =
+      "create(%#{queryable}{start: #{inspect(start_struct_or_data)}, end:#{
+        inspect(end_struct_or_data)
+      }, properties: #{inspect(rel_properties)}})"
+
+    identifiers = %{
+      "rel" => relationship,
+      "start" => relationship.start,
+      "end" => relationship.end
+    }
+
+    rel_to_create =
+      relationship
+      |> Map.put(:start, %Builder.Entity.Node{
+        identifier: relationship.start.identifier,
+        queryable: Seraph.Node
+      })
+      |> Map.put(:end, %Builder.Entity.Node{
+        identifier: relationship.end.identifier,
+        queryable: Seraph.Node
+      })
+
+    %Seraph.Query{
+      identifiers: identifiers,
+      operations: [
+        match: %Builder.Match{
+          entities: [relationship.start, relationship.end]
+        },
+        create: %Builder.Create{
+          raw_entities: [rel_to_create]
+        },
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
+
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :create) do
+    rel_properties = Enum.into(rel_properties, %{})
+
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_struct_or_data,
+        end_struct_or_data,
+        rel_properties,
+        "match_create__"
+      )
+
+    literal =
+      "create(%#{queryable}{start: #{inspect(start_struct_or_data)}, end:#{
+        inspect(end_struct_or_data)
+      }, properties: #{inspect(rel_properties)}})"
+
+    identifiers = %{
+      "rel" => relationship,
+      "start" => relationship.start,
+      "end" => relationship.end
+    }
+
+    %Seraph.Query{
+      identifiers: identifiers,
+      operations: [
+        create: %Builder.Create{
+          raw_entities: [relationship]
+        },
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
+
   @doc """
   Fetch a single struct from the Neo4j datababase with the given start and end node data/struct.
 
@@ -69,7 +180,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
         ) :: nil | Seraph.Schema.Relationship.t()
   def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
     results =
-      to_query(queryable, start_struct_or_data, end_struct_or_data)
+      to_query(queryable, start_struct_or_data, end_struct_or_data, %{}, :match)
       |> repo.all(relationship_result: :full)
 
     case length(results) do
@@ -130,7 +241,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
         ) :: nil | Seraph.Schema.Relationship.t()
   def get_by(repo, queryable, start_node_clauses, end_node_clauses, relationship_clauses) do
     results =
-      to_query(queryable, start_node_clauses, end_node_clauses, relationship_clauses)
+      to_query(queryable, start_node_clauses, end_node_clauses, relationship_clauses, :match)
       |> repo.all(relationship_result: :full)
 
     case length(results) do

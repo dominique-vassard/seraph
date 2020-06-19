@@ -607,7 +607,7 @@ defmodule Seraph.Query do
         # do_check_id_field(change)
 
         :merge ->
-          id_field = Seraph.Repo.Helper.identifier_field(queryable)
+          id_field = Seraph.Repo.Helper.identifier_field!(queryable)
 
           case id_field in changed_properties do
             true ->

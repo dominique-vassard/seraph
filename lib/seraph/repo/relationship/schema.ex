@@ -2,6 +2,7 @@ defmodule Seraph.Repo.Relationship.Schema do
   @moduledoc false
 
   alias Seraph.Query.{Builder, Planner}
+  alias Seraph.Query.Builder.Entity
 
   @doc """
   Creates a relationship in database with the given data.
@@ -365,41 +366,27 @@ defmodule Seraph.Repo.Relationship.Schema do
   defp do_create(repo, %{__struct__: queryable} = rel_data, _opts) do
     persisted_properties = queryable.__schema__(:persisted_properties)
 
-    {start_node, start_params} = build_node_match("start", rel_data.start_node)
-    {end_node, end_params} = build_node_match("end", rel_data.end_node)
+    rel_properties =
+      rel_data
+      |> Map.from_struct()
+      |> Enum.filter(fn {prop_name, prop_value} ->
+        prop_name in persisted_properties and not is_nil(prop_value)
+      end)
 
-    relationship = %Builder.RelationshipExpr{
-      start: %Builder.NodeExpr{
-        variable: start_node.variable
-      },
-      end: %Builder.NodeExpr{
-        variable: end_node.variable
-      },
-      type: rel_data.type,
-      variable: "rel"
-    }
+    :ok = check_node(rel_data.start_node)
+    :ok = check_node(rel_data.end_node)
 
-    sets = build_sets(relationship.variable, Map.from_struct(rel_data), persisted_properties)
+    {:ok, [%{"rel" => created_relationship}]} =
+      Seraph.Repo.Relationship.Queryable.to_query(
+        queryable,
+        rel_data.start_node,
+        rel_data.end_node,
+        rel_properties,
+        :match_create
+      )
+      |> repo.query()
 
-    relationship_params =
-      start_params
-      |> Map.merge(end_params)
-      |> Map.merge(sets.params)
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([start_node, end_node])
-      |> Builder.create([relationship])
-      |> Builder.set(sets.sets)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [relationship]
-      })
-      |> Builder.params(relationship_params)
-      |> Builder.to_string()
-
-    {:ok, [%{"rel" => created_relationship}]} = Planner.query(repo, statement, params)
-
-    {:ok, Map.put(rel_data, :__id__, created_relationship.id)}
+    {:ok, created_relationship}
   end
 
   defp do_merge(repo, rel_data, [node_creation: true] = opts) do
@@ -525,6 +512,14 @@ defmodule Seraph.Repo.Relationship.Schema do
     end
   end
 
+  defp check_node(%Seraph.Changeset{}) do
+    raise ArgumentError, "start node and end node should be Queryable, not Changeset"
+  end
+
+  defp check_node(_) do
+    :ok
+  end
+
   @spec build_node_match(String.t(), Seraph.Schema.Node.t() | Seraph.Changeset.t()) ::
           {Builder.NodeExpr.t(), map()}
   defp build_node_match(variable, node_data)
@@ -535,7 +530,7 @@ defmodule Seraph.Repo.Relationship.Schema do
 
   defp build_node_match(variable, node_data) do
     %{__struct__: queryable} = node_data
-    identifier = Seraph.Repo.Helper.identifier_field(queryable)
+    identifier = Seraph.Repo.Helper.identifier_field!(queryable)
     id_value = Map.fetch!(node_data, identifier)
 
     bound_name = variable <> "_" <> Atom.to_string(identifier)

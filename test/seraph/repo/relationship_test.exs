@@ -77,10 +77,12 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
+
+      assert rel_date == DateTime.truncate(rel_wrote.at, :second)
 
       refute is_nil(rel_wrote.__id__)
 
@@ -94,7 +96,7 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         user_uuid: user.uuid,
         post_uuid: post.uuid,
-        rel_date: rel_date
+        rel_date: rel_wrote.at
       }
 
       assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
@@ -179,11 +181,12 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
+      assert rel_date == DateTime.truncate(rel_wrote.at, :second)
       refute is_nil(rel_wrote.__id__)
 
       cql = """
@@ -196,8 +199,10 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         user_uuid: rel_wrote.start_node.uuid,
         post_uuid: rel_wrote.end_node.uuid,
-        rel_date: rel_date
+        rel_date: rel_wrote.at
       }
+
+      IO.inspect(params)
 
       assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
     end
