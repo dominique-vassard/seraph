@@ -140,6 +140,10 @@ defmodule Seraph.Query do
     build_return(query, expr, __CALLER__)
   end
 
+  defmacro delete(query, expr) do
+    build_delete(query, expr, __CALLER__)
+  end
+
   defmacro set(query, expr) do
     build_set(query, expr, __CALLER__)
   end
@@ -295,7 +299,28 @@ defmodule Seraph.Query do
     end
   end
 
-  @spec build_on_create_set(Macro.t(), Macro.t(), any) :: Macro.t()
+  @spec build_delete(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
+  def build_delete(query, expr, env) do
+    delete =
+      Seraph.Query.Builder.Delete.build(expr, env)
+      |> Macro.escape()
+
+    literal =
+      expr
+      |> Enum.map(&Macro.to_string/1)
+      |> Enum.join(", ")
+      |> String.replace("()", "")
+
+    quote bind_quoted: [query: query, literal: literal, delete: delete] do
+      %{
+        query
+        | operations: query.operations ++ [delete: delete],
+          literal: query.literal ++ ["delete:\n" <> literal]
+      }
+    end
+  end
+
+  @spec build_on_create_set(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_on_create_set(query, expr, env) do
     %{on_create_set: on_create_set, params: params} =
       Seraph.Query.Builder.OnCreateSet.build(expr, env)
@@ -445,6 +470,14 @@ defmodule Seraph.Query do
           old_query
           | identifiers: Map.merge(query.identifiers, new_identifiers),
             operations: Keyword.update!(old_query.operations, :merge, fn _ -> new_merge end)
+        }
+
+      {:delete, delete}, old_query ->
+        new_delete = Builder.Delete.prepare(delete, query, opts)
+
+        %{
+          old_query
+          | operations: Keyword.update!(old_query.operations, :delete, fn _ -> new_delete end)
         }
 
       _, old_query ->

@@ -527,4 +527,54 @@ defmodule Seraph.IntegrationTest do
     params = %{uuid: uuid}
     assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
   end
+
+  test "delete node", %{uuids: uuids} do
+    user_uuid = uuids.user1
+
+    query =
+      match([{u, User, %{uuid: ^user_uuid}}])
+      |> delete([u])
+
+    assert [] = TestRepo.query!(query)
+
+    cql_check = """
+    MATCH
+      (u:User {uuid: $user_uuid})
+    RETURN
+       COUNT(u) AS nb_result
+    """
+
+    params = %{
+      user_uuid: user_uuid
+    }
+
+    assert [%{"nb_result" => 0}] == TestRepo.raw_query!(cql_check, params)
+  end
+
+  test "delete relationship", %{uuids: uuids} do
+    user_uuid = uuids.user1
+    post_uuid = uuids.post1
+
+    query =
+      match([[{u, User, %{uuid: ^user_uuid}}, [rel, Wrote], {p, Post, %{uuid: ^post_uuid}}]])
+      |> delete([rel])
+
+    assert [] = TestRepo.query!(query)
+
+    cql_check = """
+    MATCH
+      (u:User {uuid: $user_uuid}),
+      (p:Post {uuid: $post_uuid}),
+      (u)-[rel:WROTE]->(p)
+    RETURN
+       COUNT(rel) AS nb_result
+    """
+
+    params = %{
+      user_uuid: user_uuid,
+      post_uuid: post_uuid
+    }
+
+    assert [%{"nb_result" => 0}] == TestRepo.raw_query!(cql_check, params)
+  end
 end

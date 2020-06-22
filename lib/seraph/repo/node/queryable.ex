@@ -206,6 +206,33 @@ defmodule Seraph.Repo.Node.Queryable do
     }
   end
 
+  def to_query(queryable, data, :delete) do
+    entity_variable = "n"
+
+    properties =
+      queryable.__schema__(:merge_keys)
+      |> Enum.map(fn prop_name ->
+        {prop_name, Map.fetch!(data, prop_name)}
+      end)
+
+    %{entity: node, params: match_params} =
+      Builder.Entity.Node.from_queryable(queryable, properties, "delete__")
+
+    literal = "delete(#{inspect(data)})"
+
+    %Seraph.Query{
+      identifiers: Map.put(%{}, entity_variable, node),
+      operations: [
+        match: %Builder.Match{entities: [node]},
+        delete: %Builder.Delete{
+          raw_entities: [%Builder.Entity.EntityData{entity_identifier: entity_variable}]
+        }
+      ],
+      literal: [literal],
+      params: match_params
+    }
+  end
+
   defp build_merge_set(%Seraph.Changeset{} = changeset, entity_variable, param_prefix) do
     {additional_labels, other_changes} = Map.pop(changeset.changes, :additionalLabels, [])
 

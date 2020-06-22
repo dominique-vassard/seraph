@@ -74,7 +74,7 @@ defmodule Seraph.QueryTest do
     test "ok: {User, %{uuid: ^user_uuid}}" do
       user_uuid = "uuid-for-query"
 
-      query = match([{User, %{uuid: "uuid-for-query"}}])
+      query = match([{User, %{uuid: ^user_uuid}}])
 
       node_data = %Seraph.Query.Builder.Entity.Node{
         alias: nil,
@@ -83,7 +83,7 @@ defmodule Seraph.QueryTest do
         properties: [
           %Seraph.Query.Builder.Entity.Property{
             alias: nil,
-            bound_name: "match__prop__uuid_0",
+            bound_name: "user_uuid",
             entity_identifier: nil,
             entity_queryable: Seraph.Test.User,
             name: :uuid,
@@ -97,7 +97,7 @@ defmodule Seraph.QueryTest do
       assert %{} = query.identifiers
       assert map_size(query.identifiers) == 0
       assert %Builder.Match{entities: [^node_data]} = query.operations[:match]
-      assert [match__prop__uuid_0: "uuid-for-query"] == query.params
+      assert [user_uuid: "uuid-for-query"] == query.params
     end
 
     test "ok: {u, %{uuid: \"uuid-for-query\"}}" do
@@ -1493,6 +1493,16 @@ defmodule Seraph.QueryTest do
       end
     end
 
+    test "delete raise: unknown identifier" do
+      assert_raise Seraph.QueryError, fn ->
+        defmodule Willfail do
+          match([{u, User}])
+          |> delete([p])
+          |> prepare([])
+        end
+      end
+    end
+
     test "match then create: ok with replaced identifiers" do
       query =
         match([{u, User, %{firstName: "John"}}])
@@ -1694,6 +1704,16 @@ defmodule Seraph.QueryTest do
           import Seraph.Query
 
           remove([u.firstName])
+        end
+      end
+    end
+
+    test "fail: delete as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          delete([u])
         end
       end
     end

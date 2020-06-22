@@ -156,6 +156,10 @@ defmodule Seraph.Query.Builder.Entity.Node do
 
   defimpl Seraph.Query.Cypher, for: Node do
     @spec encode(Seraph.Query.Builder.Entity.Node.t(), Keyword.t()) :: String.t()
+    def encode(%Node{identifier: identifier}, operation: :delete) do
+      "#{identifier}"
+    end
+
     def encode(%Node{alias: node_alias, identifier: identifier}, operation: :return)
         when not is_nil(node_alias) do
       "#{identifier} AS #{node_alias}"

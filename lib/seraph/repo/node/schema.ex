@@ -217,22 +217,9 @@ defmodule Seraph.Repo.Node.Schema do
 
     queryable = data.__struct__
 
-    node_to_del = %Builder.NodeExpr{
-      variable: "n",
-      labels: [queryable.__schema__(:primary_label)]
-    }
-
-    merge_keys_data = Helper.build_where_from_merge_keys(node_to_del, queryable, data)
-
-    {statement, params} =
-      Builder.new(:delete)
-      |> Builder.match([node_to_del])
-      |> Builder.delete([node_to_del])
-      |> Builder.where(merge_keys_data.where)
-      |> Builder.params(merge_keys_data.params)
-      |> Builder.to_string()
-
-    {:ok, %{stats: stats}} = Planner.query(repo, statement, params, with_stats: true)
+    {:ok, %{results: [], stats: stats}} =
+      Seraph.Repo.Node.Queryable.to_query(queryable, data, :delete)
+      |> repo.query(with_stats: true)
 
     case stats do
       %{"nodes-deleted" => 1} ->
