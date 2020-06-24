@@ -56,7 +56,12 @@ defmodule Seraph.Query.Builder.Entity do
     |> do_extract_params(updated_nodes_params, prefix)
   end
 
-  def extract_params(%Entity.Property{value: %{__struct__: _}} = property, params, _prefix) do
+  def extract_params(
+        %Entity.Property{value: %{__struct__: struct_type}} = property,
+        params,
+        _prefix
+      )
+      when struct_type in [Entity.Function] do
     %{entity: property, params: params}
   end
 

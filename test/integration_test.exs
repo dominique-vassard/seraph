@@ -14,11 +14,11 @@ defmodule Seraph.IntegrationTest do
   end
 
   # test "return value" do
-  #   assert =
-  #     match([{u, User}])
-  #     |> return(num: 1)
-  #     |> TestRepo.all()
-  #     |> IO.inspect()
+  #   assert [] =
+  #            match([{u, User}])
+  #            |> return(num: 1)
+  #            |> TestRepo.query!()
+  #            |> IO.inspect()
   # end
 
   test "create node - direct" do

@@ -39,8 +39,8 @@ defmodule Seraph.Query.Builder.Entity.Property do
             if is_nil(property.entity_identifier) do
               prefix <> "prop__" <> Atom.to_string(property.name)
             else
-              # ON_CREATE and ON_MATCH can create see prefix
-              # We nned to differentiate them
+              # ON_CREATE and ON_MATCH can work on same property
+              # We need to differentiate them
               used_prefix =
                 if prefix in ["on_create__set__", "on_match__set__"] do
                   prefix

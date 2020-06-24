@@ -308,6 +308,10 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
   end
 
   defimpl Seraph.Query.Cypher, for: Relationship do
+    def encode(%Relationship{identifier: identifier}, operation: :delete) do
+      "#{identifier}"
+    end
+
     def encode(%Relationship{alias: rel_alias, identifier: identifier}, operation: :return)
         when not is_nil(rel_alias) do
       "#{identifier} AS #{rel_alias}"

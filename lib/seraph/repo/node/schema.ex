@@ -1,13 +1,7 @@
 defmodule Seraph.Repo.Node.Schema do
   @moduledoc false
 
-  alias Seraph.Query.{Builder, Helper, Planner}
   require Seraph.Query
-
-  @type sets_data :: %{
-          sets: [Builder.SetExpr.t()],
-          params: map
-        }
 
   @doc """
   Creates a node in database with the given data.
