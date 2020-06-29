@@ -13,13 +13,13 @@ defmodule Seraph.IntegrationTest do
     Storage.add_fixtures(TestRepo)
   end
 
-  # test "return value" do
-  #   assert [] =
-  #            match([{u, User}])
-  #            |> return(num: 1)
-  #            |> TestRepo.query!()
-  #            |> IO.inspect()
-  # end
+  test "return value" do
+    assert [%{"num" => 1}] =
+             match([{u, User}])
+             |> return(num: 1)
+             |> limit(1)
+             |> TestRepo.query!()
+  end
 
   test "create node - direct" do
     uuid = UUID.uuid4()
@@ -576,5 +576,68 @@ defmodule Seraph.IntegrationTest do
     }
 
     assert [%{"nb_result" => 0}] == TestRepo.raw_query!(cql_check, params)
+  end
+
+  test "limit" do
+    assert [_] =
+             match([{u, User}])
+             |> return([u])
+             |> limit(1)
+             |> TestRepo.query!()
+
+    limit = 2
+
+    query =
+      match [{u, User}],
+        return: [u],
+        limit: ^limit
+
+    assert [_, _] = TestRepo.query!(query)
+  end
+
+  test "skip" do
+    assert [
+             %{"u.firstName" => "James"},
+             %{"u.firstName" => "John"}
+           ] =
+             match([{u, User}])
+             |> return([u.firstName])
+             |> order_by([u.firstName])
+             |> skip(1)
+             |> TestRepo.query!()
+
+    skip = 2
+
+    query =
+      match [{u, User}],
+        return: [u.firstName],
+        order_by: [u.firstName],
+        skip: ^skip
+
+    assert [%{"u.firstName" => "John"}] = TestRepo.query!(query)
+  end
+
+  test "skip + limit" do
+    assert [
+             %{"u.firstName" => "James"}
+           ] =
+             match([{u, User}])
+             |> return([u.firstName])
+             |> order_by([u.firstName])
+             |> skip(1)
+             |> limit(1)
+             |> TestRepo.query!()
+  end
+
+  test "order_by" do
+    assert [
+             %{"u.firstName" => "John", "u.lastName" => "Doe"},
+             %{"u.firstName" => "Igor", "u.lastName" => "Gone"},
+             %{"u.firstName" => "James", "u.lastName" => "Who"}
+           ] =
+             match([{u, User}])
+             |> return([u.firstName, u.lastName])
+             |> order_by(asc: u.lastName, desc: u.firstName)
+             |> TestRepo.query!()
   end
 end

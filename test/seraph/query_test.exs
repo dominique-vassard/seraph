@@ -1717,5 +1717,35 @@ defmodule Seraph.QueryTest do
         end
       end
     end
+
+    test "fail: limit as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          limit(5)
+        end
+      end
+    end
+
+    test "fail: skip as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          skip(5)
+        end
+      end
+    end
+
+    test "fail: order_by as entry point" do
+      assert_raise CompileError, fn ->
+        defmodule Willfail do
+          import Seraph.Query
+
+          order_by([u])
+        end
+      end
+    end
   end
 end

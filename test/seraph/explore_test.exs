@@ -114,4 +114,11 @@ defmodule Seraph.ExploreTest do
   #   TestRepo.raw_query("PROFILE MATCH (n:User {firstName: 'John'}) RETURN n")
   #   |> IO.inspect()
   # end
+
+  test "return" do
+    match([{u, User}])
+    |> return([u, [first_name: u.firstName, simple_val: 4]])
+    |> prepare([])
+    |> IO.inspect()
+  end
 end

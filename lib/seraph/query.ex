@@ -160,6 +160,18 @@ defmodule Seraph.Query do
     build_on_match_set(query, expr, __CALLER__)
   end
 
+  defmacro order_by(query, expr) do
+    build_order_by(query, expr, __CALLER__)
+  end
+
+  defmacro skip(query, expr) do
+    build_skip(query, expr, __CALLER__)
+  end
+
+  defmacro limit(query, expr) do
+    build_limit(query, expr, __CALLER__)
+  end
+
   def build_match(query, expr, env) do
     %{match: match, identifiers: identifiers, params: params} = Builder.Match.build(expr, env)
 
@@ -418,6 +430,66 @@ defmodule Seraph.Query do
     end
   end
 
+  def build_order_by(query, expr, env) do
+    order_by =
+      Builder.OrderBy.build(expr, env)
+      |> Macro.escape()
+
+    literal =
+      expr
+      |> Enum.map(&Macro.to_string/1)
+      |> Enum.join(", \n\t")
+      |> String.replace("()", "")
+
+    quote bind_quoted: [query: query, order_by: order_by, literal: literal] do
+      %{
+        query
+        | operations: query.operations ++ [order_by: order_by],
+          literal: query.literal ++ ["order_by: \n\t" <> literal]
+      }
+    end
+  end
+
+  def build_skip(query, expr, env) do
+    %{skip: skip, params: params} = Builder.Skip.build(expr, env)
+
+    skip = Macro.escape(skip)
+
+    literal =
+      expr
+      |> Macro.to_string()
+      |> String.replace("()", "")
+
+    quote bind_quoted: [query: query, skip: skip, params: params, literal: literal] do
+      %{
+        query
+        | operations: query.operations ++ [skip: skip],
+          literal: query.literal ++ ["skip: " <> literal],
+          params: Keyword.merge(query.params, params)
+      }
+    end
+  end
+
+  def build_limit(query, expr, env) do
+    %{limit: limit, params: params} = Builder.Limit.build(expr, env)
+
+    limit = Macro.escape(limit)
+
+    literal =
+      expr
+      |> Macro.to_string()
+      |> String.replace("()", "")
+
+    quote bind_quoted: [query: query, limit: limit, params: params, literal: literal] do
+      %{
+        query
+        | operations: query.operations ++ [limit: limit],
+          literal: query.literal ++ ["limit: " <> literal],
+          params: Keyword.merge(query.params, params)
+      }
+    end
+  end
+
   @spec prepare(Seraph.Query.t(), Keyword.t()) :: Seraph.Query.t()
   def prepare(query, opts) do
     check(query, opts)
@@ -478,6 +550,14 @@ defmodule Seraph.Query do
         %{
           old_query
           | operations: Keyword.update!(old_query.operations, :delete, fn _ -> new_delete end)
+        }
+
+      {:order_by, order_by}, old_query ->
+        new_order_by = Builder.OrderBy.prepare(order_by, query, opts)
+
+        %{
+          old_query
+          | operations: Keyword.update!(old_query.operations, :order_by, fn _ -> new_order_by end)
         }
 
       _, old_query ->

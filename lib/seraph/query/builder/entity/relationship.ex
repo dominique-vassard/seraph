@@ -317,7 +317,8 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
       "#{identifier} AS #{rel_alias}"
     end
 
-    def encode(%Relationship{identifier: identifier}, operation: :return) do
+    def encode(%Relationship{identifier: identifier}, operation: operation)
+        when operation in [:return, :order_by] do
       identifier
     end
 

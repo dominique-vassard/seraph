@@ -73,6 +73,10 @@ defmodule Seraph.Query.Builder.Entity.Property do
 
   defimpl Seraph.Query.Cypher, for: Property do
     @spec encode(Seraph.Query.Builder.Entity.Property.t(), Keyword.t()) :: String.t()
+    def encode(%Property{alias: prop_alias}, operation: :order_by) when not is_nil(prop_alias) do
+      "#{prop_alias}"
+    end
+
     def encode(%Property{alias: prop_alias, entity_identifier: entity_identifier, name: name},
           operation: :return
         )
@@ -81,7 +85,7 @@ defmodule Seraph.Query.Builder.Entity.Property do
     end
 
     def encode(%Property{entity_identifier: entity_identifier, name: name}, operation: operation)
-        when operation in [:return, :remove] do
+        when operation in [:return, :remove, :order_by] do
       "#{entity_identifier}.#{name}"
     end
 

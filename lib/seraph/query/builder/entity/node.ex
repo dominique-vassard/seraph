@@ -165,7 +165,8 @@ defmodule Seraph.Query.Builder.Entity.Node do
       "#{identifier} AS #{node_alias}"
     end
 
-    def encode(%Node{identifier: identifier}, operation: :return) do
+    def encode(%Node{identifier: identifier}, operation: operation)
+        when operation in [:return, :order_by] do
       "#{identifier}"
     end
 

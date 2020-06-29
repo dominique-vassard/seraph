@@ -26,8 +26,8 @@ defmodule Seraph.Query.Builder.DeleteTest do
 
       raw_delete = Delete.build(ast, __ENV__)
 
-      %Delete{entities: entities, raw_entities: nil} =
-        Delete.prepare(raw_delete, query_fixtures(), [])
+      assert %Delete{entities: entities, raw_entities: nil} =
+               Delete.prepare(raw_delete, query_fixtures(), [])
 
       assert [
                %Seraph.Query.Builder.Entity.Node{
