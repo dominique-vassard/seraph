@@ -414,6 +414,26 @@ defmodule Seraph.IntegrationTest do
     end
   end
 
+  describe "where" do
+    test "starts_with" do
+      query =
+        match [{u, User}],
+          where: starts_with(u.firstName, "J"),
+          return: [u.firstName]
+
+      assert [%{"u.firstName" => "John"}, %{"u.firstName" => "James"}] = TestRepo.query!(query)
+    end
+
+    test "xor" do
+      query =
+        match [{u, User}],
+          where: xor(u.firstName == "John", u.firstName == "Jack"),
+          return: [u.firstName]
+
+      assert [%{"u.firstName" => "John"}] = TestRepo.query!(query)
+    end
+  end
+
   test "set label" do
     uuid = UUID.uuid4()
 

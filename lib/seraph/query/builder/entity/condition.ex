@@ -141,12 +141,16 @@ defmodule Seraph.Query.Builder.Entity.Condition do
       "<>"
     end
 
-    defp encode_operator(:in) do
-      "IN"
-    end
-
     defp encode_operator(:is_nil) do
       "IS NULL"
+    end
+
+    defp encode_operator(:starts_with) do
+      "STARTS WITH"
+    end
+
+    defp encode_operator(:ends_with) do
+      "ENDS WITH"
     end
 
     defp encode_operator(operator) do

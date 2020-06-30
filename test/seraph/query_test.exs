@@ -892,25 +892,6 @@ defmodule Seraph.QueryTest do
   end
 
   describe "where" do
-    test "ok: operator :== with direct value" do
-      query =
-        match [{u, User}],
-          where: u.uuid == "uuid-1"
-
-      condition = %Seraph.Query.Builder.Entity.Condition{
-        bound_name: "where__0",
-        conditions: nil,
-        entity_identifier: "u",
-        join_operator: :and,
-        operator: :==,
-        value: nil,
-        variable: :uuid
-      }
-
-      assert condition == query.operations[:where]
-      assert [where__0: "uuid-1"] = query.params
-    end
-
     test "ok: operator :== with pinned value" do
       uuid = "uuid-1"
 
@@ -930,92 +911,6 @@ defmodule Seraph.QueryTest do
 
       assert condition == query.operations[:where]
       assert [uuid: "uuid-1"] = query.params
-    end
-
-    test "ok: operator :and" do
-      query =
-        match([{u, User}])
-        |> where(u.uuid == "uuid-1" and u.firstName == "John")
-
-      condition = %Seraph.Query.Builder.Entity.Condition{
-        bound_name: nil,
-        conditions: [
-          %Seraph.Query.Builder.Entity.Condition{
-            bound_name: "where__0",
-            conditions: nil,
-            entity_identifier: "u",
-            join_operator: :and,
-            operator: :==,
-            value: nil,
-            variable: :uuid
-          },
-          %Seraph.Query.Builder.Entity.Condition{
-            bound_name: "where__1",
-            conditions: nil,
-            entity_identifier: "u",
-            join_operator: :and,
-            operator: :==,
-            value: nil,
-            variable: :firstName
-          }
-        ],
-        entity_identifier: nil,
-        join_operator: :and,
-        operator: :and,
-        value: nil,
-        variable: nil
-      }
-
-      assert condition == query.operations[:where]
-      assert [where__1: "John", where__0: "uuid-1"] = query.params
-    end
-
-    test "ok: operator :is_nil" do
-      query =
-        match [{u, User}],
-          where: is_nil(u.lastName)
-
-      condition = %Seraph.Query.Builder.Entity.Condition{
-        bound_name: nil,
-        conditions: nil,
-        entity_identifier: "u",
-        join_operator: :and,
-        operator: :is_nil,
-        value: nil,
-        variable: :lastName
-      }
-
-      assert condition == query.operations[:where]
-      assert [] == query.params
-    end
-
-    test "ok: operator :not" do
-      query =
-        match [{u, User}],
-          where: not is_nil(u.lastName)
-
-      condition = %Seraph.Query.Builder.Entity.Condition{
-        bound_name: nil,
-        conditions: [
-          %Seraph.Query.Builder.Entity.Condition{
-            bound_name: nil,
-            conditions: nil,
-            entity_identifier: "u",
-            join_operator: :and,
-            operator: :is_nil,
-            value: nil,
-            variable: :lastName
-          }
-        ],
-        entity_identifier: nil,
-        join_operator: :and,
-        operator: :not,
-        value: nil,
-        variable: nil
-      }
-
-      assert condition == query.operations[:where]
-      assert [] == query.params
     end
 
     test "ok: multiple bound params" do

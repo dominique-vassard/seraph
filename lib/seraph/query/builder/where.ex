@@ -4,50 +4,23 @@ defmodule Seraph.Query.Builder.Where do
   alias Seraph.Query.Builder.Entity.Condition
   alias Seraph.Query.Builder.{Helper, Where}
 
-  @valid_operators [
-    # left and right
-    # :and,
-    # left and right
-    # :or,
-    # # left <> right
-    # :<>,
-    # # exists(val)
-    # :exists,
-    # left == right
-    # :==
-    # left > right
-    # :>,
-    # # left >= right
-    # :>=,
-    # # left < right
-    # :<,
-    # # left <= right
-    # :<=,
-    # # is_nil(val)
-    # :is_nil,
-    # # not(entity)
-    # # not is_nil(val)
-    # # not exists(val)
-    # :not,
-    # # left starts_with right
-    # :starts_with,
-    # # left ends_with right
-    # :ends_with,
-    # # left ends_with right
-    # :contains,
-    # # left =~ ~r//
-    # :=~,
-    # # left in []
-    # :in,
-    # :min,
-    # :max,
-    # :count,
-    # :sum,
-    # :avg
+  @unary_operators [:is_nil, :not, :exists]
+  @binary_operators [
+    :and,
+    :or,
+    :xor,
+    :==,
+    :in,
+    :<>,
+    :>,
+    :>=,
+    :<,
+    :<=,
+    :starts_with,
+    :ends_with,
+    :contains,
+    :=~
   ]
-
-  @unary_operators [:is_nil, :not]
-  @binary_operators [:and, :or, :==]
   @valid_operators @unary_operators ++ @binary_operators
 
   defstruct [:condition, :data, :params]
@@ -64,7 +37,7 @@ defmodule Seraph.Query.Builder.Where do
   def build(ast, _env, params \\ [])
 
   def build({operator, _, [_, _]}, _env, _) when operator not in @valid_operators do
-    raise ArgumentError, "Unknown operator `#{inspect(operator)}`"
+    raise ArgumentError, "Unknown binary operator `#{inspect(operator)}`"
   end
 
   # left - right operation
@@ -123,6 +96,7 @@ defmodule Seraph.Query.Builder.Where do
     }
   end
 
+  # Unary function
   def build({operator, _, [operated_data]}, env, params) when operator in @unary_operators do
     data = build(operated_data, env, params)
 
@@ -143,6 +117,10 @@ defmodule Seraph.Query.Builder.Where do
           params: params
         }
     end
+  end
+
+  def build({operator, _, [_]}, _env, _params) do
+    raise ArgumentError, "Unknown unary operator `#{inspect(operator)}`"
   end
 
   # Direct value
