@@ -1,9 +1,8 @@
 defmodule Seraph.Query.Builder.Where do
   @behaviour Seraph.Query.Operation
 
-  alias Seraph.Query.Builder.Condition
-  alias Seraph.Query.Builder.Where
-  alias Seraph.Query.Builder.Helper
+  alias Seraph.Query.Builder.Entity.Condition
+  alias Seraph.Query.Builder.{Helper, Where}
 
   @valid_operators [
     # left and right

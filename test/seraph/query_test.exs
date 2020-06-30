@@ -897,7 +897,7 @@ defmodule Seraph.QueryTest do
         match [{u, User}],
           where: u.uuid == "uuid-1"
 
-      condition = %Seraph.Query.Builder.Condition{
+      condition = %Seraph.Query.Builder.Entity.Condition{
         bound_name: "where__0",
         conditions: nil,
         entity_identifier: "u",
@@ -918,7 +918,7 @@ defmodule Seraph.QueryTest do
         match [{u, User}],
           where: u.uuid == ^uuid
 
-      condition = %Seraph.Query.Builder.Condition{
+      condition = %Seraph.Query.Builder.Entity.Condition{
         bound_name: "uuid",
         conditions: nil,
         entity_identifier: "u",
@@ -937,10 +937,10 @@ defmodule Seraph.QueryTest do
         match([{u, User}])
         |> where(u.uuid == "uuid-1" and u.firstName == "John")
 
-      condition = %Seraph.Query.Builder.Condition{
+      condition = %Seraph.Query.Builder.Entity.Condition{
         bound_name: nil,
         conditions: [
-          %Seraph.Query.Builder.Condition{
+          %Seraph.Query.Builder.Entity.Condition{
             bound_name: "where__0",
             conditions: nil,
             entity_identifier: "u",
@@ -949,7 +949,7 @@ defmodule Seraph.QueryTest do
             value: nil,
             variable: :uuid
           },
-          %Seraph.Query.Builder.Condition{
+          %Seraph.Query.Builder.Entity.Condition{
             bound_name: "where__1",
             conditions: nil,
             entity_identifier: "u",
@@ -975,7 +975,7 @@ defmodule Seraph.QueryTest do
         match [{u, User}],
           where: is_nil(u.lastName)
 
-      condition = %Seraph.Query.Builder.Condition{
+      condition = %Seraph.Query.Builder.Entity.Condition{
         bound_name: nil,
         conditions: nil,
         entity_identifier: "u",
@@ -994,10 +994,10 @@ defmodule Seraph.QueryTest do
         match [{u, User}],
           where: not is_nil(u.lastName)
 
-      condition = %Seraph.Query.Builder.Condition{
+      condition = %Seraph.Query.Builder.Entity.Condition{
         bound_name: nil,
         conditions: [
-          %Seraph.Query.Builder.Condition{
+          %Seraph.Query.Builder.Entity.Condition{
             bound_name: nil,
             conditions: nil,
             entity_identifier: "u",

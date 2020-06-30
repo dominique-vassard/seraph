@@ -1,5 +1,5 @@
-defmodule Seraph.Query.Builder.Condition do
-  alias Seraph.Query.Builder.Condition
+defmodule Seraph.Query.Builder.Entity.Condition do
+  alias Seraph.Query.Builder.Entity.Condition
   @moduledoc false
 
   @variables [
@@ -13,7 +13,7 @@ defmodule Seraph.Query.Builder.Condition do
   ]
   defstruct @variables
 
-  alias Seraph.Query.Builder.Condition
+  alias Seraph.Query.Builder.Entity.Condition
 
   @type t :: %__MODULE__{
           entity_identifier: nil | String.t(),
