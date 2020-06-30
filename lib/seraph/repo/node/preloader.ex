@@ -2,6 +2,7 @@ defmodule Seraph.Repo.Node.Preloader do
   @moduledoc false
 
   alias Seraph.Query.{Builder, Planner}
+  alias Seraph.Query.Builder.Entity
 
   @default_load :all
   @default_limit :infinity
@@ -73,91 +74,92 @@ defmodule Seraph.Repo.Node.Preloader do
           options()
         ) :: Keyword.t()
   defp preload_one(repo, rel_info, struct, bare_struct, opts) do
-    {id_props, id_params} = identifier_props(struct)
+    %{__struct__: queryable} = struct
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
+    properties = Map.put(%{}, id_field, Map.fetch!(struct, id_field))
 
     load = Keyword.get(opts, :load, @default_load)
 
-    {start_node, end_node} =
+    {start_node_data, end_node_data} =
       case rel_info.direction do
         :outgoing ->
-          start_node = %Builder.NodeExpr{
-            variable: "source",
-            labels: [rel_info.start_node.__schema__(:primary_label)],
-            properties: id_props
-          }
-
-          end_node = %Builder.NodeExpr{
-            variable: "preload",
-            labels: [rel_info.end_node.__schema__(:primary_label)]
-          }
-
+          start_node = Entity.Node.from_queryable(queryable, properties, "preload__", "source")
+          end_node = Entity.Node.from_queryable(rel_info.end_node, %{}, "preload__", "preload")
           {start_node, end_node}
 
         :incoming ->
-          start_node = %Builder.NodeExpr{
-            variable: "preload",
-            labels: [rel_info.start_node.__schema__(:primary_label)]
-          }
+          start_node =
+            Entity.Node.from_queryable(rel_info.start_node, %{}, "preload__", "preload")
 
-          end_node = %Builder.NodeExpr{
-            variable: "source",
-            labels: [rel_info.end_node.__schema__(:primary_label)],
-            properties: id_props
-          }
-
+          end_node = Entity.Node.from_queryable(queryable, properties, "preload__", "source")
           {start_node, end_node}
       end
 
-    return_node = %Builder.NodeExpr{
-      variable: "preload"
-    }
-
-    relationship = %Builder.RelationshipExpr{
-      variable: "rel",
-      start: start_node,
-      end: end_node,
+    relationship = %Entity.Relationship{
+      start: start_node_data.entity,
+      end: end_node_data.entity,
+      identifier: "rel",
+      queryable: rel_info.schema,
       type: rel_info.type
     }
 
-    return_fields =
-      case load do
-        :nodes -> [return_node]
-        _ -> [relationship, return_node]
-      end
-
-    order_field = %Builder.FieldExpr{
-      variable: return_node.variable,
-      name: id_props |> Map.keys() |> List.first()
+    return_node = %Builder.Return{
+      raw_variables: [
+        %Builder.Entity.EntityData{
+          entity_identifier: :preload
+        }
+      ]
     }
 
-    base_query =
-      Builder.new(:match)
-      |> Builder.match([relationship])
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: return_fields
-      })
-      |> Builder.order_by([
-        %Builder.OrderExpr{
-          field: order_field
-        }
-      ])
-      |> Builder.params(id_params)
+    return =
+      case load do
+        :nodes ->
+          return_node
 
-    limit = Keyword.get(opts, :limit, @default_limit)
+        _ ->
+          return_rel = %Builder.Entity.EntityData{
+            entity_identifier: :rel
+          }
 
-    query =
-      if limit == :infinity do
-        base_query
-      else
-        Builder.limit(base_query, limit)
+          %{return_node | raw_variables: [return_rel | return_node.raw_variables]}
       end
 
-    {statement, params} = Builder.to_string(query)
+    identifiers =
+      %{"rel" => relationship}
+      |> Map.put(start_node_data.entity.identifier, start_node_data.entity)
+      |> Map.put(end_node_data.entity.identifier, end_node_data.entity)
 
-    Planner.query(repo, statement, params)
+    order_data = %Entity.EntityData{
+      entity_identifier: "preload",
+      property: properties |> Map.keys() |> List.first()
+    }
+
+    unlimited_ops = [
+      match: %Builder.Match{
+        entities: [relationship]
+      },
+      return: return,
+      order_by: %Builder.OrderBy{
+        raw_orders: [%Builder.Entity.Order{entity: order_data}]
+      }
+    ]
+
+    operations =
+      case Keyword.get(opts, :limit, @default_limit) do
+        :infinity ->
+          unlimited_ops
+
+        limit ->
+          Keyword.merge(unlimited_ops, limit: %Builder.Limit{value: limit})
+      end
 
     {nodes_data, rels_data} =
-      Planner.query!(repo, statement, params)
+      %Seraph.Query{
+        identifiers: identifiers,
+        operations: operations,
+        params: Keyword.merge(start_node_data.params, end_node_data.params)
+      }
+      |> repo.query!()
       |> format_results(rel_info, bare_struct)
 
     preload_rel_field =
@@ -247,50 +249,30 @@ defmodule Seraph.Repo.Node.Preloader do
           Seraph.Schema.Relationship.Outgoing.t() | Seraph.Schema.Relationship.Incoming.t(),
           Seraph.Schema.Node.t()
         ) :: {Seraph.Schema.Node.t(), Seraph.Schema.Relationship.t()}
-  defp format_result(
-         %{"preload" => node_data} = results,
-         %{direction: :outgoing} = relationship_info,
-         bare_struct
-       ) do
-    preload_node = Seraph.Repo.Helper.build_node(relationship_info.end_node, node_data)
-
-    rel_props =
+  defp format_result(%{"preload" => preload_node} = results, %{direction: :outgoing}, bare_struct) do
+    relationship =
       case Map.get(results, "rel") do
         nil ->
           []
 
-        rel_data ->
-          rel_data.properties
-          |> Seraph.Repo.Helper.atom_map()
-          |> Map.put(:__id__, rel_data.id)
-          |> Map.put(:start_node, bare_struct)
-          |> Map.put(:end_node, preload_node)
+        rel ->
+          Map.put(rel, :start_node, bare_struct)
       end
 
-    {preload_node, struct!(relationship_info.schema, rel_props)}
+    {preload_node, relationship}
   end
 
-  defp format_result(
-         %{"preload" => node_data} = results,
-         %{direction: :incoming} = relationship_info,
-         bare_struct
-       ) do
-    preload_node = Seraph.Repo.Helper.build_node(relationship_info.start_node, node_data)
-
-    rel_props =
+  defp format_result(%{"preload" => preload_node} = results, %{direction: :incoming}, bare_struct) do
+    relationship =
       case Map.get(results, "rel") do
         nil ->
           []
 
-        rel_data ->
-          rel_data.properties
-          |> Seraph.Repo.Helper.atom_map()
-          |> Map.put(:__id__, rel_data.id)
-          |> Map.put(:start_node, preload_node)
-          |> Map.put(:end_node, bare_struct)
+        rel ->
+          Map.put(rel, :end_node, bare_struct)
       end
 
-    {preload_node, struct!(relationship_info.schema, rel_props)}
+    {preload_node, relationship}
   end
 
   @spec relation_info(Seraph.Repo.queryable(), atom) ::
@@ -326,17 +308,6 @@ defmodule Seraph.Repo.Node.Preloader do
     {bare_data, _} = Map.split(node_data, bare_props)
 
     struct!(queryable, bare_data)
-  end
-
-  @spec identifier_props(Seraph.Schema.Node.t()) :: {map, map}
-  defp identifier_props(%{__struct__: queryable} = struct) do
-    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
-    bound_name = Atom.to_string(id_field)
-
-    props = Map.put(%{}, id_field, bound_name)
-    params = Map.put(%{}, bound_name, Map.fetch!(struct, id_field))
-
-    {props, params}
   end
 
   @spec check_preload_opts(options()) :: :ok
