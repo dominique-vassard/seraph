@@ -12,6 +12,11 @@ defmodule Seraph.Query.Builder.Match do
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{
+          match: Match.t(),
+          identifiers: map,
+          params: Keyword.t()
+        }
   def build(ast, env) do
     entity_list = Enum.map(ast, &build_entity(&1, env))
 
@@ -46,12 +51,12 @@ defmodule Seraph.Query.Builder.Match do
       - property value exists in params
   """
   @impl true
-  @spec check(Match.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
+  @spec check(nil | Match.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(match_data, query) do
     do_check(match_data.entities, query)
   end
 
-  @spec do_check(Match.t(), Seraph.Query.t(), :ok | {:error, String.t()}) ::
+  @spec do_check([Entity.t()], Seraph.Query.t(), :ok | {:error, String.t()}) ::
           :ok | {:error, String.t()}
   defp do_check(entity_to_check, query, result \\ :ok)
 
@@ -95,6 +100,7 @@ defmodule Seraph.Query.Builder.Match do
     error
   end
 
+  @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.t()
   defp build_entity({:{}, _, [{:__aliases__, _, [_]}]}, _env) do
     raise ArgumentError, "Nodes with only a queryable are not allowed except in relationships."
   end
@@ -181,6 +187,7 @@ defmodule Seraph.Query.Builder.Match do
   end
 
   defimpl Seraph.Query.Cypher, for: Match do
+    @spec encode(Match.t(), Keyword.t()) :: String.t()
     def encode(%Match{entities: entities}, _) do
       match_str =
         entities

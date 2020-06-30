@@ -120,7 +120,7 @@ defmodule Seraph.Schema.Node do
           }
 
     defimpl Inspect do
-      @spec inspect(NotLoaded.t(), Keyword.t()) :: String.t()
+      @spec inspect(Seraph.Schema.Node.NotLoaded.t(), Inspect.Opts.t()) :: String.t()
       def inspect(not_loaded, _opts) do
         msg =
           "nodes (#{not_loaded.__label__}) through relationship :#{not_loaded.__type__} are not loaded"

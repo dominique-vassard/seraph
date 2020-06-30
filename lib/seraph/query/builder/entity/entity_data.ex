@@ -9,6 +9,7 @@ defmodule Seraph.Query.Builder.Entity.EntityData do
         }
 
   defimpl Seraph.Query.Cypher, for: EntityData do
+    @spec encode(EntityData.t(), Keyword.t()) :: String.t()
     def encode(%EntityData{entity_identifier: entity_identifier, property: nil}, _) do
       "#{entity_identifier}"
     end

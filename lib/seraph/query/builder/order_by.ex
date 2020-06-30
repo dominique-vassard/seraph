@@ -50,6 +50,7 @@ defmodule Seraph.Query.Builder.OrderBy do
     %OrderBy{orders: orders, raw_orders: nil}
   end
 
+  @spec fetch_entity(String.t(), Seraph.Query.t()) :: Entity.t()
   defp fetch_entity(identifier, query) do
     case Map.fetch(query.identifiers, identifier) do
       {:ok, entity} ->
@@ -83,6 +84,8 @@ defmodule Seraph.Query.Builder.OrderBy do
     end
   end
 
+  @spec do_check(Entity.t(), map, [Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]) ::
+          :ok | {:error, String.t()}
   defp do_check_identifier_or_alias(entity_data, identifiers, return_data) do
     return_aliases =
       Enum.reduce(return_data, %{}, fn
@@ -109,6 +112,7 @@ defmodule Seraph.Query.Builder.OrderBy do
     end
   end
 
+  @spec do_check_property(Entity.t() | any, atom) :: :ok | {:error, String.t()}
   defp do_check_property(%Entity.Relationship{} = entity_data, property) do
     Helper.check_property(entity_data.queryable, property, nil, false)
   end
@@ -122,6 +126,7 @@ defmodule Seraph.Query.Builder.OrderBy do
   end
 
   defimpl Seraph.Query.Cypher, for: OrderBy do
+    @spec encode(OrderBy.t(), Keyword.t()) :: String.t()
     def encode(%OrderBy{orders: orders}, _) do
       order_str =
         orders

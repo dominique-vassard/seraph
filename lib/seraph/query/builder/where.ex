@@ -26,14 +26,16 @@ defmodule Seraph.Query.Builder.Where do
   defstruct [:condition, :data, :params]
 
   @type t :: %__MODULE__{
-          condition: Seraph.Query.Builder.Condition.t(),
+          condition: nil | Seraph.Query.Builder.Entity.Condition.t(),
           data: map,
           params: Keyword.t()
         }
 
+  @spec valid_operators :: [atom]
   def valid_operators(), do: @valid_operators
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t(), Keyword.t()) :: Where.t()
   def build(ast, _env, params \\ [])
 
   def build({operator, _, [_, _]}, _env, _) when operator not in @valid_operators do
@@ -145,8 +147,9 @@ defmodule Seraph.Query.Builder.Where do
 
   @impl true
   @spec check(
-          Seraph.Query.Builder.Condition.t() | [Seraph.Query.Builder.Condition.t()],
-          Seraph.Query.t()
+          Seraph.Query.Builder.Entity.Condition.t() | [Seraph.Query.Builder.Entity.Condition.t()],
+          Seraph.Query.t(),
+          :ok | {:error, String.t()}
         ) :: :ok | {:error, String.t()}
   def check(condition, query, result \\ :ok)
 

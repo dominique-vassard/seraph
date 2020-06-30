@@ -121,7 +121,7 @@ defmodule Seraph.Repo do
         end
       end
 
-      @spec query!(Seraph.Query.t(), Keyword.t()) :: {:ok, [map] | %{results: [map], stats: map}}
+      @spec query!(Seraph.Query.t(), Keyword.t()) :: [map] | %{results: [map], stats: map}
       def query!(%Seraph.Query{} = query, opts \\ []) do
         case query(query, opts) do
           {:ok, result} -> result

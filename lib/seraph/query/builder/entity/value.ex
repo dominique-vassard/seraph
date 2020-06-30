@@ -8,6 +8,7 @@ defmodule Seraph.Query.Builder.Entity.Value do
           value: any
         }
   defimpl Seraph.Query.Cypher, for: Value do
+    @spec encode(Value.t(), Keyword.t()) :: String.t()
     def encode(%Value{alias: data_alias}, operation: :order_by) do
       "#{data_alias}"
     end

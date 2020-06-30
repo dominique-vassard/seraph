@@ -201,6 +201,7 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
           Seraph.Schema.Node.t() | map,
           Seraph.Schema.Node.t() | map,
           map,
+          String.t(),
           String.t()
         ) :: %{entity: Relationship.t(), params: Keyword.t()}
   def from_queryable(
@@ -249,6 +250,7 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
     %{entity: final_rel, params: params}
   end
 
+  @spec check_string_relationship_type(String.t()) :: nil
   defp check_string_relationship_type(relationship_type) do
     if not Regex.match?(~r/^[A-Z][A-Z0-9_]*$/, relationship_type) do
       message =
@@ -296,6 +298,7 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
     end
   end
 
+  @spec extract_node_properties(Seraph.Schema.Node.t()) :: map
   def extract_node_properties(%{__struct__: queryable} = node_data) do
     id_field = Seraph.Repo.Helper.identifier_field!(queryable)
     id_value = Map.fetch!(node_data, id_field)
@@ -308,6 +311,7 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
   end
 
   defimpl Seraph.Query.Cypher, for: Relationship do
+    @spec encode(Relationship.t(), Keyword.t()) :: String.t()
     def encode(%Relationship{identifier: identifier}, operation: :delete) do
       "#{identifier}"
     end

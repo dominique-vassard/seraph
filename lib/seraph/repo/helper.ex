@@ -183,45 +183,4 @@ defmodule Seraph.Repo.Helper do
   def create_match_merge_opts(_, opts) do
     opts
   end
-
-  @doc """
-  Convert a map into properties and params usable in NodeExpr and RelationshipExpr
-  """
-  @spec to_props_and_conditions(Enum.t(), nil | String.t()) :: %{
-          properties: map,
-          params: map,
-          condition: nil | Seraph.Query.Condition.t()
-        }
-  def to_props_and_conditions(data, source_variable \\ nil) do
-    Enum.reduce(data, %{properties: %{}, params: %{}, condition: nil}, fn {prop_key, prop_value},
-                                                                          acc ->
-      bound_name = bound_name(prop_key, source_variable)
-
-      case is_nil(prop_value) do
-        false ->
-          %{
-            acc
-            | properties: Map.put(acc.properties, prop_key, bound_name),
-              params: Map.put(acc.params, String.to_atom(bound_name), prop_value)
-          }
-
-        true ->
-          condition = %Condition{
-            source: source_variable,
-            field: prop_key,
-            operator: :is_nil
-          }
-
-          %{acc | condition: Condition.join_conditions(acc.condition, condition)}
-      end
-    end)
-  end
-
-  defp bound_name(property_name, nil) do
-    Atom.to_string(property_name)
-  end
-
-  defp bound_name(property_name, source_variable) do
-    source_variable <> "_" <> Atom.to_string(property_name)
-  end
 end

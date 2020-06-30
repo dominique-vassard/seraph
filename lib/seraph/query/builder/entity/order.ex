@@ -5,14 +5,18 @@ defmodule Seraph.Query.Builder.Entity.Order do
   defstruct [:entity, order: :asc]
 
   @type t :: %__MODULE__{
-          entity: Entity.EntityData | Entity.Value,
+          entity: Entity.EntityData.t() | Entity.Property.t(),
           order: :asc | :desc
         }
 
-  @spec build_from_ast(Macro.t() | tuple()) :: Order.t()
-  def build_from_ast({order, data}) do
+  @spec build_from_ast(Macro.t()) :: Order.t()
+  def build_from_ast({order, data}) when order in [:asc, :desc] do
     build_from_ast(data)
-    |> Map.put(:order, order)
+    |> Map.put(:order, :asc)
+  end
+
+  def build_from_ast({order, _data}) do
+    raise ArgumentError, "unknown order: #{order}"
   end
 
   def build_from_ast({{:., _, [{identifier, _, _}, property]}, _, _}) do
@@ -35,6 +39,7 @@ defmodule Seraph.Query.Builder.Entity.Order do
   end
 
   defimpl Seraph.Query.Cypher, for: Order do
+    @spec encode(Order.t(), Keyword.t()) :: String.t()
     def encode(%Order{order: order, entity: entity}, opts) do
       entity_str = Seraph.Query.Cypher.encode(entity, opts)
       order_str = order |> Atom.to_string() |> String.upcase()

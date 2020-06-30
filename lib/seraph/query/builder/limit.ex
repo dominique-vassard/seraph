@@ -10,6 +10,7 @@ defmodule Seraph.Query.Builder.Limit do
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{limit: Limit.t(), params: Keyword.t()}
   def build({:^, _, [{bound_name, _, _} = value]}, _env) do
     limit = %Limit{
       bound_name: Atom.to_string(bound_name),
@@ -32,6 +33,7 @@ defmodule Seraph.Query.Builder.Limit do
   end
 
   @impl true
+  @spec check(Limit.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Limit{bound_name: bound_name, value: nil}, %Seraph.Query{} = query) do
     value = Keyword.fetch!(query.params, String.to_atom(bound_name))
 
@@ -51,6 +53,7 @@ defmodule Seraph.Query.Builder.Limit do
   end
 
   defimpl Seraph.Query.Cypher, for: Limit do
+    @spec encode(Limit.t(), Keyword.t()) :: String.t()
     def encode(%Limit{bound_name: nil, value: value}, _) do
       "LIMIT #{value}"
     end

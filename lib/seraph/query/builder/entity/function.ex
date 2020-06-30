@@ -17,6 +17,7 @@ defmodule Seraph.Query.Builder.Entity.Function do
         }
 
   defimpl Seraph.Query.Cypher, for: Function do
+    @spec encode(Function.t(), Keyword.t()) :: String.t()
     def encode(
           %Function{infix?: true, alias: func_alias, name: name, args: [left_arg, right_arg]},
           opts

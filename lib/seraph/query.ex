@@ -517,7 +517,7 @@ defmodule Seraph.Query do
   defp do_prepare(query, opts) do
     Enum.reduce(query.operations, query, fn
       {:return, return}, old_query ->
-        %{return: new_return} = Builder.Return.prepare(return, old_query, opts)
+        new_return = Builder.Return.prepare(return, old_query, opts)
 
         %{
           old_query

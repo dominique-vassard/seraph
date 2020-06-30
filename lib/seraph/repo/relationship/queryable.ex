@@ -9,7 +9,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
           Seraph.Schema.Node.t() | map,
           Keyword.t() | map,
           atom()
-        ) :: Seraph.Query.t() | {:error, String.t()}
+        ) :: Seraph.Query.t() | {:error, Keyword.t()}
   def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :match) do
     rel_properties = Enum.into(rel_properties, %{})
 
@@ -432,8 +432,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
 
     {to_remove, to_set} = Enum.split_with(rel_properties, fn {_, value} -> is_nil(value) end)
 
-    %{set: set, params: set_params} = Builder.Set.build_from_map(to_set, "rel")
-    remove = Builder.Remove.build_from_map(to_remove, "rel")
+    %{set: set, params: set_params} = Builder.Set.build_from_map(Enum.into(to_set, %{}), "rel")
+    remove = Builder.Remove.build_from_map(Enum.into(to_remove, %{}), "rel")
 
     %Seraph.Query{
       identifiers: %{
@@ -688,6 +688,8 @@ defmodule Seraph.Repo.Relationship.Queryable do
     }
   end
 
+  @spec merge_set_operations(Seraph.Repo.queryable(), :on_create | :on_match, tuple) ::
+          {:ok, map} | {:error, Keyword.t()}
   defp merge_set_operations(queryable, operation, {data, changeset_fn}) do
     case changeset_fn.(struct!(queryable, %{}), data) do
       %Seraph.Changeset{valid?: true} = changeset ->
@@ -699,7 +701,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
             prop_name in persisted_properties
           end)
 
-        set_data = Builder.Set.build_from_map(rel_properties, "rel")
+        set_data = Builder.Set.build_from_map(Enum.into(rel_properties, %{}), "rel")
         {:ok, set_data}
 
       changeset ->

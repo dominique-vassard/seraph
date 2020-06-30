@@ -6,21 +6,24 @@ defmodule Seraph.Query.Builder.Delete do
   defstruct [:entities, :raw_entities]
 
   @type t :: %__MODULE__{
-          entities: [Entity.Node.t() | Entity.Relationship.t()],
-          raw_entities: [Entity.EntityData]
+          entities: nil | [Entity.Node.t() | Entity.Relationship.t()],
+          raw_entities: nil | [Entity.EntityData]
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: Delete.t()
   def build(asts, env) do
     %Delete{entities: nil, raw_entities: Enum.map(asts, &build_entity(&1, env))}
   end
 
   @impl true
+  @spec check(Delete.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Delete{raw_entities: raw_entities}, %Seraph.Query{} = query) do
     do_check(raw_entities, query)
   end
 
   @impl true
+  @spec prepare(Delete.t(), Seraph.Query.t(), Keyword.t()) :: Delete.t()
   def prepare(%Delete{entities: nil} = delete, %Seraph.Query{} = query, _opts) do
     entities =
       delete.raw_entities
@@ -60,6 +63,7 @@ defmodule Seraph.Query.Builder.Delete do
   end
 
   defimpl Seraph.Query.Cypher, for: Delete do
+    @spec encode(Delete.t(), Keyword.t()) :: String.t()
     def encode(%Delete{entities: entities}, _) do
       {nodes, relationships} =
         Enum.split_with(entities, fn

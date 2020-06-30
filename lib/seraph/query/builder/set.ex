@@ -1,8 +1,7 @@
 defmodule Seraph.Query.Builder.Set do
   @behaviour Seraph.Query.Operation
 
-  alias Seraph.Query.Builder.Set
-  alias Seraph.Query.Builder.{Entity, Helper}
+  alias Seraph.Query.Builder.{Entity, Helper, Set}
 
   defstruct [:expressions]
 
@@ -32,6 +31,8 @@ defmodule Seraph.Query.Builder.Set do
     :/
   ]
 
+  @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{set: Set.t(), params: Keyword.t()}
   def build(ast, env) do
     %{entities: entities, params: params} =
       ast
@@ -46,6 +47,7 @@ defmodule Seraph.Query.Builder.Set do
     %{set: %Set{expressions: entities}, params: params}
   end
 
+  @spec build_from_map(map, String.t(), String.t()) :: %{set: Set.t(), params: Keyword.t()}
   def build_from_map(data_to_set, entity_identifier \\ "n", param_prefix \\ "") do
     %{entities: entities, params: params} =
       data_to_set
@@ -66,11 +68,17 @@ defmodule Seraph.Query.Builder.Set do
     %{set: %Set{expressions: entities}, params: params}
   end
 
+  @impl true
   @spec check(Set.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Set{expressions: expressions}, %Seraph.Query{} = query) do
     do_check(expressions, query)
   end
 
+  @spec do_check(
+          [Entity.Property.t() | Entity.Label.t()],
+          Seraph.Query.t(),
+          :ok | {:error, String.t()}
+        ) :: :ok | {:error, String.t()}
   defp do_check(expressions, query, result \\ :ok)
 
   defp do_check([], _, result) do
@@ -140,6 +148,7 @@ defmodule Seraph.Query.Builder.Set do
     do_check(rest, query, :ok)
   end
 
+  @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.Property.t() | Entity.Label.t()
   # Set property value
   # u.uuid = 5
   # u.uuid = ^uuid
@@ -187,6 +196,7 @@ defmodule Seraph.Query.Builder.Set do
     raise "Removing all additional labels is not yet supported"
   end
 
+  @spec build_value(Macro.t()) :: Entity.EntityData | Entity.Function | any
   # Pinned value
   # ^uuid
   defp build_value({:^, _, [{_, _, _} = value]}) do
@@ -231,6 +241,7 @@ defmodule Seraph.Query.Builder.Set do
   end
 
   defimpl Seraph.Query.Cypher, for: Set do
+    @spec encode(Set.t(), Keyword.t()) :: String.t()
     def encode(%Set{expressions: expressions}, _) do
       expressions_str =
         expressions
@@ -242,6 +253,8 @@ defmodule Seraph.Query.Builder.Set do
         SET
           #{expressions_str}
         """
+      else
+        ""
       end
     end
   end

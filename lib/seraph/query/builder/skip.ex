@@ -10,6 +10,7 @@ defmodule Seraph.Query.Builder.Skip do
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{skip: Skip.t(), params: Keyword.t()}
   def build({:^, _, [{bound_name, _, _} = value]}, _env) do
     skip = %Skip{
       bound_name: Atom.to_string(bound_name),
@@ -32,6 +33,7 @@ defmodule Seraph.Query.Builder.Skip do
   end
 
   @impl true
+  @spec check(Skip.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Skip{bound_name: bound_name, value: nil}, %Seraph.Query{} = query) do
     value = Keyword.fetch!(query.params, String.to_atom(bound_name))
 
@@ -51,6 +53,7 @@ defmodule Seraph.Query.Builder.Skip do
   end
 
   defimpl Seraph.Query.Cypher, for: Skip do
+    @spec encode(Skip.t(), Keyword.t()) :: String.t()
     def encode(%Skip{bound_name: nil, value: value}, _) do
       "SKIP #{value}"
     end

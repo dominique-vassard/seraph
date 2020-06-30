@@ -6,11 +6,16 @@ defmodule Seraph.Query.Builder.Create do
   defstruct [:entities, :raw_entities]
 
   @type t :: %__MODULE__{
-          raw_entities: [Builder.Entity.t()],
-          entities: [Builder.Entity.t()]
+          raw_entities: [Entity.t()],
+          entities: [Entity.t()]
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{
+          create: Create.t(),
+          identifiers: map,
+          params: Keyword.t()
+        }
   def build(ast, env) do
     create_data =
       ast
@@ -45,8 +50,9 @@ defmodule Seraph.Query.Builder.Create do
       - relationship nodes has queryable
   """
   @impl true
+  @spec check(Create.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(create_data, query) do
-    result = Match.check(%{entities: create_data.raw_entities}, query)
+    result = Match.check(%Match{entities: create_data.raw_entities}, query)
 
     create_data.raw_entities
     |> Enum.filter(fn
@@ -88,6 +94,7 @@ defmodule Seraph.Query.Builder.Create do
     %{create: Map.put(create, :entities, new_entities), new_identifiers: new_identifiers}
   end
 
+  @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.t()
   # Node with identifier, no queryable, properties
   # {u, %{uuid: ^user_uuid}
   defp build_entity({{identifier, _, _}, {:%{}, _, _properties}}, _env)
@@ -129,6 +136,7 @@ defmodule Seraph.Query.Builder.Create do
     Entity.Node.from_ast(ast, env)
   end
 
+  @spec check_related_node(Entity.Node.t()) :: :ok
   defp check_related_node(%Entity.Node{
          identifier: identifier,
          queryable: Seraph.Node,

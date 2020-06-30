@@ -6,11 +6,16 @@ defmodule Seraph.Query.Builder.Merge do
   defstruct [:entities, :raw_entities]
 
   @type t :: %__MODULE__{
-          raw_entities: Builder.Entity.t(),
-          entities: Builder.Entity.t()
+          raw_entities: nil | Entity.t(),
+          entities: nil | Entity.t()
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{
+          merge: Merge.t(),
+          identifiers: map,
+          params: Keyword.t()
+        }
   def build(ast, env) do
     %{entity: new_entity, params: params} =
       ast
@@ -25,11 +30,19 @@ defmodule Seraph.Query.Builder.Merge do
   end
 
   @impl true
+  @spec check(nil | Merge.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Merge{} = merge_data, %Seraph.Query{} = query) do
-    Seraph.Query.Builder.Match.check(%{entities: [merge_data.raw_entities]}, query)
+    Seraph.Query.Builder.Match.check(
+      %Seraph.Query.Builder.Match{entities: [merge_data.raw_entities]},
+      query
+    )
   end
 
   @impl true
+  @spec prepare(Merge.t(), Seraph.Query.t(), Keyword.t()) :: %{
+          merge: Merge.t(),
+          new_identifiers: map
+        }
   def prepare(%Merge{raw_entities: raw_entity} = merge, %Seraph.Query{} = query, _opts) do
     %{entities: new_entities, new_identifiers: new_identifiers} =
       case raw_entity do
@@ -51,6 +64,7 @@ defmodule Seraph.Query.Builder.Merge do
     %{merge: Map.put(merge, :entities, new_entities), new_identifiers: new_identifiers}
   end
 
+  @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.t()
   # Empty node
   # {}
   defp build_entity({:{}, _, []}, _env) do
@@ -93,6 +107,7 @@ defmodule Seraph.Query.Builder.Merge do
   end
 
   defimpl Seraph.Query.Cypher, for: Merge do
+    @spec encode(Merge.t(), Keyword.t()) :: String.t()
     def encode(%Merge{raw_entities: raw_entities}, _) do
       merge_str = Seraph.Query.Cypher.encode(raw_entities, operation: :merge)
 

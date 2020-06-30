@@ -24,12 +24,12 @@ defmodule Seraph.Query.Builder.Return do
   @multi_args_func [:distinct]
   @valid_funcs @unary_funcs ++ @binary_funcs ++ @multi_args_func
 
-  @type entities :: EntityData.t() | Entity.Value.t() | Function.t()
+  @type entities :: Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()
 
   @type t :: %__MODULE__{
           distinct?: boolean,
-          variables: nil | %{String.t() => Entity.t() | Entity.Value.t() | Function.t()},
-          raw_variables: nil | [EntityData.t() | Entity.Value.t() | Function.t()]
+          variables: nil | %{String.t() => Entity.t() | Entity.Value.t() | Entity.Function.t()},
+          raw_variables: nil | [Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]
         }
 
   @spec build(Macro.t(), Macro.Env.t()) :: %{return: Return.t(), params: Keyword.t()}
@@ -220,14 +220,12 @@ defmodule Seraph.Query.Builder.Return do
       end)
       |> manage_relationship_results(Keyword.get(opts, :relationship_result))
 
-    new_return =
-      return
-      |> Map.put(:raw_variables, nil)
-      |> Map.put(:variables, variables)
-
-    %{return: new_return}
+    return
+    |> Map.put(:raw_variables, nil)
+    |> Map.put(:variables, variables)
   end
 
+  @spec build_variables([Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]) :: map
   def build_variables(raw_variables) do
     Enum.reduce(raw_variables, %{}, fn
       %{alias: data_alias} = data, vars when not is_nil(data_alias) ->
@@ -348,6 +346,7 @@ defmodule Seraph.Query.Builder.Return do
   end
 
   defimpl Seraph.Query.Cypher, for: Return do
+    @spec encode(Return.t(), Keyword.t()) :: String.t()
     def encode(%Return{variables: variables}, _) do
       variables_str =
         variables

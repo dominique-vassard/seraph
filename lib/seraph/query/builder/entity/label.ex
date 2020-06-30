@@ -9,6 +9,7 @@ defmodule Seraph.Query.Builder.Entity.Label do
         }
 
   defimpl Seraph.Query.Cypher, for: Label do
+    @spec encode(Label.t(), Keyword.t()) :: String.t()
     def encode(%Label{node_identifier: identifier, values: labels}, _) do
       labels_str = Enum.join(labels, ":")
       "#{identifier}:#{labels_str}"

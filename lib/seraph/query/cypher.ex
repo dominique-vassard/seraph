@@ -4,6 +4,7 @@ defprotocol Seraph.Query.Cypher do
 end
 
 defimpl Seraph.Query.Cypher, for: [Integer, String, Float] do
+  @spec encode(number | String.t(), Keyword.t()) :: String.t()
   def encode(value, _) do
     value
   end

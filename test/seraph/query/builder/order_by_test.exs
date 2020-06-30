@@ -83,6 +83,7 @@ defmodule Seraph.Query.Builder.OrderByTest do
       assert [
                %Seraph.Query.Builder.Entity.Order{
                  entity: %Seraph.Query.Builder.Entity.EntityData{
+                   alias: nil,
                    entity_identifier: "u",
                    property: :firstName
                  },
@@ -90,10 +91,11 @@ defmodule Seraph.Query.Builder.OrderByTest do
                },
                %Seraph.Query.Builder.Entity.Order{
                  entity: %Seraph.Query.Builder.Entity.EntityData{
+                   alias: nil,
                    entity_identifier: "rel",
                    property: :at
                  },
-                 order: :desc
+                 order: :asc
                }
              ] = raw_orders
     end
@@ -203,7 +205,7 @@ defmodule Seraph.Query.Builder.OrderByTest do
                    type: nil,
                    value: nil
                  },
-                 order: :desc
+                 order: :asc
                }
              ] = orders
     end

@@ -83,7 +83,10 @@ defmodule Seraph.Repo.Node.Queryable do
 
     {to_remove, to_set} = Enum.split_with(other_changes, fn {_, value} -> is_nil(value) end)
 
-    %{set: set, params: set_params} = Builder.Set.build_from_map(to_set)
+    %{set: set, params: set_params} =
+      to_set
+      |> Enum.into(%{})
+      |> Builder.Set.build_from_map()
 
     labels_to_set = additional_labels -- changeset.data.additionalLabels
     labels_to_remove = changeset.data.additionalLabels -- additional_labels
@@ -100,7 +103,10 @@ defmodule Seraph.Repo.Node.Queryable do
         set
       end
 
-    remove = Builder.Remove.build_from_map(to_remove)
+    remove =
+      to_remove
+      |> Enum.into(%{})
+      |> Builder.Remove.build_from_map()
 
     final_remove =
       if length(labels_to_remove) > 0 do

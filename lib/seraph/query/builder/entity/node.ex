@@ -125,7 +125,7 @@ defmodule Seraph.Query.Builder.Entity.Node do
     }
   end
 
-  @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t(), String.t()) :: %{
+  @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t(), String.t(), String.t()) :: %{
           entity: Node.t(),
           params: Keyword.t()
         }

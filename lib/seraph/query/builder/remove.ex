@@ -11,6 +11,7 @@ defmodule Seraph.Query.Builder.Remove do
         }
 
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: Remove.t()
   def build(ast, env) do
     %Remove{expressions: Enum.map(ast, &build_entity(&1, env))}
   end
@@ -29,11 +30,14 @@ defmodule Seraph.Query.Builder.Remove do
   end
 
   @impl true
+  @spec check(Remove.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Remove{expressions: expressions}, %Seraph.Query{} = query) do
     do_check(expressions, query)
   end
 
   @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.Property.t() | Entity.Label.t()
+  # Property
+  # u.firstName
   defp build_entity({{:., _, [{entity_identifier, _, _}, property_name]}, _, _}, _env) do
     %Entity.Property{
       entity_identifier: Atom.to_string(entity_identifier),
@@ -175,6 +179,7 @@ defmodule Seraph.Query.Builder.Remove do
   end
 
   defimpl Seraph.Query.Cypher, for: Remove do
+    @spec encode(Remove.t(), Keyword.t()) :: String.t()
     def encode(%Remove{expressions: expressions}, _) do
       expressions_str =
         expressions

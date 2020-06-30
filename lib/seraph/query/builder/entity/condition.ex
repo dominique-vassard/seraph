@@ -51,6 +51,7 @@ defmodule Seraph.Query.Builder.Entity.Condition do
   end
 
   defimpl Seraph.Query.Cypher, for: Condition do
+    @spec encode(nil | Condition.t(), Keyword.t()) :: String.t()
     def encode(condition, _) do
       str = do_encode(condition)
 
@@ -79,19 +80,6 @@ defmodule Seraph.Query.Builder.Entity.Condition do
 
       "#{encode_operator(operator)} #{str_cond}"
     end
-
-    # defp do_encode(%Condition{
-    #        operator: operator,
-    #        variable: %Seraph.Query.Builder.Entity.Relationship{} = relationship
-    #      }) do
-    #   %{
-    #     start: %{identifier: start_identifier},
-    #     end: %{identifier: end_identifier},
-    #     type: rel_type
-    #   } = relationship
-
-    #   "#{encode_operator(operator)} (#{start_identifier})-[:#{rel_type}]->(#{end_identifier})"
-    # end
 
     defp do_encode(%Condition{
            entity_identifier: entity_identifier,

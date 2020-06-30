@@ -26,6 +26,7 @@ defmodule Seraph.Query.Builder.Entity.Property do
     end)
   end
 
+  @spec extract_params(Property.t(), Keyword.t(), String.t()) :: {Property.t(), Keyword.t()}
   def extract_params(%Property{} = property, current_params, prefix) do
     value = property.value
 
@@ -72,7 +73,7 @@ defmodule Seraph.Query.Builder.Entity.Property do
   end
 
   defimpl Seraph.Query.Cypher, for: Property do
-    @spec encode(Seraph.Query.Builder.Entity.Property.t(), Keyword.t()) :: String.t()
+    @spec encode(Property.t(), Keyword.t()) :: String.t()
     def encode(%Property{alias: prop_alias}, operation: :order_by) when not is_nil(prop_alias) do
       "#{prop_alias}"
     end
