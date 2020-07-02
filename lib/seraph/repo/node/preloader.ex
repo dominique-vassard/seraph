@@ -1,7 +1,7 @@
 defmodule Seraph.Repo.Node.Preloader do
   @moduledoc false
 
-  alias Seraph.Query.{Builder, Planner}
+  alias Seraph.Query.Builder
   alias Seraph.Query.Builder.Entity
 
   @default_load :all
@@ -159,7 +159,7 @@ defmodule Seraph.Repo.Node.Preloader do
         operations: operations,
         params: Keyword.merge(start_node_data.params, end_node_data.params)
       }
-      |> repo.query!()
+      |> repo.execute!()
       |> format_results(rel_info, bare_struct)
 
     preload_rel_field =
@@ -232,7 +232,7 @@ defmodule Seraph.Repo.Node.Preloader do
   end
 
   defp format_results(_, %{cardinality: :one} = relationship_info, %{__struct__: node_struct}) do
-    raise Seraph.Exception,
+    raise Seraph.Error,
           "Cannot preload #{relationship_info.type} relationship on #{inspect(node_struct)}.
     There is more than one relationship found but its cardinality is :one."
   end

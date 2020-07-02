@@ -18,7 +18,7 @@ defmodule Seraph.IntegrationTest do
              match([{u, User}])
              |> return(num: 1)
              |> limit(1)
-             |> TestRepo.query!()
+             |> TestRepo.execute!()
   end
 
   test "create node - direct" do
@@ -46,7 +46,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Ben", last_name: "New"}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "create relationship - direct" do
@@ -92,7 +92,7 @@ defmodule Seraph.IntegrationTest do
       title: "New Post"
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "create/set node " do
@@ -121,7 +121,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Ben", last_name: "New"}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "match/create/set relationship" do
@@ -169,7 +169,7 @@ defmodule Seraph.IntegrationTest do
       title: "New Post"
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "match/set relationship", %{uuids: uuids} do
@@ -208,7 +208,7 @@ defmodule Seraph.IntegrationTest do
       post_uuid: post_uuid
     }
 
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "match/set with value", %{uuids: uuids} do
@@ -231,7 +231,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{first_name: "Updated"}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "match/set with function", %{uuids: uuids} do
@@ -254,7 +254,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{user_uuid: user_uuid, view_count: 5}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   describe "merge on create / on match" do
@@ -275,7 +275,7 @@ defmodule Seraph.IntegrationTest do
       """
 
       params = %{user_uuid: uuid, first_name: "New User"}
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
     end
 
     test "node creation" do
@@ -296,7 +296,7 @@ defmodule Seraph.IntegrationTest do
       """
 
       params = %{user_uuid: uuid, first_name: "New User"}
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
     end
 
     test "node update", %{uuids: uuids} do
@@ -330,7 +330,7 @@ defmodule Seraph.IntegrationTest do
                    properties: %{"firstName" => "Updated", "lastName" => "Doe", "viewCount" => 0}
                  }
                }
-             ] = TestRepo.raw_query!(cql_check, params)
+             ] = TestRepo.query!(cql_check, params)
     end
 
     test "relationship creation", %{uuids: uuids} do
@@ -369,7 +369,7 @@ defmodule Seraph.IntegrationTest do
         post_uuid: post_uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
     end
 
     test "relationship update", %{uuids: uuids} do
@@ -410,7 +410,7 @@ defmodule Seraph.IntegrationTest do
         date: date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
     end
   end
 
@@ -421,7 +421,7 @@ defmodule Seraph.IntegrationTest do
           where: starts_with(u.firstName, "J"),
           return: [u.firstName]
 
-      assert [%{"u.firstName" => "John"}, %{"u.firstName" => "James"}] = TestRepo.query!(query)
+      assert [%{"u.firstName" => "John"}, %{"u.firstName" => "James"}] = TestRepo.execute!(query)
     end
 
     test "xor" do
@@ -430,7 +430,7 @@ defmodule Seraph.IntegrationTest do
           where: xor(u.firstName == "John", u.firstName == "Jack"),
           return: [u.firstName]
 
-      assert [%{"u.firstName" => "John"}] = TestRepo.query!(query)
+      assert [%{"u.firstName" => "John"}] = TestRepo.execute!(query)
     end
   end
 
@@ -440,7 +440,7 @@ defmodule Seraph.IntegrationTest do
     {:ok, _} =
       create([{u, User, %{uuid: ^uuid, firstName: "Ben", lastName: "New"}}])
       |> return(u)
-      |> TestRepo.query()
+      |> TestRepo.execute()
 
     query =
       match [{u, User, %{uuid: uuid}}],
@@ -456,7 +456,7 @@ defmodule Seraph.IntegrationTest do
                  viewCount: 1
                }
              }
-           ] = TestRepo.query!(query)
+           ] = TestRepo.execute!(query)
 
     cql_check = """
     MATCH
@@ -468,7 +468,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{uuid: uuid}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "remove property" do
@@ -477,7 +477,7 @@ defmodule Seraph.IntegrationTest do
     {:ok, _} =
       create([{u, User, %{uuid: ^uuid, firstName: "Ben", lastName: "New"}}])
       |> return(u)
-      |> TestRepo.query()
+      |> TestRepo.execute()
 
     query =
       match [{u, User, %{uuid: uuid}}],
@@ -493,7 +493,7 @@ defmodule Seraph.IntegrationTest do
                  viewCount: 1
                }
              }
-           ] = TestRepo.query!(query)
+           ] = TestRepo.execute!(query)
 
     cql_check = """
     MATCH
@@ -505,7 +505,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{uuid: uuid}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "remove label" do
@@ -517,7 +517,7 @@ defmodule Seraph.IntegrationTest do
          %{additionalLabels: ["New", "Good"], uuid: ^uuid, firstName: "Ben", lastName: "New"}}
       ])
       |> return(u)
-      |> TestRepo.query()
+      |> TestRepo.execute()
 
     query =
       match [{u, User, %{uuid: uuid}}],
@@ -533,7 +533,7 @@ defmodule Seraph.IntegrationTest do
                  viewCount: 1
                }
              }
-           ] = TestRepo.query!(query)
+           ] = TestRepo.execute!(query)
 
     cql_check = """
     MATCH
@@ -545,7 +545,7 @@ defmodule Seraph.IntegrationTest do
     """
 
     params = %{uuid: uuid}
-    assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 1}] = TestRepo.query!(cql_check, params)
   end
 
   test "delete node", %{uuids: uuids} do
@@ -555,7 +555,7 @@ defmodule Seraph.IntegrationTest do
       match([{u, User, %{uuid: ^user_uuid}}])
       |> delete([u])
 
-    assert [] = TestRepo.query!(query)
+    assert [] = TestRepo.execute!(query)
 
     cql_check = """
     MATCH
@@ -568,7 +568,7 @@ defmodule Seraph.IntegrationTest do
       user_uuid: user_uuid
     }
 
-    assert [%{"nb_result" => 0}] == TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 0}] == TestRepo.query!(cql_check, params)
   end
 
   test "delete relationship", %{uuids: uuids} do
@@ -579,7 +579,7 @@ defmodule Seraph.IntegrationTest do
       match([[{u, User, %{uuid: ^user_uuid}}, [rel, Wrote], {p, Post, %{uuid: ^post_uuid}}]])
       |> delete([rel])
 
-    assert [] = TestRepo.query!(query)
+    assert [] = TestRepo.execute!(query)
 
     cql_check = """
     MATCH
@@ -595,7 +595,7 @@ defmodule Seraph.IntegrationTest do
       post_uuid: post_uuid
     }
 
-    assert [%{"nb_result" => 0}] == TestRepo.raw_query!(cql_check, params)
+    assert [%{"nb_result" => 0}] == TestRepo.query!(cql_check, params)
   end
 
   test "limit" do
@@ -603,7 +603,7 @@ defmodule Seraph.IntegrationTest do
              match([{u, User}])
              |> return([u])
              |> limit(1)
-             |> TestRepo.query!()
+             |> TestRepo.execute!()
 
     limit = 2
 
@@ -612,7 +612,7 @@ defmodule Seraph.IntegrationTest do
         return: [u],
         limit: ^limit
 
-    assert [_, _] = TestRepo.query!(query)
+    assert [_, _] = TestRepo.execute!(query)
   end
 
   test "skip" do
@@ -624,7 +624,7 @@ defmodule Seraph.IntegrationTest do
              |> return([u.firstName])
              |> order_by([u.firstName])
              |> skip(1)
-             |> TestRepo.query!()
+             |> TestRepo.execute!()
 
     skip = 2
 
@@ -634,7 +634,7 @@ defmodule Seraph.IntegrationTest do
         order_by: [u.firstName],
         skip: ^skip
 
-    assert [%{"u.firstName" => "John"}] = TestRepo.query!(query)
+    assert [%{"u.firstName" => "John"}] = TestRepo.execute!(query)
   end
 
   test "skip + limit" do
@@ -646,7 +646,7 @@ defmodule Seraph.IntegrationTest do
              |> order_by([u.firstName])
              |> skip(1)
              |> limit(1)
-             |> TestRepo.query!()
+             |> TestRepo.execute!()
   end
 
   test "order_by" do
@@ -658,6 +658,6 @@ defmodule Seraph.IntegrationTest do
              match([{u, User}])
              |> return([u.firstName, u.lastName])
              |> order_by(asc: u.lastName, desc: u.firstName)
-             |> TestRepo.query!()
+             |> TestRepo.execute!()
   end
 end

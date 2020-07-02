@@ -4,7 +4,7 @@ defmodule Seraph.QueryTest do
   import Seraph.Query
   alias Seraph.Query.Builder
 
-  alias Seraph.Test.{MergeKeys, Post, User}
+  alias Seraph.Test.{Post, User}
   alias Seraph.Test.UserToPost.Wrote
 
   describe "match node" do
@@ -1495,7 +1495,7 @@ defmodule Seraph.QueryTest do
         defmodule WillFail1 do
           import Seraph.Query
 
-          match([{mk, MergeKeys, %{uuid: "uuid-1"}}])
+          match([{mk, Seraph.Test.MergeKeys, %{uuid: "uuid-1"}}])
           |> set([mk.mkField1 = "not allowed"])
           |> prepare([])
         end
@@ -1505,7 +1505,7 @@ defmodule Seraph.QueryTest do
       #   defmodule WillFail2 do
       #     import Seraph.Query
 
-      #     merge({mk, MergeKeys, %{uuid: "uuid-1"}})
+      #     merge({mk, Seraph.Test.MergeKeys, %{uuid: "uuid-1"}})
       #     |> set([mk.mkField1 = "not allowed"])
       #     |> prepare([])
       #   end
@@ -1515,7 +1515,7 @@ defmodule Seraph.QueryTest do
         defmodule WillFail3 do
           import Seraph.Query
 
-          merge({mk, MergeKeys, %{uuid: "uuid-1"}})
+          merge({mk, Seraph.Test.MergeKeys, %{uuid: "uuid-1"}})
           |> on_match_set([mk.mkField1 = "not allowed"])
           |> prepare([])
         end

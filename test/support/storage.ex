@@ -1,18 +1,21 @@
 defmodule Seraph.Support.Storage do
+  @moduledoc """
+  Manage fixtures for tests
+  """
   def clear(repo) do
-    repo.raw_query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
+    repo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
 
     # [
     #   Seraph.Cypher.Node.list_all_constraints(""),
     #   Seraph.Cypher.Node.list_all_indexes("")
     # ]
     # |> Enum.map(fn cql ->
-    #   repo.raw_query!(cql)
+    #   repo.query!(cql)
     #   |> Map.get(:records, [])
     # end)
     # |> List.flatten()
     # |> Enum.map(&Seraph.Cypher.Node.drop_constraint_index_from_cql/1)
-    # |> Enum.map(&repo.raw_query/1)
+    # |> Enum.map(&repo.query/1)
   end
 
   def add_fixtures(repo) do
@@ -83,7 +86,7 @@ defmodule Seraph.Support.Storage do
       comment8: UUID.uuid4()
     }
 
-    repo.raw_query!(cql, params)
+    repo.query!(cql, params)
     [uuids: params]
   end
 end

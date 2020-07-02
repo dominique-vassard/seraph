@@ -48,7 +48,7 @@ defmodule Seraph.Repo.NodeTest do
         id: created_user.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "Node alone (changeset invalid)" do
@@ -103,7 +103,7 @@ defmodule Seraph.Repo.NodeTest do
         id: created_user.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "multi label Node (direct)" do
@@ -146,7 +146,7 @@ defmodule Seraph.Repo.NodeTest do
         id: created_user.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     defmodule WithoutIdentifier do
@@ -175,7 +175,7 @@ defmodule Seraph.Repo.NodeTest do
         COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, %{name: "Joe"})
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, %{name: "Joe"})
     end
 
     test "multi label Node (via changeset)" do
@@ -214,7 +214,7 @@ defmodule Seraph.Repo.NodeTest do
 
       params = %{firstName: "John", lastName: "Doe", viewCount: 5, id: created_user.__id__}
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "fails: with invalid changeset" do
@@ -359,7 +359,7 @@ defmodule Seraph.Repo.NodeTest do
         n:Buyer
       """
 
-      TestRepo.raw_query!(cql, %{uuid: data.uuid})
+      TestRepo.query!(cql, %{uuid: data.uuid})
 
       assert retrieved_user =
                TestRepo.Node.get_by(User, additionalLabels: ["Buyer"], firstName: "John")
@@ -427,7 +427,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok with data: node creation" do
@@ -464,7 +464,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok with changeset: node update" do
@@ -504,7 +504,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok with data: node update" do
@@ -546,7 +546,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "fail: invalid changeset" do
@@ -625,7 +625,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_create opt (existing -> no change)" do
@@ -661,7 +661,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_match opt (not existing -> no 'merge' data)" do
@@ -692,7 +692,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_match opt (existing -> update)" do
@@ -728,7 +728,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_create + on_match opts (not existing -> creation)" do
@@ -771,7 +771,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_create + on_match opts (existing -> update)" do
@@ -816,7 +816,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok: no_data opts allows to pass no data" do
@@ -844,7 +844,7 @@ defmodule Seraph.Repo.NodeTest do
         id: merged_node.__id__
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "fail: on_create invalid changeset" do
@@ -994,7 +994,7 @@ defmodule Seraph.Repo.NodeTest do
         viewCount: 3
       }
 
-      assert [%{"nb_results" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
 
       cql_count = """
       MATCH
@@ -1003,7 +1003,7 @@ defmodule Seraph.Repo.NodeTest do
         COUNT(n) AS nb_nodes
       """
 
-      assert [%{"nb_nodes" => 1}] = TestRepo.raw_query!(cql_count)
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add only)" do
@@ -1041,7 +1041,7 @@ defmodule Seraph.Repo.NodeTest do
         viewCount: 5
       }
 
-      assert [%{"nb_results" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
 
       cql_count = """
       MATCH
@@ -1050,7 +1050,7 @@ defmodule Seraph.Repo.NodeTest do
         COUNT(n) AS nb_nodes
       """
 
-      assert [%{"nb_nodes" => 1}] = TestRepo.raw_query!(cql_count)
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (remove only)" do
@@ -1088,7 +1088,7 @@ defmodule Seraph.Repo.NodeTest do
         viewCount: 5
       }
 
-      assert [%{"nb_results" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
 
       cql_count = """
       MATCH
@@ -1097,7 +1097,7 @@ defmodule Seraph.Repo.NodeTest do
         COUNT(n) AS nb_nodes
       """
 
-      assert [%{"nb_nodes" => 1}] = TestRepo.raw_query!(cql_count)
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "ok with multiple labels (add + remove only)" do
@@ -1135,7 +1135,7 @@ defmodule Seraph.Repo.NodeTest do
         viewCount: 5
       }
 
-      assert [%{"nb_results" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_results" => 1}] = TestRepo.query!(cql, params)
 
       cql_count = """
       MATCH
@@ -1144,7 +1144,7 @@ defmodule Seraph.Repo.NodeTest do
         COUNT(n) AS nb_nodes
       """
 
-      assert [%{"nb_nodes" => 1}] = TestRepo.raw_query!(cql_count)
+      assert [%{"nb_nodes" => 1}] = TestRepo.query!(cql_count)
     end
 
     test "invalid changeset" do
@@ -1168,7 +1168,7 @@ defmodule Seraph.Repo.NodeTest do
       DETACH DELETE u
       """
 
-      TestRepo.raw_query!(cql, %{uuid: data_uuid})
+      TestRepo.query!(cql, %{uuid: data_uuid})
 
       assert_raise Seraph.StaleEntryError, fn ->
         user
@@ -1215,7 +1215,7 @@ defmodule Seraph.Repo.NodeTest do
       RETURN COUNT(u) AS nb_result
       """
 
-      assert [%{"nb_result" => 0}] = TestRepo.raw_query!(cql, data)
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, data)
     end
 
     test "ok with changeset" do
@@ -1245,7 +1245,7 @@ defmodule Seraph.Repo.NodeTest do
       RETURN COUNT(u) AS nb_result
       """
 
-      assert [%{"nb_result" => 0}] = TestRepo.raw_query!(cql, data)
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, data)
     end
 
     test "invalid changeset" do
@@ -1298,7 +1298,7 @@ defmodule Seraph.Repo.NodeTest do
     """
 
     params = Map.merge(default_data, data)
-    TestRepo.raw_query!(cql, params)
+    TestRepo.query!(cql, params)
 
     params
   end

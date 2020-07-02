@@ -169,7 +169,7 @@ defmodule Seraph.Repo.Node.Schema do
 
     {:ok, results} =
       Seraph.Repo.Node.Queryable.to_query(queryable, changeset, :match_set)
-      |> repo.query()
+      |> repo.execute()
 
     case results do
       [] ->
@@ -213,7 +213,7 @@ defmodule Seraph.Repo.Node.Schema do
 
     {:ok, %{results: [], stats: stats}} =
       Seraph.Repo.Node.Queryable.to_query(queryable, data, :delete)
-      |> repo.query(with_stats: true)
+      |> repo.execute(with_stats: true)
 
     case stats do
       %{"nodes-deleted" => 1} ->
@@ -265,7 +265,7 @@ defmodule Seraph.Repo.Node.Schema do
 
     {:ok, [%{"n" => created_node}]} =
       Seraph.Repo.Node.Queryable.to_query(queryable, properties, :create)
-      |> repo.query()
+      |> repo.execute()
 
     {:ok, created_node}
   end
@@ -293,7 +293,7 @@ defmodule Seraph.Repo.Node.Schema do
 
       {:ok, [%{"n" => merged_node}]} =
         Seraph.Repo.Node.Queryable.to_query(queryable, data, :merge)
-        |> repo.query()
+        |> repo.execute()
 
       {:ok, merged_node}
     else

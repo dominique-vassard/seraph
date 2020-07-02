@@ -13,17 +13,17 @@ defmodule Seraph.RepoTest do
     Storage.add_fixtures(TestRepo)
   end
 
-  describe "raw_query/3" do
+  describe "query/3" do
     test "ok" do
-      assert {:ok, [%{"num" => 5}]} == TestRepo.raw_query("RETURN $n AS num", %{n: 5})
+      assert {:ok, [%{"num" => 5}]} == TestRepo.query("RETURN $n AS num", %{n: 5})
     end
 
     test "no result" do
-      assert {:ok, []} == TestRepo.raw_query("MATCH (x:NonExistent) RETURN x")
+      assert {:ok, []} == TestRepo.query("MATCH (x:NonExistent) RETURN x")
     end
 
     test "db error" do
-      assert {:error, %Bolt.Sips.Error{}} = TestRepo.raw_query("INVALID CQL")
+      assert {:error, %Bolt.Sips.Error{}} = TestRepo.query("INVALID CQL")
     end
 
     test "with stats" do
@@ -31,12 +31,12 @@ defmodule Seraph.RepoTest do
               %{
                 results: [%{"t" => %Bolt.Sips.Types.Node{}}],
                 stats: %{"labels-added" => 1, "nodes-created" => 1}
-              }} = TestRepo.raw_query("CREATE (t:Test) RETURN t", %{}, with_stats: true)
+              }} = TestRepo.query("CREATE (t:Test) RETURN t", %{}, with_stats: true)
     end
 
     test "raise when used with!" do
       assert_raise Bolt.Sips.Exception, fn ->
-        TestRepo.raw_query!("INVALID CQL")
+        TestRepo.query!("INVALID CQL")
       end
     end
   end
@@ -58,14 +58,14 @@ defmodule Seraph.RepoTest do
               ]} =
                match([{u, User, %{uuid: ^user_uuid}}])
                |> return([u])
-               |> TestRepo.query()
+               |> TestRepo.execute()
     end
 
     test "no result" do
       assert {:ok, []} ==
                match([{u, User, %{uuid: "inexistent"}}])
                |> return([u])
-               |> TestRepo.query()
+               |> TestRepo.execute()
     end
 
     test "db error", %{uuids: uuids} do
@@ -73,7 +73,7 @@ defmodule Seraph.RepoTest do
 
       assert {:error, %Seraph.QueryError{}} =
                match([{u, User, %{uuid: ^user_uuid}}])
-               |> TestRepo.query()
+               |> TestRepo.execute()
     end
 
     test "with stats" do
@@ -94,7 +94,7 @@ defmodule Seraph.RepoTest do
               }} =
                create([{u, User, %{uuid: "new_uuid"}}])
                |> return([u])
-               |> TestRepo.query(with_stats: true)
+               |> TestRepo.execute(with_stats: true)
     end
 
     test "raise when used with !", %{uuids: uuids} do
@@ -103,7 +103,7 @@ defmodule Seraph.RepoTest do
       assert_raise Seraph.QueryError, fn ->
         assert [] ==
                  match([{u, User, %{uuid: ^user_uuid}}])
-                 |> TestRepo.query!()
+                 |> TestRepo.execute!()
       end
     end
   end

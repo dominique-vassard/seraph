@@ -191,7 +191,7 @@ defmodule Seraph.Repo.Relationship.Schema do
 
     result =
       Seraph.Repo.Relationship.Queryable.to_query(queryable, changeset, :set)
-      |> repo.query()
+      |> repo.execute()
 
     case result do
       {:ok, [%{"rel" => updated_rel}]} ->
@@ -235,7 +235,7 @@ defmodule Seraph.Repo.Relationship.Schema do
 
     {:ok, %{results: [], stats: stats}} =
       Seraph.Repo.Relationship.Queryable.to_query(queryable, data, :delete)
-      |> repo.query(with_stats: true)
+      |> repo.execute(with_stats: true)
 
     case stats do
       %{"relationships-deleted" => 1} ->
@@ -298,7 +298,7 @@ defmodule Seraph.Repo.Relationship.Schema do
         rel_properties,
         :match_create
       )
-      |> repo.query()
+      |> repo.execute()
 
     {:ok, created_relationship}
   end
@@ -321,7 +321,7 @@ defmodule Seraph.Repo.Relationship.Schema do
 
     {:ok, [%{"rel" => created_relationship}]} =
       Seraph.Repo.Relationship.Queryable.to_query(queryable, rel_data, :merge)
-      |> repo.query()
+      |> repo.execute()
 
     {:ok, created_relationship}
   end
@@ -348,7 +348,7 @@ defmodule Seraph.Repo.Relationship.Schema do
         error
 
       query ->
-        {:ok, [%{"rel" => result}]} = repo.query(query)
+        {:ok, [%{"rel" => result}]} = repo.execute(query)
         {:ok, result}
     end
   end

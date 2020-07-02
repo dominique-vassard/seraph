@@ -1,4 +1,12 @@
 defmodule Seraph.Support.Fixtures do
+  @moduledoc """
+  Query fixtures
+  """
+
+  @doc """
+  Builds a query fixtures with the given params
+  """
+  @spec build_query(map) :: Seraph.Query.t()
   def build_query(params) do
     %Seraph.Query{
       identifiers: %{

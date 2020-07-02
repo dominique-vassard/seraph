@@ -1,5 +1,6 @@
 defmodule Seraph.Query do
   defmodule Change do
+    @moduledoc false
     alias Seraph.Query.Builder.Entity
     defstruct [:entity, :change_type]
 
@@ -172,6 +173,8 @@ defmodule Seraph.Query do
     build_limit(query, expr, __CALLER__)
   end
 
+  @doc false
+  @spec build_match(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_match(query, expr, env) do
     %{match: match, identifiers: identifiers, params: params} = Builder.Match.build(expr, env)
 
@@ -200,7 +203,8 @@ defmodule Seraph.Query do
     end
   end
 
-  @spec build_create(Macro.t(), Macro.t(), any) :: Macro.t()
+  @doc false
+  @spec build_create(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_create(query, expr, env) do
     %{create: create, identifiers: identifiers, params: params} = Builder.Create.build(expr, env)
 
@@ -230,6 +234,8 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
+  @spec build_merge(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_merge(query, expr, env) do
     %{merge: merge, identifiers: identifiers, params: params} = Builder.Merge.build(expr, env)
 
@@ -258,7 +264,7 @@ defmodule Seraph.Query do
   end
 
   @doc false
-  @spec build_where(Macro.t(), Macro.t(), any) :: Macro.t()
+  @spec build_where(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_where(query, expr, env) do
     %{condition: condition, params: params} = Seraph.Query.Builder.Where.build(expr, env)
 
@@ -285,7 +291,7 @@ defmodule Seraph.Query do
   end
 
   @doc false
-  @spec build_return(Macro.t(), Macro.t(), any) :: Macro.t()
+  @spec build_return(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_return(query, expr, env) when not is_list(expr) do
     build_return(query, [expr], env)
   end
@@ -311,6 +317,7 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
   @spec build_delete(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_delete(query, expr, env) do
     delete =
@@ -332,6 +339,7 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
   @spec build_on_create_set(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_on_create_set(query, expr, env) do
     %{on_create_set: on_create_set, params: params} =
@@ -360,7 +368,8 @@ defmodule Seraph.Query do
     end
   end
 
-  @spec build_on_match_set(Macro.t(), Macro.t(), any) :: Macro.t()
+  @doc false
+  @spec build_on_match_set(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_on_match_set(query, expr, env) do
     %{on_match_set: on_match_set, params: params} =
       Seraph.Query.Builder.OnMatchSet.build(expr, env)
@@ -388,6 +397,7 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
   @spec build_set(Macro.t(), Macro.t(), any) :: Macro.t()
   def build_set(query, expr, env) do
     %{set: set, params: params} = Seraph.Query.Builder.Set.build(expr, env)
@@ -410,6 +420,8 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
+  @spec build_remove(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_remove(query, expr, env) do
     remove =
       Seraph.Query.Builder.Remove.build(expr, env)
@@ -430,6 +442,8 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
+  @spec build_order_by(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_order_by(query, expr, env) do
     order_by =
       Builder.OrderBy.build(expr, env)
@@ -450,6 +464,8 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
+  @spec build_skip(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_skip(query, expr, env) do
     %{skip: skip, params: params} = Builder.Skip.build(expr, env)
 
@@ -470,6 +486,8 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
+  @spec build_limit(Macro.t(), Macro.t(), Macro.Env.t()) :: Macro.t()
   def build_limit(query, expr, env) do
     %{limit: limit, params: params} = Builder.Limit.build(expr, env)
 
@@ -490,6 +508,7 @@ defmodule Seraph.Query do
     end
   end
 
+  @doc false
   @spec prepare(Seraph.Query.t(), Keyword.t()) :: Seraph.Query.t()
   def prepare(query, opts) do
     check(query, opts)
@@ -499,7 +518,7 @@ defmodule Seraph.Query do
   end
 
   @spec check(Seraph.Query.t(), Keyword.t()) :: :ok
-  def check(query, _opts) do
+  defp check(query, _opts) do
     Enum.each(query.operations, fn {operation, operation_data} ->
       mod_name =
         operation

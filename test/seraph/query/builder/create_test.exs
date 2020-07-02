@@ -2,7 +2,7 @@ defmodule Seraph.Query.Builder.CreateTest do
   use ExUnit.Case, async: true
 
   alias Seraph.Query.Builder.Create
-  alias Seraph.Test.{Post, User, UserToPost}
+  alias Seraph.Test.User
   alias Seraph.Test.UserToPost.Wrote
 
   describe "build" do

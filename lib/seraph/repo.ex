@@ -53,7 +53,7 @@ defmodule Seraph.Repo do
       ## Example
 
           # Without params
-          iex> MyRepo.raw_query("CREATE (p:Person {name: 'Collin Chou', role: 'Seraph'}) RETURN p")
+          iex> MyRepo.query("CREATE (p:Person {name: 'Collin Chou', role: 'Seraph'}) RETURN p")
           {:ok,
           [
             %{
@@ -66,31 +66,31 @@ defmodule Seraph.Repo do
           ]}
 
           # With params
-          iex(15)> MyRepo.raw_query("MATCH (p:Person {name: $name}) RETURN p.role", %{name: "Collin Chou"})
+          iex(15)> MyRepo.query("MATCH (p:Person {name: $name}) RETURN p.role", %{name: "Collin Chou"})
           {:ok, [%{"p.role" => "Seraph"}]}
 
           # With :with_stats option
           iex(16)> MyRepo.query("MATCH (p:Person {name: $name}) DETACH DELETE p", %{name: "Collin Chou"}, with_stats: true)
           {:ok, %{results: [], stats: %{"nodes-deleted" => 1}}}
       """
-      @spec raw_query(String.t(), map, Keyword.t()) ::
+      @spec query(String.t(), map, Keyword.t()) ::
               {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
 
-      def raw_query(statement, params \\ %{}, opts \\ []) do
+      def query(statement, params \\ %{}, opts \\ []) do
         Seraph.Query.Planner.query(__MODULE__, statement, params, opts)
       end
 
       @doc """
-      Same as `raw_query/3` but raise in case of error.
+      Same as `query/3` but raise in case of error.
       """
-      @spec raw_query!(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
-      def raw_query!(statement, params \\ %{}, opts \\ []) do
+      @spec query!(String.t(), map, Keyword.t()) :: [map] | %{results: [map], stats: map}
+      def query!(statement, params \\ %{}, opts \\ []) do
         Seraph.Query.Planner.query!(__MODULE__, statement, params, opts)
       end
 
       @spec query(Seraph.Query.t(), Keyword.t()) ::
               {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
-      def query(%Seraph.Query{} = query, opts \\ []) do
+      def execute(%Seraph.Query{} = query, opts \\ []) do
         query = Seraph.Query.prepare(query, opts)
 
         statement =
@@ -122,8 +122,8 @@ defmodule Seraph.Repo do
       end
 
       @spec query!(Seraph.Query.t(), Keyword.t()) :: [map] | %{results: [map], stats: map}
-      def query!(%Seraph.Query{} = query, opts \\ []) do
-        case query(query, opts) do
+      def execute!(%Seraph.Query{} = query, opts \\ []) do
+        case execute(query, opts) do
           {:ok, result} -> result
           {:error, error} -> raise error
         end

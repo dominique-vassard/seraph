@@ -4,7 +4,7 @@ defmodule Seraph.Repo.RelationshipTest do
   alias Seraph.Test.{User, Post, UserToPost.Wrote}
 
   setup do
-    TestRepo.raw_query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
+    TestRepo.query!("MATCH (n) DETACH DELETE n", %{}, with_stats: true)
 
     Seraph.Support.Storage.clear(TestRepo)
 
@@ -46,7 +46,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: post.uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -55,7 +55,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok with existing nodes and with data" do
@@ -99,7 +99,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_wrote.at
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -108,7 +108,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "fail if changeset is provided and opt node_creation: false" do
@@ -202,7 +202,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_wrote.at
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok - 2 creation -> 2 relationship with same data" do
@@ -242,7 +242,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_date
       }
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -251,7 +251,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "fails: with invalid changeset" do
@@ -336,7 +336,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: post.uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -345,7 +345,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: with data" do
@@ -388,7 +388,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -397,7 +397,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "fail if changeset is provided and opt node_creation: false" do
@@ -491,7 +491,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
     test "ok - 2 creation -> 2 relationship with same data" do
@@ -531,7 +531,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -540,7 +540,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "invalid changeset" do
@@ -621,7 +621,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: old_rel.end_node.uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -630,7 +630,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: on_create opt (not existing -> creation)" do
@@ -660,7 +660,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: post.uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -669,7 +669,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: on_match opt (existing -> update)" do
@@ -703,7 +703,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: DateTime.truncate(date, :second)
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -712,7 +712,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: on_create opt (not existing -> no change)" do
@@ -747,7 +747,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: DateTime.truncate(date, :second)
       }
 
-      assert [%{"nb_result" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
     end
 
     test "ok: on_create + on_match opts (existing -> update)" do
@@ -776,7 +776,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: match_date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -785,7 +785,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: on_create + on_match opts (not existing -> creation)" do
@@ -815,7 +815,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: rel_wrote.at
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -824,7 +824,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok: no_data opts " do
@@ -853,7 +853,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: post.uuid
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -862,7 +862,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "fail: on_create invalid changeset" do
@@ -1027,7 +1027,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: relationship.end_node.uuid
       }
 
-      TestRepo.raw_query!(cql, params)
+      TestRepo.query!(cql, params)
 
       assert_raise Seraph.MultipleRelationshipsError, fn ->
         TestRepo.Relationship.get(Wrote, relationship.start_node, relationship.end_node)
@@ -1176,7 +1176,7 @@ defmodule Seraph.Repo.RelationshipTest do
         rel_date: new_rel_date
       }
 
-      assert [%{"nb_result" => 1}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1185,7 +1185,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 2}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 2}] = TestRepo.query!(cql)
     end
 
     test "ok new start" do
@@ -1236,7 +1236,7 @@ defmodule Seraph.Repo.RelationshipTest do
         at: relationship.at
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1245,7 +1245,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 3}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 3}] = TestRepo.query!(cql)
     end
 
     test "ok new end" do
@@ -1295,7 +1295,7 @@ defmodule Seraph.Repo.RelationshipTest do
         new_end_uuid: new_post.uuid
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1304,7 +1304,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 3}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 3}] = TestRepo.query!(cql)
     end
 
     test "ok new start / new end" do
@@ -1363,7 +1363,7 @@ defmodule Seraph.Repo.RelationshipTest do
         new_end_uuid: new_post.uuid
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1372,7 +1372,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 4}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 4}] = TestRepo.query!(cql)
     end
 
     test "ok with node creation: start node" do
@@ -1423,7 +1423,7 @@ defmodule Seraph.Repo.RelationshipTest do
         post_uuid: relationship.end_node.uuid
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1432,7 +1432,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 3}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 3}] = TestRepo.query!(cql)
     end
 
     test "ok with node creation: end node" do
@@ -1483,7 +1483,7 @@ defmodule Seraph.Repo.RelationshipTest do
         new_end_title: new_post_data.title
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1492,7 +1492,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 3}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 3}] = TestRepo.query!(cql)
     end
 
     test "ok with node creation: start node and end node" do
@@ -1553,7 +1553,7 @@ defmodule Seraph.Repo.RelationshipTest do
         new_end_title: new_post_data.title
       }
 
-      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
 
       cql = """
       MATCH
@@ -1562,7 +1562,7 @@ defmodule Seraph.Repo.RelationshipTest do
       COUNT(n) AS nb_result
       """
 
-      assert [%{"nb_result" => 4}] = TestRepo.raw_query!(cql)
+      assert [%{"nb_result" => 4}] = TestRepo.query!(cql)
     end
 
     test "invalid changeset" do
@@ -1599,7 +1599,7 @@ defmodule Seraph.Repo.RelationshipTest do
         end_uuid: relationship.end_node.uuid
       }
 
-      TestRepo.raw_query!(cql, params)
+      TestRepo.query!(cql, params)
 
       assert_raise Seraph.StaleEntryError, fn ->
         relationship
@@ -1653,7 +1653,7 @@ defmodule Seraph.Repo.RelationshipTest do
         end_uuid: relationship.end_node.uuid
       }
 
-      assert [%{"nb_result" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
     end
 
     test "ok: with changeset" do
@@ -1696,7 +1696,7 @@ defmodule Seraph.Repo.RelationshipTest do
         end_uuid: relationship.end_node.uuid
       }
 
-      assert [%{"nb_result" => 0}] = TestRepo.raw_query!(cql, params)
+      assert [%{"nb_result" => 0}] = TestRepo.query!(cql, params)
     end
 
     test "fail: invalid changeset" do
