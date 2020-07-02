@@ -247,8 +247,8 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
         identifier \\ "rel",
         prefix
       ) do
-    start_properties = extract_node_properties(start_struct_or_data)
-    end_properties = extract_node_properties(end_struct_or_data)
+    start_properties = Seraph.Repo.Helper.extract_node_properties(start_struct_or_data)
+    end_properties = Seraph.Repo.Helper.extract_node_properties(end_struct_or_data)
 
     start_queryable = queryable.__schema__(:start_node)
     end_queryable = queryable.__schema__(:end_node)
@@ -331,22 +331,6 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
 
       raise ArgumentError, message
     end
-  end
-
-  @doc """
-  Extract property from node schema
-  TODO: Move to a more suitable module
-  """
-  @spec extract_node_properties(Seraph.Schema.Node.t()) :: map
-  def extract_node_properties(%{__struct__: queryable} = node_data) do
-    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
-    id_value = Map.fetch!(node_data, id_field)
-
-    Map.put(%{}, id_field, id_value)
-  end
-
-  def extract_node_properties(node_properties) do
-    node_properties
   end
 
   defimpl Seraph.Query.Cypher, for: Relationship do

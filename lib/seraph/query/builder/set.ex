@@ -205,7 +205,6 @@ defmodule Seraph.Query.Builder.Set do
 
   # All additional labels removing
   # {u, nil}
-  # TODO: to be supported
   defp build_entity({{_node_identifier, _, _}, nil}, _env) do
     raise "Removing all additional labels is not yet supported"
   end

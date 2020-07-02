@@ -1,8 +1,6 @@
 defmodule Seraph.Repo.Helper do
   @moduledoc false
 
-  alias Seraph.Query.Condition
-
   def identifier_field(queryable) do
     case queryable.__schema__(:identifier) do
       {field, _, _} ->
@@ -182,5 +180,20 @@ defmodule Seraph.Repo.Helper do
 
   def create_match_merge_opts(_, opts) do
     opts
+  end
+
+  @doc """
+  Extract property from node schema
+  """
+  @spec extract_node_properties(Seraph.Schema.Node.t()) :: map
+  def extract_node_properties(%{__struct__: queryable} = node_data) do
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
+    id_value = Map.fetch!(node_data, id_field)
+
+    Map.put(%{}, id_field, id_value)
+  end
+
+  def extract_node_properties(node_properties) do
+    node_properties
   end
 end

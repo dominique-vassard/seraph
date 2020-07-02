@@ -502,8 +502,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
       else
         start_queryable = queryable.__schema__(:start_node)
 
-        start_properties =
-          Builder.Entity.Relationship.extract_node_properties(final_rel.start_node)
+        start_properties = Seraph.Repo.Helper.extract_node_properties(final_rel.start_node)
 
         Builder.Entity.Node.from_queryable(
           start_queryable,
@@ -519,7 +518,7 @@ defmodule Seraph.Repo.Relationship.Queryable do
       else
         end_queryable = queryable.__schema__(:end_node)
 
-        end_properties = Builder.Entity.Relationship.extract_node_properties(final_rel.end_node)
+        end_properties = Seraph.Repo.Helper.extract_node_properties(final_rel.end_node)
 
         Builder.Entity.Node.from_queryable(
           end_queryable,
