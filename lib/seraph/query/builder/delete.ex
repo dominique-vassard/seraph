@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Delete do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Delete, Entity}
@@ -10,18 +12,28 @@ defmodule Seraph.Query.Builder.Delete do
           raw_entities: nil | [Entity.EntityData]
         }
 
+  @doc """
+  Build a Delete from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: Delete.t()
   def build(asts, env) do
     %Delete{entities: nil, raw_entities: Enum.map(asts, &build_entity(&1, env))}
   end
 
+  @doc """
+  Check the validity of the Delete.
+   - Entity must have been matched / set before
+  """
   @impl true
   @spec check(Delete.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Delete{raw_entities: raw_entities}, %Seraph.Query{} = query) do
     do_check(raw_entities, query)
   end
 
+  @doc """
+  Prepare the Delete, reeplace temporary entities with those used in current query.
+  """
   @impl true
   @spec prepare(Delete.t(), Seraph.Query.t(), Keyword.t()) :: Delete.t()
   def prepare(%Delete{entities: nil} = delete, %Seraph.Query{} = query, _opts) do

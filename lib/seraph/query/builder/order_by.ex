@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.OrderBy do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Entity, Helper, OrderBy}
@@ -10,6 +12,9 @@ defmodule Seraph.Query.Builder.OrderBy do
           raw_orders: nil | [Entity.Order.t()]
         }
 
+  @doc """
+  Build OrderBy from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: OrderBy.t()
   def build(ast, _env) do
@@ -19,6 +24,13 @@ defmodule Seraph.Query.Builder.OrderBy do
     }
   end
 
+  @doc """
+  Check OrderBy validity.
+
+  - A return clause must exists
+  - entity identifier / alias must exist in identifiers list (or return aliases)
+  - property mut be defined for the associated queyrable
+  """
   @impl true
   @spec check(OrderBy.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%OrderBy{raw_orders: raw_orders}, %Seraph.Query{} = query) do

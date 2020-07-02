@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Entity.Label do
+  @moduledoc false
+
   alias Seraph.Query.Builder.Entity.Label
 
   defstruct [:node_identifier, :values]

@@ -1,8 +1,8 @@
 defmodule Seraph.Query.Builder.Remove do
+  @moduledoc false
   @behaviour Seraph.Query.Operation
 
-  alias Seraph.Query.Builder.Remove
-  alias Seraph.Query.Builder.{Entity, Helper}
+  alias Seraph.Query.Builder.{Entity, Helper, Remove}
 
   defstruct [:expressions]
 
@@ -10,12 +10,19 @@ defmodule Seraph.Query.Builder.Remove do
           expressions: [Entity.Property.t() | Entity.Label.t()]
         }
 
+  @doc """
+  Build Remove from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: Remove.t()
   def build(ast, env) do
     %Remove{expressions: Enum.map(ast, &build_entity(&1, env))}
   end
 
+  @doc """
+  Build a Remove from a map of properties to be removed
+  """
+  @spec build_from_map(map, String.t()) :: Remove.t()
   def build_from_map(data_to_remove, entity_identifier \\ "n") do
     expressions =
       data_to_remove
@@ -29,6 +36,14 @@ defmodule Seraph.Query.Builder.Remove do
     %Remove{expressions: expressions}
   end
 
+  @doc """
+  Check Remove validity.
+
+  - It is forbidden to remove identifier key
+  - It is forbidden to remove merge keys
+  - Property mus exists for the associated queryable
+  - identifiers must ahve been matched / created before
+  """
   @impl true
   @spec check(Remove.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Remove{expressions: expressions}, %Seraph.Query{} = query) do

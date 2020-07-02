@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Skip do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.Skip
@@ -9,6 +11,9 @@ defmodule Seraph.Query.Builder.Skip do
           bound_name: String.t()
         }
 
+  @doc """
+  Build Skip from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{skip: Skip.t(), params: Keyword.t()}
   def build({:^, _, [{bound_name, _, _} = value]}, _env) do
@@ -32,6 +37,12 @@ defmodule Seraph.Query.Builder.Skip do
     %{skip: skip, params: []}
   end
 
+  @doc """
+  Check Skip validity.
+
+  - Skip value must a postiive integer
+  - Skip value cannot be 0
+  """
   @impl true
   @spec check(Skip.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Skip{bound_name: bound_name, value: nil}, %Seraph.Query{} = query) do

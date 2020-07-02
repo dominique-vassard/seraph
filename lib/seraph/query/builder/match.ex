@@ -1,9 +1,9 @@
 defmodule Seraph.Query.Builder.Match do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
-  alias Seraph.Query.Builder.Match
-  alias Seraph.Query.Builder.Entity
-  alias Seraph.Query.Builder.Helper
+  alias Seraph.Query.Builder.{Entity, Helper, Match}
 
   defstruct [:entities]
 
@@ -11,6 +11,9 @@ defmodule Seraph.Query.Builder.Match do
           entities: [Entity.t()]
         }
 
+  @doc """
+  Build Match data from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{
           match: Match.t(),
@@ -28,7 +31,7 @@ defmodule Seraph.Query.Builder.Match do
           %{entity: new_entity, params: updated_params} =
             Entity.extract_params(entity, query_data.params, "match__")
 
-          check_identifier_presence(query_data.identifiers, new_entity.identifier)
+          Helper.check_identifier_presence(query_data.identifiers, new_entity.identifier)
 
           %{
             query_data
@@ -125,7 +128,7 @@ defmodule Seraph.Query.Builder.Match do
   end
 
   defp build_identifiers(%Entity.Node{} = entity, current_identifiers) do
-    check_identifier_presence(current_identifiers, entity.identifier)
+    Helper.check_identifier_presence(current_identifiers, entity.identifier)
     Map.put(current_identifiers, entity.identifier, entity)
   end
 
@@ -138,7 +141,7 @@ defmodule Seraph.Query.Builder.Match do
     if is_nil(relationship.identifier) do
       new_identifiers
     else
-      check_identifier_presence(current_identifiers, relationship.identifier)
+      Helper.check_identifier_presence(current_identifiers, relationship.identifier)
       Map.put(new_identifiers, relationship.identifier, relationship)
     end
   end
@@ -175,14 +178,6 @@ defmodule Seraph.Query.Builder.Match do
 
       {:ok, %Entity.Relationship{}} ->
         raise ArgumentError, "identifier `#{identifier}` is already taken."
-    end
-  end
-
-  @spec check_identifier_presence(map, String.t()) :: :ok
-  defp check_identifier_presence(identifiers, candidate) do
-    case Map.fetch(identifiers, candidate) do
-      {:ok, _} -> raise ArgumentError, "identifier `#{candidate}` is already taken."
-      :error -> :ok
     end
   end
 

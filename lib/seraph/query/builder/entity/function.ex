@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Entity.Function do
+  @moduledoc false
+
   alias Seraph.Query.Builder
   alias Seraph.Query.Builder.Entity.Function
 

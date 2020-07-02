@@ -1,5 +1,8 @@
 defmodule Seraph.Query.Builder.Entity.Value do
+  @moduledoc false
+
   alias Seraph.Query.Builder.Entity.Value
+
   defstruct [:alias, :bound_name, :value]
 
   @type t :: %__MODULE__{

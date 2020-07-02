@@ -1,9 +1,9 @@
 defmodule Seraph.Query.Builder.Entity.Node do
-  alias Seraph.Query.Builder.Entity
-  alias Seraph.Query.Builder.Entity.Node
-  alias Seraph.Query.Builder.Entity.Property
-
   @moduledoc false
+
+  alias Seraph.Query.Builder.Entity
+  alias Seraph.Query.Builder.Entity.{Property, Node}
+
   defstruct [:identifier, :alias, labels: [], queryable: Seraph.Node, properties: []]
 
   @type t :: %__MODULE__{
@@ -14,6 +14,28 @@ defmodule Seraph.Query.Builder.Entity.Node do
           properties: [Property.t()]
         }
 
+  @doc """
+    Build Node from ast.
+
+    Valid formats:
+    - Node with identifier, queryable and properties:
+      {u, User, %{uuid: "uuid-2"}}
+      {u, User, %{uuid: ^uuid}}
+    - Node with node identifier, queryable, properties
+      {User, %{uuid: ^user_uuid}
+    - Node with identifier, no queryable, properties
+      {u, %{uuid: ^user_uuid}
+    - Node with only a queryable
+      {User}
+    - Node with no identifier, no queryable, properties
+      {%{uuid: ^uuid}}
+    - Node with identifier, no queryable, no properties
+      {u}
+    - Node with identifier, queryable, no properties
+      {u, User}
+    - Empty node
+      {}
+  """
   @spec from_ast(Macro.t(), Macro.Env.t()) :: Node.t()
   # Node with identifier, queryable and properties
   # {u, User, %{uuid: "uuid-2"}}
@@ -125,6 +147,10 @@ defmodule Seraph.Query.Builder.Entity.Node do
     }
   end
 
+  @doc """
+  Build a Node from the given queryable and properties.
+  Additional prefix and node identifier can be given.
+  """
   @spec from_queryable(Seraph.Repo.queryable(), map | Keyword.t(), String.t(), String.t()) :: %{
           entity: Node.t(),
           params: Keyword.t()
@@ -155,6 +181,9 @@ defmodule Seraph.Query.Builder.Entity.Node do
   end
 
   defimpl Seraph.Query.Cypher, for: Node do
+    @doc """
+    blah
+    """
     @spec encode(Seraph.Query.Builder.Entity.Node.t(), Keyword.t()) :: String.t()
     def encode(%Node{identifier: identifier}, operation: :delete) do
       "#{identifier}"

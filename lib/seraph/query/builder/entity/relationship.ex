@@ -1,5 +1,6 @@
 defmodule Seraph.Query.Builder.Entity.Relationship do
   @moduledoc false
+
   alias Seraph.Query.Builder.Entity.Relationship
   alias Seraph.Query.Builder.Entity
 
@@ -23,6 +24,37 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
           properties: [Entity.Property.t()]
         }
 
+  @doc """
+  Build Relationship from ast.
+
+  Valid formats:
+    - Empty relationship
+      [{}, [], {}]
+    - Relationship with no identifier, no queryable, no properties
+      []
+    - Relationship with no identifier, queryable, no properties
+      [Wrote]
+    - Relationship with no identifier, queryable, properties
+      [Wrote, %{at: ^date}]
+    - Relationship with identifier, queryable, no properties
+      [rel, Wrote]
+    - Relationship with identifier, no queryable, properties
+      [rel, %{at: ^date}]
+    - Realtionship with no identifier, no queryable, properties
+      [%{at: ^date}]
+    - Relationship with identifier, no queryable, no properties
+      [rel]
+    - Relationship with no identifier, string queryable, no properties
+      ["WROTE"]
+    - Relationship with identifier, string queryable, no properties
+      [rel, "WROTE"]
+    - Relationship with identifier, string queryable, properties
+      [rel, "WROTE, %{at: ^date}]
+    - Relationship with no identifier, string queryable, properties
+      ["WROTE", %{at: ^date}]
+    - Relationship with identifier, queryable, properties
+      [rel, Wrote, %{at: ^date}]
+  """
   # Empty relationship
   # [{}, [], {}]
   @spec from_ast(Macro.t(), Macro.Env.t()) :: Relationship.t()
@@ -196,6 +228,9 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
     |> Map.put(:end, end_node)
   end
 
+  @doc """
+  Build a Relationship from a queryable and its properties.
+  """
   @spec from_queryable(
           Seraph.Repo.queryable(),
           Seraph.Schema.Node.t() | map,
@@ -298,6 +333,10 @@ defmodule Seraph.Query.Builder.Entity.Relationship do
     end
   end
 
+  @doc """
+  Extract property from node schema
+  TODO: Move to a more suitable module
+  """
   @spec extract_node_properties(Seraph.Schema.Node.t()) :: map
   def extract_node_properties(%{__struct__: queryable} = node_data) do
     id_field = Seraph.Repo.Helper.identifier_field!(queryable)

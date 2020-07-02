@@ -1,4 +1,5 @@
 defprotocol Seraph.Query.Cypher do
+  @moduledoc false
   @spec encode(any, Keyword.t()) :: String.t()
   def encode(data, opts \\ [])
 end

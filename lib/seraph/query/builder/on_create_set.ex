@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.OnCreateSet do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Entity, OnCreateSet, Set}
@@ -9,6 +11,9 @@ defmodule Seraph.Query.Builder.OnCreateSet do
           expressions: [Entity.Property.t() | Entity.Label.t()]
         }
 
+  @doc """
+  Build OnCreateSet data from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{on_create_set: OnCreateSet.t(), params: Keyword.t()}
   def build(ast, env) do
@@ -20,6 +25,11 @@ defmodule Seraph.Query.Builder.OnCreateSet do
     }
   end
 
+  @doc """
+  Check OnCreateSet validity.
+
+  - See `Seraph.Query.Builder.Set.check/2`
+  """
   @impl true
   @spec check(OnCreateSet.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(on_create_set_data, query) do

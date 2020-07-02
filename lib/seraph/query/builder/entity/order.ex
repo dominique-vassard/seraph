@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Entity.Order do
+  @moduledoc false
+
   alias Seraph.Query.Builder.Entity
   alias Seraph.Query.Builder.Entity.Order
 
@@ -9,6 +11,9 @@ defmodule Seraph.Query.Builder.Entity.Order do
           order: :asc | :desc
         }
 
+  @doc """
+  Build Order from ast.
+  """
   @spec build_from_ast(Macro.t()) :: Order.t()
   def build_from_ast({order, data}) when order in [:asc, :desc] do
     build_from_ast(data)

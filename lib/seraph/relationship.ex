@@ -1,4 +1,7 @@
 defmodule Seraph.Relationship do
+  @moduledoc """
+  Represents a Relationship without a defined schema.
+  """
   defstruct [:__id__, :type, :start_node, :end_node, properties: %{}]
 
   @type t :: %__MODULE__{
@@ -9,6 +12,12 @@ defmodule Seraph.Relationship do
           properties: map
         }
 
+  @doc false
+  @spec map(String.t(), %{
+          __id__: integer,
+          end_node: nil | Seraph.Node.t() | Seraph.Schema.Node.t(),
+          start_node: nil | Seraph.Node.t() | Seraph.Schema.Node.t()
+        }) :: Seraph.Relationship.t()
   def map(rel_type, result_props) do
     %Seraph.Relationship{
       __id__: result_props.__id__,

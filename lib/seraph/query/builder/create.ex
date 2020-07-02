@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Create do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Create, Entity, Helper, Match}
@@ -10,6 +12,9 @@ defmodule Seraph.Query.Builder.Create do
           entities: [Entity.t()]
         }
 
+  @doc """
+  Build a Create from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{
           create: Create.t(),

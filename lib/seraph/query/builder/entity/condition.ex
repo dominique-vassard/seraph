@@ -1,6 +1,7 @@
 defmodule Seraph.Query.Builder.Entity.Condition do
-  alias Seraph.Query.Builder.Entity.Condition
   @moduledoc false
+
+  alias Seraph.Query.Builder.Entity.Condition
 
   @variables [
     :entity_identifier,
@@ -11,9 +12,8 @@ defmodule Seraph.Query.Builder.Entity.Condition do
     :conditions,
     join_operator: :and
   ]
-  defstruct @variables
 
-  alias Seraph.Query.Builder.Entity.Condition
+  defstruct @variables
 
   @type t :: %__MODULE__{
           entity_identifier: nil | String.t(),

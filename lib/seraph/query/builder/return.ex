@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Return do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Entity, Helper, Return}
@@ -32,8 +34,11 @@ defmodule Seraph.Query.Builder.Return do
           raw_variables: nil | [Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]
         }
 
-  @spec build(Macro.t(), Macro.Env.t()) :: %{return: Return.t(), params: Keyword.t()}
+  @doc """
+  Build Return from ast.
+  """
   @impl true
+  @spec build(Macro.t(), Macro.Env.t()) :: %{return: Return.t(), params: Keyword.t()}
   def build(ast, env) when not is_list(ast) do
     build([ast], env)
   end
@@ -125,32 +130,13 @@ defmodule Seraph.Query.Builder.Return do
     }
   end
 
-  @spec finalize_variables_build([Return.entities()], Keyword.t()) :: %{
-          String.t() => Return.entities()
-        }
-  def finalize_variables_build(raw_variables, params) do
-    Enum.reduce(raw_variables, %{}, fn
-      %{alias: data_alias} = data, vars when not is_nil(data_alias) ->
-        Map.put(vars, Atom.to_string(data_alias), data)
+  @doc """
+  Check Return validity.
 
-      %Entity.EntityData{entity_identifier: entity_identifier, property: property} = data, vars
-      when not is_nil(property) ->
-        key = Atom.to_string(entity_identifier) <> "." <> Atom.to_string(property)
-
-        Map.put(vars, key, data)
-
-      %Entity.EntityData{entity_identifier: entity_identifier} = data, vars ->
-        Map.put(vars, Atom.to_string(entity_identifier), data)
-
-      %Entity.Value{bound_name: bound_name}, _ ->
-        value = Keyword.fetch!(params, String.to_atom(bound_name))
-        raise ArgumentError, "Bare value `#{inspect(value)}` must be aliased."
-
-      %Entity.Function{name: name}, _ ->
-        raise ArgumentError, "Function `#{inspect(name)}` must be aliased."
-    end)
-  end
-
+  - Identifiers must have matched / created before
+  - Property must be defined on associated queryable
+  - Function and bare value must be aliased
+  """
   @impl true
   @spec check(Return.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Return{raw_variables: raw_variables}, query) do
@@ -208,6 +194,11 @@ defmodule Seraph.Query.Builder.Return do
     do_check(rest, query, result)
   end
 
+  @doc """
+  Prepare Return.
+
+  REplace Entity list with a map  %{identifier => Entity} for a nice usage on query result
+  """
   @impl true
   @spec prepare(Return.t(), Seraph.Query.t(), Keyword.t()) :: Return.t()
   def prepare(%Return{raw_variables: raw_variables, variables: nil} = return, query, opts) do
@@ -226,7 +217,7 @@ defmodule Seraph.Query.Builder.Return do
   end
 
   @spec build_variables([Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]) :: map
-  def build_variables(raw_variables) do
+  defp build_variables(raw_variables) do
     Enum.reduce(raw_variables, %{}, fn
       %{alias: data_alias} = data, vars when not is_nil(data_alias) ->
         Map.put(vars, Atom.to_string(data_alias), data)

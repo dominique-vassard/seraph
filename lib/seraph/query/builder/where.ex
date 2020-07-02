@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Where do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.Entity.Condition
@@ -32,8 +34,11 @@ defmodule Seraph.Query.Builder.Where do
         }
 
   @spec valid_operators :: [atom]
-  def valid_operators(), do: @valid_operators
+  def valid_operators, do: @valid_operators
 
+  @doc """
+  Build Where data from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t(), Keyword.t()) :: Where.t()
   def build(ast, _env, params \\ [])
@@ -145,6 +150,12 @@ defmodule Seraph.Query.Builder.Where do
     }
   end
 
+  @doc """
+  Check Where validity
+
+  - Entity must have been matched before
+  - Property must be defined on associated Entity
+  """
   @impl true
   @spec check(
           Seraph.Query.Builder.Entity.Condition.t() | [Seraph.Query.Builder.Entity.Condition.t()],

@@ -1,6 +1,8 @@
 defmodule Seraph.Query.Builder.Entity.Property do
-  alias Seraph.Query.Builder.Entity.Property
   @moduledoc false
+
+  alias Seraph.Query.Builder.Entity.Property
+
   defstruct [:alias, :bound_name, :entity_identifier, :entity_queryable, :name, :value, :type]
 
   @type t :: %__MODULE__{
@@ -13,6 +15,9 @@ defmodule Seraph.Query.Builder.Entity.Property do
           value: any()
         }
 
+  @doc """
+  Build a Property list from a map.
+  """
   @spec from_map(map, Seraph.Query.Builder.Entity.t()) :: [Property.t()]
   def from_map(properties, entity) do
     properties
@@ -26,6 +31,10 @@ defmodule Seraph.Query.Builder.Entity.Property do
     end)
   end
 
+  @doc """
+  Take a property, extract value from it and convert into bindings.
+  Return the new Property ith bindings.
+  """
   @spec extract_params(Property.t(), Keyword.t(), String.t()) :: {Property.t(), Keyword.t()}
   def extract_params(%Property{} = property, current_params, prefix) do
     value = property.value

@@ -1,7 +1,10 @@
 defmodule Seraph.Query.Builder.Limit do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.Limit
+
   defstruct [:value, :bound_name]
 
   @type t :: %__MODULE__{
@@ -9,6 +12,9 @@ defmodule Seraph.Query.Builder.Limit do
           bound_name: String.t()
         }
 
+  @doc """
+  Build Limit from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{limit: Limit.t(), params: Keyword.t()}
   def build({:^, _, [{bound_name, _, _} = value]}, _env) do
@@ -32,6 +38,12 @@ defmodule Seraph.Query.Builder.Limit do
     %{limit: limit, params: []}
   end
 
+  @doc """
+  Check Limit validity.
+
+  - limit value must be a positive integer
+  - limit value cannot be 0
+  """
   @impl true
   @spec check(Limit.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Limit{bound_name: bound_name, value: nil}, %Seraph.Query{} = query) do

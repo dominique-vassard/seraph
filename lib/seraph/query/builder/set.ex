@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Set do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Entity, Helper, Set}
@@ -31,6 +33,9 @@ defmodule Seraph.Query.Builder.Set do
     :/
   ]
 
+  @doc """
+  Build Set from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{set: Set.t(), params: Keyword.t()}
   def build(ast, env) do
@@ -47,6 +52,9 @@ defmodule Seraph.Query.Builder.Set do
     %{set: %Set{expressions: entities}, params: params}
   end
 
+  @doc """
+  Build Set from a map of properties to set on the given entity.
+  """
   @spec build_from_map(map, String.t(), String.t()) :: %{set: Set.t(), params: Keyword.t()}
   def build_from_map(data_to_set, entity_identifier \\ "n", param_prefix \\ "") do
     %{entities: entities, params: params} =
@@ -68,6 +76,12 @@ defmodule Seraph.Query.Builder.Set do
     %{set: %Set{expressions: entities}, params: params}
   end
 
+  @doc """
+  Check Return validity.
+
+  - Entity must have been matched / created before set
+  - Property value must be of right type
+  """
   @impl true
   @spec check(Set.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Set{expressions: expressions}, %Seraph.Query{} = query) do

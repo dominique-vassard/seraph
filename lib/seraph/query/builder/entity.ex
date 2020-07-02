@@ -1,5 +1,8 @@
 defmodule Seraph.Query.Builder.Entity do
+  @moduledoc false
+
   alias Seraph.Query.Builder.Entity
+
   @type t :: Entity.Node.t() | Entity.Relationship.t()
   @type all ::
           Entity.EntityData.t()
@@ -10,6 +13,9 @@ defmodule Seraph.Query.Builder.Entity do
           | Entity.Relationship.t()
           | Entity.Value.t()
 
+  @doc """
+  Build a Property list from the given properties.
+  """
   @spec build_properties(Seraph.Repo.queryable(), nil | String.t(), Keyword.t()) :: [
           Entity.Property
         ]
@@ -26,15 +32,10 @@ defmodule Seraph.Query.Builder.Entity do
     end)
   end
 
-  @spec interpolate(Macro.t()) :: Macro.t()
-  defp interpolate({:^, _, [{name, _ctx, _env} = value]}) when is_atom(name) do
-    value
-  end
-
-  defp interpolate(value) do
-    value
-  end
-
+  @doc """
+  Extract values from the given Entity and convert them to bindings.
+  Return the updated Entity with a Keyword list of params.
+  """
   @spec extract_params(Entity.t(), Keyword.t(), String.t()) :: %{
           entity: Entity.t(),
           params: Keyword.t()
@@ -128,5 +129,14 @@ defmodule Seraph.Query.Builder.Entity do
       end)
 
     %{entity: Map.put(entity, :properties, new_props), params: params}
+  end
+
+  @spec interpolate(Macro.t()) :: Macro.t()
+  defp interpolate({:^, _, [{name, _ctx, _env} = value]}) when is_atom(name) do
+    value
+  end
+
+  defp interpolate(value) do
+    value
   end
 end

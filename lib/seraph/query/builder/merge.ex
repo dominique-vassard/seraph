@@ -1,4 +1,6 @@
 defmodule Seraph.Query.Builder.Merge do
+  @moduledoc false
+
   @behaviour Seraph.Query.Operation
 
   alias Seraph.Query.Builder.{Entity, Helper, Merge}
@@ -10,6 +12,9 @@ defmodule Seraph.Query.Builder.Merge do
           entities: nil | Entity.t()
         }
 
+  @doc """
+  Build Merge data from ast.
+  """
   @impl true
   @spec build(Macro.t(), Macro.Env.t()) :: %{
           merge: Merge.t(),
@@ -29,6 +34,11 @@ defmodule Seraph.Query.Builder.Merge do
     }
   end
 
+  @doc """
+  Check Merge data validity.
+
+  - See `Seraph.Query.Builder.Match.check/2`
+  """
   @impl true
   @spec check(nil | Merge.t(), Seraph.Query.t()) :: :ok | {:error, String.t()}
   def check(%Merge{} = merge_data, %Seraph.Query{} = query) do
@@ -38,6 +48,10 @@ defmodule Seraph.Query.Builder.Merge do
     )
   end
 
+  @doc """
+  Prepare final Merge data.
+  - Fill node data for relationship entity
+  """
   @impl true
   @spec prepare(Merge.t(), Seraph.Query.t(), Keyword.t()) :: %{
           merge: Merge.t(),

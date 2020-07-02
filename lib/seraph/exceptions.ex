@@ -1,4 +1,4 @@
-defmodule Seraph.Exception do
+defmodule Seraph.Error do
   defexception [:message]
 end
 

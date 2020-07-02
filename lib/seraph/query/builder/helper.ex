@@ -1,6 +1,12 @@
 defmodule Seraph.Query.Builder.Helper do
+  @moduledoc false
+
   alias Seraph.Query.Builder.Entity
 
+  @doc """
+  Check that the given property is defined for the given queryable.
+  Check also property if a value is given.
+  """
   @spec check_property(Seraph.Repo.queryable(), atom, any, boolean) :: :ok | {:error, String.t()}
   def check_property(queryable, property_name, value, check_type \\ true) do
     case check_queryable_property(queryable, property_name) do
@@ -16,6 +22,9 @@ defmodule Seraph.Query.Builder.Helper do
     end
   end
 
+  @doc """
+  Check that the given property is defined for the given queryable.
+  """
   @spec check_queryable_property(Seraph.Repo.queryable(), atom) :: :ok | {:error, String.t()}
   def check_queryable_property(dummy_queryable, _)
       when dummy_queryable in [Seraph.Node, Seraph.Relationship] do
@@ -52,6 +61,9 @@ defmodule Seraph.Query.Builder.Helper do
     end
   end
 
+  @doc """
+  Build the identifiers list (to be used in Seraph.Query) from the given Entity
+  """
   @spec build_identifiers(Entity.t(), %{String.t() => Entity.t()}, atom) :: %{
           String.t() => Entity.t()
         }
@@ -116,6 +128,9 @@ defmodule Seraph.Query.Builder.Helper do
     end
   end
 
+  @doc """
+  Check that the candidate identifiers exists in current identifiers list.
+  """
   @spec check_identifier_presence(map, String.t()) :: :ok
   def check_identifier_presence(identifiers, candidate) do
     case Map.fetch(identifiers, candidate) do
