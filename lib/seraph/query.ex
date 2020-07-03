@@ -1,4 +1,101 @@
 defmodule Seraph.Query do
+  @moduledoc ~S"""
+  Provide the query DSL.
+
+  Queries are used to retrieve and manipulate data from a repository (see `Seraph.Repo`).
+  They can be written using keywords or macros.
+
+  Basic example:
+
+      # Keyword syntax
+      match [{n}],
+      return: [n]
+
+      # Macro syntax
+      match([{n}])
+      |> return([n])
+
+  ## Node and relationship representation
+  Seraph try to be as close to Cypher syntax as possible.
+
+  Nodes are represented by `{variable, schema, properties}` where:
+   - variable is a `string`,
+   - schema is a `Seraph.Schema.Node`,
+   - properties are a `map`
+
+  All variants are valid depending on the context.
+
+  Note that primary label will be deducted from schema and additional labels should be added
+  as properties under the key `:additionalLabels`
+
+  Node examples:
+
+      # Fully fleshed node
+      {u, MyApp.User, %{firstName: "John", lastName: "Doe"}}
+
+      # Node with no / useless properties
+      {u, MyApp.User}
+
+      # Node with only properties
+      {u, %{firstName: "John"}}
+
+      # Node with additional labels
+      {u, MyApp.User, %{additionalLabels: ["New", "Premium"]}}
+
+
+  Relationships are represented by `[start_node, [variable, schema, properties], end_node]` where:
+  - start_node is a valid node representation
+  - variable is a `string`,
+  - schema is a `Seraph.Schema.Relationship`,
+  - properties are a `map`
+  - end_node is a valid node representation
+
+  All variants are valid depending on the context
+
+  Relationship examples:
+
+      # Fully flesh relationship
+      [{u, MyApp.User, %{firstName: "John"}}, [rel, MyApp.Wrote, %{nb_edits: 5}], {p, MyApp.Post}]
+
+      # Relatinship without properties
+      [{u, MyApp.User}, [rel, MyApp.Wrote], {p, MyApp.Post}]
+
+      # Relatinship without variable
+      [{u, MyApp.User}, [MyApp.Wrote], {p, MyApp.Post}]
+
+  ## About literals and interpolation
+  The following literals are allowe in queries:
+  - Integers
+  - Floats
+  - Strings
+  - Boolean
+  - Lists
+
+  For the other types or dynamic values, you can interpolate them using `^`:
+
+      first_name = "John"
+      match([{u, MyApp.User}])
+      |> where([u.firstName == ^first_name])
+
+  ## Keyword order and entry points
+  In Cypher, keyword can be used in any order but only some can start a query. The same applies for Seraph queries.
+  The entry point keywords / macros are:
+  - `match`
+  - `create`
+  - `merge`
+
+  Note that because of this versability, it is possible to write invalid queries, a databse error will then be raised.
+
+  ## About operators and functions
+  Each Keyword / macro has a specific set ef availabe operators and functions.
+  Please see the keyword / macro documentation for the aviable operators and functions.
+
+  ## About `nil`
+  In Neo4j, `NULL` doesn't exists. This means that you can't have a null property and that **setting a property to null will remove it**.
+
+  Also, it is preferred to us `is_nil` in where clause instead of using `%{property: nil}`
+  """
+
   defmodule Change do
     @moduledoc false
     alias Seraph.Query.Builder.Entity
@@ -22,18 +119,45 @@ defmodule Seraph.Query do
           literal: [String.t()]
         }
 
-  defmacro match(expr, match_or_operations_ast \\ :no_op)
+  @doc """
+  Create a `MATCH` clause from a list of nodes and / or relationships.
 
-  defmacro match(expr, :no_op) do
+    - Cypher keyword: `MATCH`
+    - Entry point: yes
+    - Expects: a list of nodes and / or relationships
+    - Invalid data:
+      - Empty node: {},
+      - Empty relationship: [{}, [], {}]
+
+  ## Examples
+
+        # Keyword syntax
+        match [
+          {u, User},
+          {p, Post},
+          [{u}, [rel, Wrote], {p}]
+        ]
+
+        # Macro syntax
+        match([
+          {u, User},
+          {p, Post},
+          [{u}, [rel, Wrote], {p}]
+        ])
+
+  """
+  defmacro match(expr, operations_kw \\ [])
+
+  defmacro match(expr, []) do
     do_match(expr, [], __CALLER__, true)
   end
 
-  defmacro match(expr, match_or_operations_ast) do
+  defmacro match(expr, operations_kw) do
     do_match(
       expr,
-      match_or_operations_ast,
+      operations_kw,
       __CALLER__,
-      Keyword.keyword?(match_or_operations_ast)
+      Keyword.keyword?(operations_kw)
     )
   end
 
@@ -59,18 +183,68 @@ defmodule Seraph.Query do
     build_match(query, expr, env)
   end
 
-  defmacro create(expr, create_or_operations_ast \\ :no_op)
+  @doc """
+  Create a `CREATE` clause from a list of nodes and/or relationships.
 
-  defmacro create(expr, :no_op) do
+    - Cypher keyword: `CREATE`
+    - Entry point: yes
+    - Expects: a list of nodes and / or relationships
+    - Invalid data:
+      - Empty node: {},
+      - Empty relationship: [{}, [], {}]
+      - Node without schema: {u, %{prop1: value}} , {u}
+
+
+      ## Examples
+
+          # Creating a node (keyword syntax)
+          create [{u, MyApp.User, %{uid: 1, firstName: "John"}}],
+            return: [u]
+
+          # Creating a node (macro syntax)
+          create([{u, MyApp.User, %{uid: 1, firstName: "John"}}])
+          |> return([u])
+
+          # Creating a relationship (keyword syntax)
+          create [
+            [
+              {u, MyApp.User, %{uid: 1}},
+              [rel, MyApp.Wrote, %{nb_edit: 5}],
+              {p, MyApp.Post, %{uid: 2}}
+            ]
+          ],
+            return: [rel]
+
+          # Creating a relationship with a previous MATCH (keyword syntax)
+          match [
+            {u, MyApp.User, %{uid: 1}},
+            {p, MyApp.Post, %{uid: 2}}
+          ],
+            create: [[{u}, [rel, MyApp.Wrote, %{nb_edit: 5}], {p}]],
+            return: [rel]
+
+           # Creating a relationship (macro syntax)
+          create([
+            [
+              {u, MyApp.User, %{uid: 1}},
+              [rel, MyApp.Wrote, %{nb_edit: 5}],
+              {p, MyApp.Post, %{uid: 2}}
+            ]
+          ])
+          |> return([rel])
+  """
+  defmacro create(expr, operations_kw \\ [])
+
+  defmacro create(expr, []) do
     do_create(expr, [], __CALLER__, true)
   end
 
-  defmacro create(expr, create_or_operations_ast) do
+  defmacro create(expr, operations_kw) do
     do_create(
       expr,
-      create_or_operations_ast,
+      operations_kw,
       __CALLER__,
-      Keyword.keyword?(create_or_operations_ast) or create_or_operations_ast == :no_op
+      Keyword.keyword?(operations_kw)
     )
   end
 
@@ -96,18 +270,68 @@ defmodule Seraph.Query do
     build_create(query, expr, env)
   end
 
-  defmacro merge(expr, merge_or_operations_ast \\ :no_op)
+  @doc """
+  Create a `MERGE` clause from a node or relationship.
 
-  defmacro merge(expr, :no_op) do
+  - Cypher keyword: `MERGE`
+    - Entry point: yes
+    - Expects: a node or a relationship
+    - Invalid data:
+      - Empty node: {},
+      - Empty relationship: [{}, [], {}]
+      - Relationship without schema: [{u}, [rel], {p}]
+
+  ## Examples
+
+      # Merging a node (keyword syntax)
+      merge [{u, MyApp.User, %{uid: 1, firstName: "John"}}],
+        return: [u]
+
+      # Merging a node (macro syntax)
+      merge([{u, MyApp.User, %{uid: 1, firstName: "John"}}])
+      |> return([u])
+
+      # Merging a relationship (keyword syntax)
+      merge [
+        [
+          {u, MyApp.User, %{uid: 1}},
+          [rel, MyApp.Wrote, %{nb_edit: 5}],
+          {p, MyApp.Post, %{uid: 2}}
+        ]
+      ],
+        return: [rel]
+
+      # Merging a relationship with a previous MATCH (keyword syntax)
+      match [
+        {u, MyApp.User, %{uid: 1}},
+        {p, MyApp.Post, %{uid: 2}}
+      ],
+        merge: [[{u}, [rel, MyApp.Wrote, %{nb_edit: 5}], {p}]],
+        return: [rel]
+
+        # Merging a relationship (macro syntax)
+      merge([
+        [
+          {u, MyApp.User, %{uid: 1}},
+          [rel, MyApp.Wrote, %{nb_edit: 5}],
+          {p, MyApp.Post, %{uid: 2}}
+        ]
+      ])
+      |> return([rel])
+
+  """
+  defmacro merge(expr, operations_kw \\ [])
+
+  defmacro merge(expr, []) do
     do_merge(expr, [], __CALLER__, true)
   end
 
-  defmacro merge(expr, merge_or_operations_ast) do
+  defmacro merge(expr, operations_kw) do
     do_merge(
       expr,
-      merge_or_operations_ast,
+      operations_kw,
       __CALLER__,
-      Keyword.keyword?(merge_or_operations_ast) or merge_or_operations_ast == :no_op
+      Keyword.keyword?(operations_kw)
     )
   end
 
@@ -133,42 +357,309 @@ defmodule Seraph.Query do
     build_merge(query, expr, env)
   end
 
+  @doc """
+  Create a `WHERE` clause from a boolean expression.
+
+    - Cypher keyword: `WHERE`
+    - Entry point: no
+    - Expects: a boolean expression
+
+  ## Valid operators
+    - `and` (infix)
+    - `or` (infix)
+    - `xor`
+
+    - `in` (infix)
+
+    - `==` (infix)
+    - `<>` (infix)
+    - `>` (infix)
+    - `>=` (infix)
+    - `<` (infix)
+    - `<=` (infix)
+
+    - `is_nil`
+    - `not`
+    - `exists`
+
+    - `starts_with`
+    - `ends_with`
+    - `contains`
+    - `=~`
+
+  ## Examples
+
+      # Keyword syntax
+      match [{u, MyApp.User}],
+        where: exists(u.lastName) and start_with(u.firstName, "J"),
+        return: [u.firstName]
+
+      # Macro syntax
+      match([{u, MyApp.User}])
+      |> where(exists(u.lastName) and start_with(u.firstName, "J"))
+      |> return([u.firstName])
+  """
   defmacro where(query, expr) do
     build_where(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `RETURN` clause from a list of variables and / or properties and / or functions.
+
+    - Cypher keyword: `RETURN`
+    - Entry point: no
+    - Expects: a list of variables and / or properties and / or functions.
+
+  Note that functions and bare value must be aliased.
+
+  ## Available functions
+    - `min`
+    - `max`
+    - `count`
+    - `avg`
+    - `sum`
+    - `st_dev`
+    - `percentile_disc`
+    - `distinct` (only to be used with aggregate function)
+
+    - `collect`
+    - `size`
+
+    - `id`
+    - `labels`
+    - `type`
+    - `start_node`
+    - `end_node`
+
+
+  ## Examples
+
+        # return matched data and properties
+        match [{u, MyApp.User, %{uid: 1}, {p, MyApp.Post}],
+          return: [u.firstName, p]
+
+        # aliased return
+        match [{u, MyApp.User}],
+          return: [names: u.firstName, bare_value: 5]
+
+        # return function result
+        match [{u, MyApp.User, %{uid: 1}, {p, MyApp.Post}],
+          return: [nb_post: count(distinct(p))]
+
+        # Macro syntax
+        match([{u, MyApp.User, %{uid: 1}, {p, MyApp.Post}])
+        |> return([nb_post: count(distinct(p))])
+
+  """
   defmacro return(query, expr) do
     build_return(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `DELETE` clause from list of variables.
+
+    - Cypher keyword: `DELETE`
+    - Entry point: no
+    - Expects: a list of variables.
+
+  ## Examples
+
+        # Keyword syntax
+        match [{u, MyApp.User, %{uid: 5}}],
+          delete: [u]
+
+        # Macro syntax
+        match([{u, MyApp.User, %{uid: 5}}])
+        |> delete([u])
+  """
   defmacro delete(query, expr) do
     build_delete(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `SET` clause from a list of expressions.
+
+    - Cypher keyword: `SET`
+    - Entry point: no
+    - Expects: a list of expressions.
+
+  ## Valid operators
+    - `+`
+    - `-`
+    - `*`
+    - `/`
+
+  ## Valid functions
+    - `collect`
+    - `id`
+    - `labels`
+    - `type`
+    - `size`
+
+  ## Examples
+
+        # with match (Keyword syntax)
+        match [{u, Myapp.User, %{uid: 1}}],
+          set: [u.firstName = "OtherName"]
+
+        match [{p, MyApp.Post}],
+          set: [p.viewCount = viewCount + 1]
+
+        match [
+          {p, MyApp.Post, %{uid: 45}},
+          {u, MyApp.User},
+          [{u}, [rel, MyApp.Read], {p}]
+        ],
+          set: [p.viewCount = size(collect(u.uid))]
+
+        # with create (Keyword syntax)
+        create [{u, Myapp.User, %{uid: 99}}],
+          set: [u.firstName = "Collin", lastName = "Chou"]
+
+        # Set label (Keyword syntax)
+        match [{u, Myapp.User, %{uid: 1}}],
+          set: [{u, NewAdditionalLabel}]
+
+        # Set multiple label (Keyword syntax)
+        match [{u, Myapp.User, %{uid: 1}}],
+          set: [{u, [NewAdditionalLabel1, NewAdditionalLabel2]}]
+
+        # Macro syntax
+        match([{u, Myapp.User, %{uid: 1}}])
+        |> set([u.firstName = "OtherName"])
+  """
   defmacro set(query, expr) do
     build_set(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `REMOVE` clause from a list of properties and / or labels.
+
+    - Cypher keyword: `REMOVE`
+    - Entry point: no
+    - Expects: a list of properties and / or labels.
+
+  ## Examples
+
+      # Remove property (Keyword syntax)
+      match [{u, MyApp.User, %{uid: 1}}],
+        remove: [u.firstName],
+        return: [u]
+
+      # Remove label (Keyword syntax)
+      match [{u, MyApp.User, %{uid: 1}}],
+        remove: [{u, OldLabel}],
+        return: [u]
+
+      # Remove multiple labels (Keyword syntax)
+      match [{u, MyApp.User, %{uid: 1}}],
+        remove: [{u, [OldLabel1, OldLabel2]}],
+        return: [u]
+
+      # Remove property (Macro syntax)
+      match([{u, MyApp.User, %{uid: 1}}])
+      |> remove([u.firstName])
+      |> return([u])
+  """
   defmacro remove(query, expr) do
     build_remove(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `ON CREATE SET` clause from a list of expression.
+
+  Require a `MERGE`
+
+  See `set/2` for usage details.
+  """
   defmacro on_create_set(query, expr) do
     build_on_create_set(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `ON MATCH SET` clause from a list of expression.
+
+  Require a `MERGE`.
+
+  See `set/2` for usage details.
+  """
   defmacro on_match_set(query, expr) do
     build_on_match_set(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `ORDER BY` clause from a list of orders.
+
+    - Cypher keyword: `ORDER_BY`
+    - Entry point: no
+    - Expects: a list of orders.
+
+  Default order is ascending (ASC)
+
+  ## Examples
+
+        # with default order (keyword syntax)
+        match [{u, MyApp.User}],
+          return: [u.firstName, u.lastName],
+          order_by: [u.firstName]
+
+        # with specific order (keyword syntax)
+        match [{u, MyApp.User}],
+          return: [u.firstName, u.lastName],
+          order_by: [desc: u.firstName]
+
+        # Macro syntax
+        match([{u, MyApp.User}])
+        |> return([u.firstName, u.lastName])
+        |> order_by([u.firstName])
+
+  """
   defmacro order_by(query, expr) do
     build_order_by(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `SKIP` clause from value.
+
+  - Cypher keyword: `SKIP`
+    - Entry point: no
+    - Expects: a value.
+
+  ## Examples
+
+        # Keyword syntax
+        match [{u, MyApp.User}],
+          return: [u.firstName, u.lastName],
+          skip: 2
+
+        # Maccro syntax
+        match([{u, MyApp.User}])
+        |> return([u.firstName, u.lastName])
+        |> skip(2)
+  """
   defmacro skip(query, expr) do
     build_skip(query, expr, __CALLER__)
   end
 
+  @doc """
+  Create a `LIMIT` clause from value.
+
+  - Cypher keyword: `LIMIT`
+    - Entry point: no
+    - Expects: a value.
+
+  ## Examples
+
+        # Keyword syntax
+        match [{u, MyApp.User}],
+          return: [u.firstName, u.lastName],
+          limit: 2
+
+        # Maccro syntax
+        match([{u, MyApp.User}])
+        |> return([u.firstName, u.lastName])
+        |> limit(2)
+  """
   defmacro limit(query, expr) do
     build_limit(query, expr, __CALLER__)
   end

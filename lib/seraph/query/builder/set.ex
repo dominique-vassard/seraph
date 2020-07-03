@@ -12,18 +12,11 @@ defmodule Seraph.Query.Builder.Set do
         }
 
   @valid_funcs [
-    :min,
-    :max,
-    :count,
-    :avg,
-    :sum,
-    :st_dev,
     :collect,
     :id,
     :labels,
     :type,
-    :size,
-    :percentile_disc
+    :size
   ]
 
   @infix_funcs [
@@ -140,10 +133,15 @@ defmodule Seraph.Query.Builder.Set do
   end
 
   defp do_check([%Entity.EntityData{} = entity_data | rest], query, :ok) do
+    entity_property = entity_data.property
+
     case Map.fetch(query.identifiers, entity_data.entity_identifier) do
-      {:ok, entity} ->
+      {:ok, entity} when not is_nil(entity_property) ->
         result = Helper.check_property(entity.queryable, entity_data.property, nil, false)
         do_check(rest, query, result)
+
+      {:ok, _} ->
+        do_check(rest, query, :ok)
 
       :error ->
         message =
@@ -245,6 +243,12 @@ defmodule Seraph.Query.Builder.Set do
 
   defp build_value({unknown_func, _, args}) when is_list(args) do
     raise ArgumentError, "Unknown function `#{inspect(unknown_func)}`."
+  end
+
+  defp build_value({entity_identifier, _, _}) do
+    %Entity.EntityData{
+      entity_identifier: Atom.to_string(entity_identifier)
+    }
   end
 
   # Bare value

@@ -106,12 +106,43 @@ defmodule Seraph.Query.Builder.SetTest do
       assert [] == params
     end
 
+    test "u.viewCount = id(u)" do
+      ast = quote do: [u.viewCount = id(u)]
+
+      %{set: %Set{expressions: expressions}, params: params} = Set.build(ast, __ENV__)
+
+      assert [
+               %Seraph.Query.Builder.Entity.Property{
+                 alias: nil,
+                 bound_name: nil,
+                 entity_identifier: "u",
+                 entity_queryable: nil,
+                 name: :viewCount,
+                 type: nil,
+                 value: %Seraph.Query.Builder.Entity.Function{
+                   alias: nil,
+                   args: [
+                     %Seraph.Query.Builder.Entity.EntityData{
+                       alias: nil,
+                       entity_identifier: "u",
+                       property: nil
+                     }
+                   ],
+                   infix?: false,
+                   name: :id
+                 }
+               }
+             ] == expressions
+
+      assert [] == params
+    end
+
     # {u, nil},
   end
 
   describe "check/2" do
     test "ok" do
-      ast = quote do: [u.firstName = "Jack"]
+      ast = quote do: [u.firstName = "Jack", u.viewCount = id(u)]
 
       %{set: set, params: params} = Set.build(ast, __ENV__)
 

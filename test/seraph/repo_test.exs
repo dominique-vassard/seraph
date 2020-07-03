@@ -1074,5 +1074,15 @@ defmodule Seraph.RepoTest do
                |> return([u])
                |> TestRepo.one(with_stats: true)
     end
+
+    test "raise: no results and used with bang" do
+      query =
+        match [{u, User, %{uuid: "non-existing"}}],
+          return: u
+
+      assert_raise Seraph.NoResultsError, fn ->
+        TestRepo.one!(query)
+      end
+    end
   end
 end

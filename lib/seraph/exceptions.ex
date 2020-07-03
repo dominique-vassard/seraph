@@ -23,6 +23,18 @@ defmodule Seraph.NoResultsError do
   """
   defexception [:message]
 
+  def exception(query: query) do
+    query_str = Enum.join(query, "\n")
+
+    msg = """
+    Expected at least one result, got none for:
+
+    #{query_str}
+    """
+
+    %__MODULE__{message: msg}
+  end
+
   def exception(opts) do
     queryable = Keyword.fetch!(opts, :queryable)
     function = Keyword.fetch!(opts, :function)

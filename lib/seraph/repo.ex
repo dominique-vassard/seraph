@@ -88,6 +88,31 @@ defmodule Seraph.Repo do
         Seraph.Query.Planner.query!(__MODULE__, statement, params, opts)
       end
 
+      @doc """
+      Execute the given query against the database and return the results.
+
+      ## Options:
+        * `with_stats` - If set to `true`, also returns the query stats
+        (number of created nodes, created properties, etc.). Return data will then be:
+
+              %{results: the_query_results,
+                stats: the_query_stats}
+        * `relationship_result` - define how much the returned should be fleshed. Possible values are:
+            - `:contextual` (default) - Relationship nodes data will be retrieved from query result
+            - `:no_nodes` - Relationship nodes will be set to nil, even if they appear if the query result
+            - `:full` - Realtionship nodes will be set even if their data aren't part of the query.
+
+            Note that depending on how much data is retrieved, this option can help reduce the amount of data retrieved from database,
+      and therefore reduce the number of related structs to build. This can have a real impact on performance.
+
+
+      ## Example
+
+          # Fetch all users
+          query = match [{u, MyApp.User}],
+            return [u]
+          MyApp.Repo.execute(query)
+      """
       @spec query(Seraph.Query.t(), Keyword.t()) ::
               {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
       def execute(%Seraph.Query{} = query, opts \\ []) do
@@ -121,6 +146,9 @@ defmodule Seraph.Repo do
         end
       end
 
+      @doc """
+      Same as `execute/2` but raise in case of error.
+      """
       @spec query!(Seraph.Query.t(), Keyword.t()) :: [map] | %{results: [map], stats: map}
       def execute!(%Seraph.Query{} = query, opts \\ []) do
         case execute(query, opts) do
@@ -129,8 +157,74 @@ defmodule Seraph.Repo do
         end
       end
 
+      @doc """
+      Fetch a single result from the query.
+
+      Returns `nil` if no result was found. Raises if more than one entry.
+
+      ## Options:
+        * `with_stats` - If set to `true`, also returns the query stats
+        (number of created nodes, created properties, etc.). Return data will then be:
+
+              %{results: the_query_results,
+                stats: the_query_stats}
+        * `relationship_result` - define how much the returned should be fleshed. Possible values are:
+            - `:contextual` (default) - Relationship nodes data will be retrieved from query result
+            - `:no_nodes` - Relationship nodes will be set to nil, even if they appear if the query result
+            - `:full` - Realtionship nodes will be set even if their data aren't part of the query.
+
+            Note that depending on how much data is retrieved, this option can help reduce the amount of data retrieved from database,
+      and therefore reduce the number of related structs to build. This can have a real impact on performance.
+
+
+      ## Example
+
+          # Fetch one user
+          query = match [{u, MyApp.User, %{uid: 1}}],
+            return [u]
+          MyApp.Repo.one(query)
+      """
       def one(query, opts \\ []) do
         do_one(query, manage_opts(opts))
+      end
+
+      @doc """
+      Same as `one/2` but raise ino results found.
+      """
+      def one!(query, opts \\ []) do
+        case one(query, opts) do
+          nil -> raise Seraph.NoResultsError, query: query.literal
+          result -> result
+        end
+      end
+
+      @doc """
+      Fetch all results from the query.
+
+      ## Options:
+        * `with_stats` - If set to `true`, also returns the query stats
+        (number of created nodes, created properties, etc.). Return data will then be:
+
+              %{results: the_query_results,
+                stats: the_query_stats}
+        * `relationship_result` - define how much the returned should be fleshed. Possible values are:
+            - `:contextual` (default) - Relationship nodes data will be retrieved from query result
+            - `:no_nodes` - Relationship nodes will be set to nil, even if they appear if the query result
+            - `:full` - Realtionship nodes will be set even if their data aren't part of the query.
+
+            Note that depending on how much data is retrieved, this option can help reduce the amount of data retrieved from database,
+      and therefore reduce the number of related structs to build. This can have a real impact on performance.
+
+
+      ## Example
+
+          # Fetch all users
+          query = match [{u, MyApp.User}],
+            return [u]
+          MyApp.Repo.all(query)
+      """
+      def all(query, opts \\ []) do
+        do_all(query, manage_opts(opts))
       end
 
       defp do_one(query, opts) do
@@ -154,35 +248,12 @@ defmodule Seraph.Repo do
         end
       end
 
-      def all(query, opts \\ []) do
-        do_all(query, manage_opts(opts))
-      end
-
       defp do_all(query, {:error, error}) do
         raise ArgumentError, error
       end
 
       defp do_all(query, opts) do
-        query = Seraph.Query.prepare(query, opts)
-
-        statement =
-          query.operations
-          |> Enum.map(fn {_op, operation_data} ->
-            Seraph.Query.Cypher.encode(operation_data)
-          end)
-          |> Enum.join("\n")
-
-        raw_results =
-          Seraph.Query.Planner.query!(__MODULE__, statement, Enum.into(query.params, %{}), opts)
-
-        if Keyword.get(opts, :with_stats) do
-          %{
-            results: format_results(raw_results.results, query, opts),
-            stats: raw_results.stats
-          }
-        else
-          format_results(raw_results, query, opts)
-        end
+        execute!(query, opts)
       end
 
       defp format_results(results, query, opts, formated \\ [])
