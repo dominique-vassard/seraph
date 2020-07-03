@@ -1,7 +1,290 @@
 defmodule Seraph.Repo.Relationship.Queryable do
   @moduledoc false
 
-  alias Seraph.Query.{Builder, Condition, Planner}
+  alias Seraph.Query.Builder
+
+  @spec to_query(
+          Seraph.Repo.queryable(),
+          Seraph.Schema.Node.t() | map,
+          Seraph.Schema.Node.t() | map,
+          Keyword.t() | map,
+          atom()
+        ) :: Seraph.Query.t() | {:error, Keyword.t()}
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :match) do
+    rel_properties = Enum.into(rel_properties, %{})
+
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_struct_or_data,
+        end_struct_or_data,
+        rel_properties,
+        "match__"
+      )
+
+    {_, func_atom, _, _} =
+      Process.info(self(), :current_stacktrace)
+      |> elem(1)
+      |> Enum.at(2)
+
+    literal =
+      case func_atom do
+        :get ->
+          "get(#{inspect(start_struct_or_data)}, #{inspect(end_struct_or_data)})"
+
+        :get_by ->
+          "get_by(#{inspect(start_struct_or_data)}, #{inspect(end_struct_or_data)}, #{
+            inspect(rel_properties)
+          })"
+      end
+
+    %Seraph.Query{
+      identifiers: Map.put(%{}, "rel", relationship),
+      operations: [
+        match: %Builder.Match{
+          entities: [relationship]
+        },
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
+
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :match_create) do
+    rel_properties = Enum.into(rel_properties, %{})
+
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_struct_or_data,
+        end_struct_or_data,
+        rel_properties,
+        "match_create__"
+      )
+
+    literal =
+      "create(%#{queryable}{start: #{inspect(start_struct_or_data)}, end:#{
+        inspect(end_struct_or_data)
+      }, properties: #{inspect(rel_properties)}})"
+
+    identifiers = %{
+      "rel" => relationship,
+      "start" => relationship.start,
+      "end" => relationship.end
+    }
+
+    rel_to_create =
+      relationship
+      |> Map.put(:start, %Builder.Entity.Node{
+        identifier: relationship.start.identifier,
+        queryable: Seraph.Node
+      })
+      |> Map.put(:end, %Builder.Entity.Node{
+        identifier: relationship.end.identifier,
+        queryable: Seraph.Node
+      })
+
+    %Seraph.Query{
+      identifiers: identifiers,
+      operations: [
+        match: %Builder.Match{
+          entities: [relationship.start, relationship.end]
+        },
+        create: %Builder.Create{
+          raw_entities: [rel_to_create]
+        },
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
+
+  def to_query(queryable, start_struct_or_data, end_struct_or_data, rel_properties, :create) do
+    rel_properties = Enum.into(rel_properties, %{})
+
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_struct_or_data,
+        end_struct_or_data,
+        rel_properties,
+        "rel",
+        "match_create__"
+      )
+
+    literal =
+      "create(%#{queryable}{start: #{inspect(start_struct_or_data)}, end:#{
+        inspect(end_struct_or_data)
+      }, properties: #{inspect(rel_properties)}})"
+
+    identifiers = %{
+      "rel" => relationship,
+      "start" => relationship.start,
+      "end" => relationship.end
+    }
+
+    %Seraph.Query{
+      identifiers: identifiers,
+      operations: [
+        create: %Builder.Create{
+          raw_entities: [relationship]
+        },
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: query_params
+    }
+  end
+
+  def to_query(queryable, start_data, end_data, merge_opts, :merge) do
+    with {:ok, on_create_set_data} <-
+           merge_set_operations(queryable, :on_create, Keyword.get(merge_opts, :on_create)),
+         {:ok, on_match_set_data} <-
+           merge_set_operations(queryable, :on_match, Keyword.get(merge_opts, :on_match)) do
+      build_merge_query(
+        queryable,
+        start_data,
+        end_data,
+        on_create_set_data,
+        on_match_set_data,
+        merge_opts
+      )
+    else
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  def to_query(queryable, %Seraph.Changeset{} = changeset, :set) do
+    anchors_changed? =
+      :start_node in Map.keys(changeset.changes) or :end_node in Map.keys(changeset.changes)
+
+    build_set_query(queryable, changeset, anchors_changed?)
+  end
+
+  def to_query(queryable, rel_data, :merge) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    rel_properties =
+      rel_data
+      |> Map.from_struct()
+      |> Enum.filter(fn {prop_name, prop_value} ->
+        prop_name in persisted_properties and not is_nil(prop_value)
+      end)
+      |> Enum.into(%{})
+
+    %{entity: relationship, params: params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        rel_data.start_node,
+        rel_data.end_node,
+        rel_properties,
+        "rel",
+        "merge__"
+      )
+
+    rel_to_merge =
+      relationship
+      |> Map.put(:start, %Builder.Entity.Node{
+        identifier: relationship.start.identifier,
+        queryable: Seraph.Node
+      })
+      |> Map.put(:end, %Builder.Entity.Node{
+        identifier: relationship.end.identifier,
+        queryable: Seraph.Node
+      })
+
+    %Seraph.Query{
+      identifiers: %{
+        "start" => relationship.start,
+        "end" => relationship.end,
+        "rel" => relationship
+      },
+      operations: [
+        match: %Builder.Match{entities: [relationship.start, relationship.end]},
+        merge: %Builder.Merge{raw_entities: rel_to_merge},
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: ["merge(#{inspect(rel_data)})"],
+      params: params
+    }
+  end
+
+  def to_query(queryable, rel_data, :delete) do
+    %{entity: relationship, params: params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        rel_data.start_node,
+        rel_data.end_node,
+        %{},
+        "rel",
+        "delete__"
+      )
+
+    %Seraph.Query{
+      identifiers: %{
+        "rel" => relationship,
+        "start" => relationship.start,
+        "end" => relationship.end
+      },
+      operations: [
+        match: %Builder.Match{entities: [relationship]},
+        delete: %Builder.Delete{
+          raw_entities: [
+            %Builder.Entity.EntityData{
+              entity_identifier: "rel"
+            }
+          ]
+        }
+      ],
+      literal: ["delete(#{inspect(rel_data)})"],
+      params: params
+    }
+  end
 
   @doc """
   Fetch a single struct from the Neo4j datababase with the given start and end node data/struct.
@@ -15,37 +298,16 @@ defmodule Seraph.Repo.Relationship.Queryable do
           Seraph.Schema.Node.t() | map
         ) :: nil | Seraph.Schema.Relationship.t()
   def get(repo, queryable, start_struct_or_data, end_struct_or_data) do
-    queryable.__schema__(:start_node)
+    results =
+      to_query(queryable, start_struct_or_data, end_struct_or_data, %{}, :match)
+      |> repo.all(relationship_result: :full)
 
-    {start_node, start_params} =
-      node_data("start", queryable.__schema__(:start_node), start_struct_or_data)
-
-    {end_node, end_params} = node_data("end", queryable.__schema__(:end_node), end_struct_or_data)
-
-    relationship = %Builder.RelationshipExpr{
-      variable: "rel",
-      start: start_node,
-      end: end_node,
-      type: queryable.__schema__(:type)
-    }
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([relationship])
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [relationship, start_node, end_node]
-      })
-      |> Builder.params(Map.merge(start_params, end_params))
-      |> Builder.to_string()
-
-    {:ok, result} = Planner.query(repo, statement, params)
-
-    case length(result) do
+    case length(results) do
       0 ->
         nil
 
       1 ->
-        format_result(queryable, List.first(result))
+        List.first(results)["rel"]
 
       count ->
         raise Seraph.MultipleRelationshipsError,
@@ -97,50 +359,16 @@ defmodule Seraph.Repo.Relationship.Queryable do
           Keyword.t() | map
         ) :: nil | Seraph.Schema.Relationship.t()
   def get_by(repo, queryable, start_node_clauses, end_node_clauses, relationship_clauses) do
-    {start_node, start_condition, start_params} =
-      build_get_by_node(queryable.__schema__(:start_node), start_node_clauses, :start_node)
+    results =
+      to_query(queryable, start_node_clauses, end_node_clauses, relationship_clauses, :match)
+      |> repo.all(relationship_result: :full)
 
-    {end_node, end_condition, end_params} =
-      build_get_by_node(queryable.__schema__(:end_node), end_node_clauses, :end_node)
-
-    nodes_condition = Condition.join_conditions(start_condition, end_condition)
-
-    %{properties: rel_props, condition: rel_condition, params: rel_params} =
-      Seraph.Repo.Helper.to_props_and_conditions(relationship_clauses, "rel")
-
-    rel_to_get = %Builder.RelationshipExpr{
-      start: start_node,
-      end: end_node,
-      variable: "rel",
-      type: queryable.__schema__(:type),
-      properties: rel_props
-    }
-
-    condition = Condition.join_conditions(nodes_condition, rel_condition)
-
-    params =
-      start_params
-      |> Map.merge(end_params)
-      |> Map.merge(rel_params)
-
-    {statement, params} =
-      Builder.new()
-      |> Builder.match([rel_to_get])
-      |> Builder.where(condition)
-      |> Builder.return(%Builder.ReturnExpr{
-        fields: [start_node, end_node, rel_to_get]
-      })
-      |> Builder.params(params)
-      |> Builder.to_string()
-
-    {:ok, result} = Planner.query(repo, statement, params)
-
-    case length(result) do
+    case length(results) do
       0 ->
         nil
 
       1 ->
-        format_result(queryable, List.first(result))
+        List.first(results)["rel"]
 
       count ->
         raise Seraph.MultipleRelationshipsError,
@@ -183,98 +411,304 @@ defmodule Seraph.Repo.Relationship.Queryable do
     end
   end
 
-  defp build_get_by_node(queryable, clauses, node_type) do
-    {additional_labels, cond_clauses} =
-      clauses
-      |> Enum.to_list()
-      |> Keyword.pop(:additionalLabels, [])
+  defp build_set_query(queryable, changeset, false) do
+    persisted_properties = queryable.__schema__(:persisted_properties)
 
-    variable =
-      case node_type do
-        :start_node -> "start"
-        :end_node -> "end"
-      end
-
-    %{properties: properties, condition: condition, params: params} =
-      Seraph.Repo.Helper.to_props_and_conditions(cond_clauses, variable)
-
-    node = %Builder.NodeExpr{
-      variable: variable,
-      labels: [queryable.__schema__(:primary_label) | additional_labels],
-      properties: properties
-    }
-
-    {node, condition, params}
-  end
-
-  @spec node_data(String.t(), Seraph.Repo.queryable(), Seraph.Schema.Node.t() | map) ::
-          {Builder.NodeExpr.t(), map}
-  defp node_data(node_var, queryable, %{__struct__: _} = data) do
-    id_field = Seraph.Repo.Helper.identifier_field(queryable)
-
-    bound_name = node_var <> "_" <> Atom.to_string(id_field)
-    props = Map.put(%{}, id_field, bound_name)
-    params = Map.put(%{}, String.to_atom(bound_name), Map.fetch!(data, id_field))
-
-    node = %Builder.NodeExpr{
-      variable: node_var,
-      labels: [queryable.__schema__(:primary_label) | data.additionalLabels],
-      properties: props
-    }
-
-    {node, params}
-  end
-
-  defp node_data(node_var, queryable, data) do
-    query_node_data =
-      Enum.reduce(data, %{properties: %{}, params: %{}}, fn {prop_name, prop_value}, node_data ->
-        bound_name = node_var <> "_" <> Atom.to_string(prop_name)
-
-        %{
-          node_data
-          | properties: Map.put(node_data.properties, prop_name, bound_name),
-            params: Map.put(node_data.params, String.to_atom(bound_name), prop_value)
-        }
+    rel_properties =
+      changeset.changes
+      |> Enum.filter(fn {prop_name, _} ->
+        prop_name in persisted_properties
       end)
 
-    node = %Builder.NodeExpr{
-      variable: node_var,
-      labels: [queryable.__schema__(:primary_label)],
-      properties: query_node_data.properties
+    %{entity: relationship, params: query_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        changeset.data.start_node,
+        changeset.data.end_node,
+        %{},
+        "rel",
+        "match_set__"
+      )
+
+    {to_remove, to_set} = Enum.split_with(rel_properties, fn {_, value} -> is_nil(value) end)
+
+    %{set: set, params: set_params} = Builder.Set.build_from_map(Enum.into(to_set, %{}), "rel")
+    remove = Builder.Remove.build_from_map(Enum.into(to_remove, %{}), "rel")
+
+    %Seraph.Query{
+      identifiers: %{
+        "rel" => relationship,
+        "start" => relationship.start,
+        "end" => relationship.end
+      },
+      operations: [
+        match: %Builder.Match{entities: [relationship]},
+        set: set,
+        remove: remove,
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: "set(#{inspect(changeset)})",
+      params: query_params ++ set_params
+    }
+  end
+
+  defp build_set_query(queryable, changeset, true) do
+    %{entity: rel_to_match, params: match_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        changeset.data.start_node,
+        changeset.data.end_node,
+        %{},
+        "old_rel",
+        "match_create__"
+      )
+
+    match_entities = [rel_to_match.start, rel_to_match.end, rel_to_match]
+
+    match_identifiers = %{
+      "start" => rel_to_match.start,
+      "old_rel" => rel_to_match,
+      "end" => rel_to_match.end
     }
 
-    {node, query_node_data.params}
-  end
+    match_return_variables = %{
+      start: %Builder.Entity.EntityData{
+        entity_identifier: :start
+      },
+      end: %Builder.Entity.EntityData{
+        entity_identifier: :end
+      }
+    }
 
-  @spec format_result(Seraph.Repo.queryable(), map) :: Seraph.Schema.Relationship.t()
-  defp format_result(queryable, %{"rel" => rel_data, "start" => start_data, "end" => end_data}) do
+    final_rel = Seraph.Changeset.apply_changes(changeset)
+
+    persisted_properties = queryable.__schema__(:persisted_properties)
+
+    %{entity: new_start_node, params: new_start_params} =
+      if final_rel.start_node == changeset.data.start_node do
+        %{entity: rel_to_match.start, params: []}
+      else
+        start_queryable = queryable.__schema__(:start_node)
+
+        start_properties = Seraph.Repo.Helper.extract_node_properties(final_rel.start_node)
+
+        Builder.Entity.Node.from_queryable(
+          start_queryable,
+          start_properties,
+          "match_create__",
+          "new_start"
+        )
+      end
+
+    %{entity: new_end_node, params: new_end_params} =
+      if final_rel.end_node == changeset.data.end_node do
+        %{entity: rel_to_match.end, params: []}
+      else
+        end_queryable = queryable.__schema__(:end_node)
+
+        end_properties = Seraph.Repo.Helper.extract_node_properties(final_rel.end_node)
+
+        Builder.Entity.Node.from_queryable(
+          end_queryable,
+          end_properties,
+          "match_create__",
+          "new_end"
+        )
+      end
+
+    create_return_variables =
+      %{}
+      |> Map.put(String.to_atom(new_start_node.identifier), %Builder.Entity.EntityData{
+        entity_identifier: String.to_atom(new_start_node.identifier)
+      })
+      |> Map.put(String.to_atom(new_end_node.identifier), %Builder.Entity.EntityData{
+        entity_identifier: String.to_atom(new_end_node.identifier)
+      })
+
+    pre_rel_to_create =
+      %Builder.Entity.Relationship{
+        queryable: queryable,
+        identifier: "rel",
+        type: queryable.__schema__(:type)
+      }
+      |> Map.put(:start, new_start_node)
+      |> Map.put(:end, new_end_node)
+
+    rel_properties =
+      changeset
+      |> Seraph.Changeset.apply_changes()
+      |> Map.from_struct()
+      |> Enum.filter(fn {prop_name, _} ->
+        prop_name in persisted_properties
+      end)
+
     props =
-      rel_data.properties
-      |> atom_map()
-      |> Map.put(:__id__, rel_data.id)
-      |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
-      |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
+      rel_properties
+      |> Enum.into(%{})
+      |> Builder.Entity.Property.from_map(pre_rel_to_create)
 
-    struct(queryable, props)
+    %{entity: rel_to_create, params: full_rel_params} =
+      Builder.Entity.extract_params(
+        Map.put(pre_rel_to_create, :properties, props),
+        [],
+        "match_create__"
+      )
+
+    rel_params =
+      full_rel_params
+      |> Enum.filter(fn {key, _} ->
+        key |> Atom.to_string() |> String.starts_with?("rel")
+      end)
+
+    new_rel =
+      rel_to_create
+      |> Map.put(:start, %Builder.Entity.Node{
+        identifier: rel_to_create.start.identifier,
+        queryable: Seraph.Node
+      })
+      |> Map.put(:end, %Builder.Entity.Node{
+        identifier: rel_to_create.end.identifier,
+        queryable: Seraph.Node
+      })
+
+    create_match_entities = [rel_to_create.start, rel_to_create.end]
+
+    create_identifiers =
+      %{"rel" => rel_to_create}
+      |> Map.put(rel_to_create.start.identifier, rel_to_create.start)
+      |> Map.put(rel_to_create.end.identifier, rel_to_create.end)
+
+    return_variables =
+      match_return_variables
+      |> Map.merge(create_return_variables)
+      |> Map.values()
+
+    literal = "set(#{inspect(changeset)})"
+
+    %Seraph.Query{
+      identifiers: Map.merge(match_identifiers, create_identifiers),
+      operations: [
+        match: %Builder.Match{
+          entities: MapSet.new(match_entities ++ create_match_entities) |> MapSet.to_list()
+        },
+        delete: %Builder.Delete{
+          raw_entities: [%Builder.Entity.EntityData{entity_identifier: "old_rel"}]
+        },
+        create: %Builder.Create{raw_entities: [new_rel]},
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            }
+            | return_variables
+          ]
+        }
+      ],
+      literal: literal,
+      params:
+        match_params
+        |> Keyword.merge(new_start_params)
+        |> Keyword.merge(new_end_params)
+        |> Keyword.merge(rel_params)
+    }
   end
 
-  @spec build_node(Seraph.Repo.queryable(), map) :: Seraph.Schema.Node.t()
-  defp build_node(queryable, node_data) do
-    props =
-      node_data.properties
-      |> atom_map()
-      |> Map.put(:__id__, node_data.id)
-      |> Map.put(:additionalLabels, node_data.labels -- [queryable.__schema__(:primary_label)])
+  defp build_merge_query(
+         queryable,
+         start_node,
+         end_node,
+         on_create_set_data,
+         on_match_set_data,
+         merge_opts
+       ) do
+    %{entity: relationship, params: rel_params} =
+      Builder.Entity.Relationship.from_queryable(
+        queryable,
+        start_node,
+        end_node,
+        %{},
+        "rel",
+        "merge__"
+      )
 
-    struct(queryable, props)
+    rel_to_merge =
+      relationship
+      |> Map.put(:start, %Builder.Entity.Node{
+        identifier: relationship.start.identifier,
+        queryable: Seraph.Node
+      })
+      |> Map.put(:end, %Builder.Entity.Node{
+        identifier: relationship.end.identifier,
+        queryable: Seraph.Node
+      })
+
+    literal =
+      "merge(#{queryable}, #{inspect(start_node)}, #{inspect(end_node)}, #{inspect(merge_opts)})"
+
+    %Seraph.Query{
+      identifiers: %{
+        "rel" => relationship,
+        "start" => relationship.start,
+        "end" => relationship.end
+      },
+      operations: [
+        match: %Builder.Match{entities: [relationship.start, relationship.end]},
+        merge: %Builder.Merge{raw_entities: rel_to_merge},
+        on_create_set: %Builder.OnCreateSet{expressions: on_create_set_data.set.expressions},
+        on_match_set: %Builder.OnMatchSet{expressions: on_match_set_data.set.expressions},
+        return: %Builder.Return{
+          raw_variables: [
+            %Builder.Entity.EntityData{
+              entity_identifier: :rel
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :start
+            },
+            %Builder.Entity.EntityData{
+              entity_identifier: :end
+            }
+          ]
+        }
+      ],
+      literal: [literal],
+      params: rel_params ++ on_create_set_data.params ++ on_match_set_data.params
+    }
   end
 
-  @spec atom_map(map) :: map
-  defp atom_map(string_map) do
-    string_map
-    |> Enum.map(fn {k, v} ->
-      {String.to_atom(k), v}
-    end)
-    |> Enum.into(%{})
+  @spec merge_set_operations(Seraph.Repo.queryable(), :on_create | :on_match, tuple) ::
+          {:ok, map} | {:error, Keyword.t()}
+  defp merge_set_operations(queryable, operation, {data, changeset_fn}) do
+    case changeset_fn.(struct!(queryable, %{}), data) do
+      %Seraph.Changeset{valid?: true} = changeset ->
+        persisted_properties = queryable.__schema__(:persisted_properties)
+
+        rel_properties =
+          changeset.changes
+          |> Enum.filter(fn {prop_name, _} ->
+            prop_name in persisted_properties
+          end)
+
+        set_data = Builder.Set.build_from_map(Enum.into(rel_properties, %{}), "rel")
+        {:ok, set_data}
+
+      changeset ->
+        {:error, [{operation, changeset}]}
+    end
+  end
+
+  defp merge_set_operations(_, _, nil) do
+    {:ok, %{set: %Builder.OnCreateSet{expressions: []}, params: []}}
   end
 end

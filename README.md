@@ -9,13 +9,12 @@ The goal is to provide an API to interact easily with one or more Neo4j database
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `seraph` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `seraph` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:seraph, "~> 0.1.0"}
+    {:seraph, "~> 0.2.0"}
   ]
 end
 ```
@@ -56,7 +55,7 @@ end
 
 ### Contributing
 
-- [Fork it](https://github.com/florinpatrascu/bolt_sips/fork)
+- [Fork it](https://github.com/dominique-vassard/seraph/fork)
 - Create your feature branch (`git checkout -b my-new-feature`)
 - Test (`mix test`)
 - Commit your changes (`git commit -am 'Add some feature'`)

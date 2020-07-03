@@ -77,10 +77,12 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
+
+      assert rel_date == DateTime.truncate(rel_wrote.at, :second)
 
       refute is_nil(rel_wrote.__id__)
 
@@ -94,7 +96,7 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         user_uuid: user.uuid,
         post_uuid: post.uuid,
-        rel_date: rel_date
+        rel_date: rel_wrote.at
       }
 
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
@@ -179,11 +181,12 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
+      assert rel_date == DateTime.truncate(rel_wrote.at, :second)
       refute is_nil(rel_wrote.__id__)
 
       cql = """
@@ -196,7 +199,7 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         user_uuid: rel_wrote.start_node.uuid,
         post_uuid: rel_wrote.end_node.uuid,
-        rel_date: rel_date
+        rel_date: rel_wrote.at
       }
 
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
@@ -364,12 +367,13 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
+      assert rel_date == rel_wrote.at |> DateTime.truncate(:second)
 
       cql = """
       MATCH
@@ -466,12 +470,13 @@ defmodule Seraph.Repo.RelationshipTest do
 
       assert %Seraph.Test.UserToPost.Wrote{
                type: "WROTE",
-               at: ^rel_date,
+               #  at: ^rel_date,
                start_node: %Seraph.Test.User{},
                end_node: %Seraph.Test.Post{}
              } = rel_wrote
 
       refute is_nil(rel_wrote.__id__)
+      assert rel_date == rel_wrote.at |> DateTime.truncate(:second)
 
       cql = """
       MATCH
@@ -807,7 +812,7 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         user_uuid: user.uuid,
         post_uuid: post.uuid,
-        rel_date: create_date
+        rel_date: rel_wrote.at
       }
 
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
@@ -1080,11 +1085,13 @@ defmodule Seraph.Repo.RelationshipTest do
 
     test "ok: with rel clause" do
       add_fixtures(:relationship)
-      add_fixtures(:relationship, %{at: nil})
+      {:ok, datetime, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
+      new_date = DateTime.truncate(datetime, :second)
+      add_fixtures(:relationship, %{at: new_date})
 
       retrieved =
         TestRepo.Relationship.get_by(Wrote, %{firstName: "John"}, %{title: "First post"}, %{
-          at: nil
+          at: new_date
         })
 
       assert %Seraph.Test.UserToPost.Wrote{
@@ -1103,7 +1110,8 @@ defmodule Seraph.Repo.RelationshipTest do
              } = retrieved
 
       refute is_nil(retrieved.__id__)
-      assert is_nil(retrieved.at)
+      refute is_nil(retrieved.at)
+      assert DateTime.truncate(retrieved.at, :second) == new_date
       refute is_nil(retrieved.start_node.__id__)
       refute is_nil(retrieved.start_node.uuid)
       refute is_nil(retrieved.end_node.__id__)
@@ -1213,7 +1221,7 @@ defmodule Seraph.Repo.RelationshipTest do
         (old_start:User {uuid: $old_user_uuid}),
         (new_start:User {uuid: $new_user_uuid}),
         (post:Post {uuid: $post_uuid}),
-        (new_start)-[new_rel:WROTE]->(post)
+        (new_start)-[new_rel:WROTE {at: $at}]->(post)
         OPTIONAL MATCH
         (old_start)-[old_rel:WROTE]->(post)
       RETURN
@@ -1224,7 +1232,8 @@ defmodule Seraph.Repo.RelationshipTest do
       params = %{
         old_user_uuid: relationship.start_node.uuid,
         new_user_uuid: new_user.uuid,
-        post_uuid: relationship.end_node.uuid
+        post_uuid: relationship.end_node.uuid,
+        at: relationship.at
       }
 
       assert [%{"nb_new_rel" => 1, "nb_old_rel" => 0}] = TestRepo.query!(cql, params)
@@ -1565,7 +1574,7 @@ defmodule Seraph.Repo.RelationshipTest do
                |> TestRepo.Relationship.set()
     end
 
-    test "raise: when struct is not found" do
+    test "raise: when relationship to set is not found" do
       relationship = add_fixtures(:relationship)
 
       {:ok, new_rel_date_long, _} = DateTime.from_iso8601("2015-01-23T23:50:07Z")
@@ -1764,8 +1773,11 @@ defmodule Seraph.Repo.RelationshipTest do
       at: rel_date
     }
 
-    %Wrote{}
-    |> Wrote.changeset(Map.merge(default_data, data))
-    |> TestRepo.Relationship.create!()
+    rel =
+      %Wrote{}
+      |> Wrote.changeset(Map.merge(default_data, data))
+      |> TestRepo.Relationship.create!()
+
+    Map.put(rel, :at, DateTime.truncate(rel.at, :second))
   end
 end

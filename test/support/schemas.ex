@@ -1,4 +1,5 @@
 defmodule Seraph.Test.UserToPost.Wrote do
+  @moduledoc false
   use Seraph.Schema.Relationship
   import Seraph.Changeset
 
@@ -18,6 +19,7 @@ defmodule Seraph.Test.UserToPost.Wrote do
 end
 
 defmodule Seraph.Test.NoPropsRels do
+  @moduledoc false
   import Seraph.Schema.Relationship
 
   defrelationship("READ", Seraph.Test.User, Seraph.Test.Post)
@@ -28,6 +30,7 @@ defmodule Seraph.Test.NoPropsRels do
 end
 
 defmodule Seraph.Test.User do
+  @moduledoc false
   use Seraph.Schema.Node
   import Seraph.Changeset
 
@@ -61,10 +64,6 @@ defmodule Seraph.Test.User do
     def changeset(user, params \\ %{}) do
       user
       |> cast(params, [:firstName, :lastName, :viewCount, :additionalLabels])
-
-      # |> cast_relationship("WROTE", params[:new_post])
-      # |> cast_relationship(Seraph.Test.UserToPost.Wrote, params[:new_post], params[:rel_data])
-      # |> put_related_nodes(:wrote, [])
     end
 
     def update_viewcount_changeset(user, params \\ %{}) do
@@ -75,6 +74,7 @@ defmodule Seraph.Test.User do
 end
 
 defmodule Seraph.Test.Comment do
+  @moduledoc false
   use Seraph.Schema.Node
 
   node "Comment" do
@@ -85,6 +85,7 @@ defmodule Seraph.Test.Comment do
 end
 
 defmodule Seraph.Test.Admin do
+  @moduledoc false
   use Seraph.Schema.Node
   alias Seraph.Test.NoPropsRels
 
@@ -94,6 +95,7 @@ defmodule Seraph.Test.Admin do
 end
 
 defmodule Seraph.Test.Post do
+  @moduledoc false
   use Seraph.Schema.Node
   import Seraph.Changeset
 
@@ -113,5 +115,17 @@ defmodule Seraph.Test.Post do
   def changeset(post, params \\ %{}) do
     post
     |> cast(params, [:title, :text])
+  end
+end
+
+defmodule Seraph.Test.MergeKeys do
+  @moduledoc false
+  use Seraph.Schema.Node
+
+  @merge_keys [:mkField1, :mkField2]
+
+  node "MergeKeys" do
+    property :mkField1, :string
+    property :mkField2, :string
   end
 end

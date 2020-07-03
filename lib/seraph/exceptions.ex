@@ -1,4 +1,4 @@
-defmodule Seraph.Exception do
+defmodule Seraph.Error do
   defexception [:message]
 end
 
@@ -22,6 +22,18 @@ defmodule Seraph.NoResultsError do
   Raised when there is no results when at least one was expected.
   """
   defexception [:message]
+
+  def exception(query: query) do
+    query_str = Enum.join(query, "\n")
+
+    msg = """
+    Expected at least one result, got none for:
+
+    #{query_str}
+    """
+
+    %__MODULE__{message: msg}
+  end
 
   def exception(opts) do
     queryable = Keyword.fetch!(opts, :queryable)
@@ -121,5 +133,49 @@ defmodule Seraph.StaleEntryError do
     """
 
     %__MODULE__{message: msg}
+  end
+end
+
+defmodule Seraph.QueryError do
+  @moduledoc """
+  Raised at runtime when the query is invalid.
+  """
+  defexception [:message]
+
+  def exception(opts) do
+    message = Keyword.fetch!(opts, :message)
+    query = Keyword.fetch!(opts, :query)
+
+    query_str = Enum.join(query, "\n")
+
+    message = """
+    #{message} in query:
+
+    #{query_str}
+    """
+
+    %__MODULE__{message: message}
+  end
+end
+
+defmodule Seraph.MultipleResultsError do
+  @moduledoc """
+  Raised when more than one is found when only one is expected.
+  """
+  defexception [:message]
+
+  def exception(opts) do
+    query = Keyword.fetch!(opts, :query)
+    count = Keyword.fetch!(opts, :count)
+
+    query_str = Enum.join(query, "\n")
+
+    message = """
+    #{count} resutls found when only one was expected in query:
+
+    #{query_str}
+    """
+
+    %__MODULE__{message: message}
   end
 end

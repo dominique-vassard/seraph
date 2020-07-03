@@ -120,7 +120,7 @@ defmodule Seraph.Schema.Node do
           }
 
     defimpl Inspect do
-      @spec inspect(NotLoaded.t(), Keyword.t()) :: String.t()
+      @spec inspect(Seraph.Schema.Node.NotLoaded.t(), Inspect.Opts.t()) :: String.t()
       def inspect(not_loaded, _opts) do
         msg =
           "nodes (#{not_loaded.__label__}) through relationship :#{not_loaded.__type__} are not loaded"
@@ -425,7 +425,7 @@ defmodule Seraph.Schema.Node do
 
     name_str = Atom.to_string(name)
 
-    if not Regex.match?(~r/^(?:[a-z]{1,}[A-Z]{1}[a-z]*)+$|^([a-z]*)$/, name_str) do
+    if not Regex.match?(~r/^(?:[a-z]{1}[a-z0-9]{1,}[A-Z]{1}[a-z0-9]*)+$|^([a-z]*)$/, name_str) do
       raise ArgumentError,
             "[#{Atom.to_string(module)}] property must be camelCased. Received: #{name_str}."
     end

@@ -1,27 +1,40 @@
 defmodule Seraph.Repo.Helper do
   @moduledoc false
 
-  alias Seraph.Query.Condition
-
-  @doc """
-  Return node schema identifier key if it exists.
-  """
-  @spec identifier_field(Seraph.Repo.queryable()) :: atom
   def identifier_field(queryable) do
     case queryable.__schema__(:identifier) do
       {field, _, _} ->
         field
 
-      _ ->
+      false ->
+        false
+    end
+  end
+
+  @doc """
+  Return node schema identifier key if it exists.
+  """
+  @spec identifier_field!(Seraph.Repo.queryable()) :: atom
+  def identifier_field!(queryable) do
+    case identifier_field(queryable) do
+      false ->
         raise ArgumentError, "No identifier for #{inspect(queryable)}."
+
+      field ->
+        field
     end
   end
 
   @doc """
   Build a node schema from a Bolt.Sips.Node
   """
-  @spec build_node(Seraph.Repo.queryable(), map) :: Seraph.Schema.Node.t()
-  def build_node(queryable, node_data) do
+  @spec build_node(Seraph.Repo.queryable(), nil | map) ::
+          nil | Seraph.Schema.Node.t() | Seraph.Node.t()
+  def build_node(Seraph.Node, %Bolt.Sips.Types.Node{} = node_data) do
+    Seraph.Node.map(node_data)
+  end
+
+  def build_node(queryable, %Bolt.Sips.Types.Node{} = node_data) do
     props =
       node_data.properties
       |> atom_map()
@@ -29,6 +42,79 @@ defmodule Seraph.Repo.Helper do
       |> Map.put(:additionalLabels, node_data.labels -- [queryable.__schema__(:primary_label)])
 
     struct(queryable, props)
+  end
+
+  def build_node(_, nil) do
+    nil
+  end
+
+  def build_relationship(queryable, rel_data, nil, nil) do
+    props =
+      rel_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(:start_node, nil)
+      |> Map.put(:end_node, nil)
+
+    case queryable do
+      nil ->
+        Seraph.Relationship.map(rel_data.type, props)
+
+      queryable ->
+        struct(queryable, props)
+    end
+  end
+
+  # def build_relationship(queryable, rel_data, start_data, end_data) do
+  #   props =
+  #     rel_data.properties
+  #     |> atom_map()
+  #     |> Map.put(:__id__, rel_data.id)
+  #     |> Map.put(:start_node, build_node(queryable.__schema__(:start_node), start_data))
+  #     |> Map.put(:end_node, build_node(queryable.__schema__(:end_node), end_data))
+
+  #   struct(queryable, props)
+  # end
+
+  # def build_relationship(queryable, rel_data, start_data, end_data) do
+  #   props =
+  #     rel_data.properties
+  #     |> atom_map()
+  #     |> Map.put(:__id__, rel_data.id)
+  #     |> Map.put(:start_node, build_node(start_data.queryable, start_data))
+  #     |> Map.put(:end_node, build_node(end_data.queryable, end_data))
+
+  #   case queryable do
+  #     Seraph.Relationship ->
+  #       Seraph.Relationship.map(rel_data.type, props)
+
+  #     queryable ->
+  #       struct(queryable, props)
+  #   end
+  # end
+
+  def build_relationship(
+        queryable,
+        rel_data,
+        start_queryable,
+        start_data,
+        end_queryable,
+        end_data
+      ) do
+    props =
+      rel_data.properties
+      |> atom_map()
+      |> Map.put(:__id__, rel_data.id)
+      |> Map.put(:start_node, build_node(start_queryable, start_data))
+      |> Map.put(:end_node, build_node(end_queryable, end_data))
+
+    case queryable do
+      Seraph.Relationship ->
+        Seraph.Relationship.map(rel_data.type, props)
+
+      queryable ->
+        struct(queryable, props)
+    end
   end
 
   @doc """
@@ -49,7 +135,7 @@ defmodule Seraph.Repo.Helper do
     * `:on_match`
   """
   @spec create_match_merge_opts(Keyword.t(), Keyword.t()) :: Keyword.t() | {:error, String.t()}
-  def create_match_merge_opts(opts, final_opts \\ [])
+  def create_match_merge_opts(opts, final_opts \\ [no_data: false])
 
   def create_match_merge_opts([{:on_create, {data, changeset_fn} = on_create_opts} | rest], opts)
       when is_map(data) and is_function(changeset_fn, 2) do
@@ -97,43 +183,17 @@ defmodule Seraph.Repo.Helper do
   end
 
   @doc """
-  Convert a map into properties and params usable in NodeExpr and RelationshipExpr
+  Extract property from node schema
   """
-  @spec to_props_and_conditions(Enum.t(), nil | String.t()) :: %{
-          properties: map,
-          params: map,
-          condition: nil | Seraph.Query.Condition.t()
-        }
-  def to_props_and_conditions(data, source_variable \\ nil) do
-    Enum.reduce(data, %{properties: %{}, params: %{}, condition: nil}, fn {prop_key, prop_value},
-                                                                          acc ->
-      bound_name = bound_name(prop_key, source_variable)
+  @spec extract_node_properties(Seraph.Schema.Node.t()) :: map
+  def extract_node_properties(%{__struct__: queryable} = node_data) do
+    id_field = Seraph.Repo.Helper.identifier_field!(queryable)
+    id_value = Map.fetch!(node_data, id_field)
 
-      case is_nil(prop_value) do
-        false ->
-          %{
-            acc
-            | properties: Map.put(acc.properties, prop_key, bound_name),
-              params: Map.put(acc.params, String.to_atom(bound_name), prop_value)
-          }
-
-        true ->
-          condition = %Condition{
-            source: source_variable,
-            field: prop_key,
-            operator: :is_nil
-          }
-
-          %{acc | condition: Condition.join_conditions(acc.condition, condition)}
-      end
-    end)
+    Map.put(%{}, id_field, id_value)
   end
 
-  defp bound_name(property_name, nil) do
-    Atom.to_string(property_name)
-  end
-
-  defp bound_name(property_name, source_variable) do
-    source_variable <> "_" <> Atom.to_string(property_name)
+  def extract_node_properties(node_properties) do
+    node_properties
   end
 end
