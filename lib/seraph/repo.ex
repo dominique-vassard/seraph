@@ -113,7 +113,7 @@ defmodule Seraph.Repo do
             return [u]
           MyApp.Repo.execute(query)
       """
-      @spec query(Seraph.Query.t(), Keyword.t()) ::
+      @spec execute(Seraph.Query.t(), Keyword.t()) ::
               {:ok, [map] | %{results: [map], stats: map}} | {:error, any}
       def execute(%Seraph.Query{} = query, opts \\ []) do
         query = Seraph.Query.prepare(query, opts)
@@ -149,7 +149,7 @@ defmodule Seraph.Repo do
       @doc """
       Same as `execute/2` but raise in case of error.
       """
-      @spec query!(Seraph.Query.t(), Keyword.t()) :: [map] | %{results: [map], stats: map}
+      @spec execute!(Seraph.Query.t(), Keyword.t()) :: [map] | %{results: [map], stats: map}
       def execute!(%Seraph.Query{} = query, opts \\ []) do
         case execute(query, opts) do
           {:ok, result} -> result

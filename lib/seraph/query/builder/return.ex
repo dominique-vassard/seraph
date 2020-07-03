@@ -43,6 +43,29 @@ defmodule Seraph.Query.Builder.Return do
     build([ast], env)
   end
 
+  def build([{:distinct, _, raw_args}], _env) do
+    %{variables: raw_variables, params: params} =
+      Enum.map(raw_args, &do_build/1)
+      |> List.flatten()
+      |> Enum.reduce(%{variables: [], params: []}, fn entity, data ->
+        %{entity: new_entity, params: params} =
+          Entity.extract_params(entity, data.params, "return__")
+
+        %{data | variables: [new_entity | data.variables], params: params}
+      end)
+
+    distinct_variables = %Entity.Function{
+      name: :distinct,
+      args: raw_variables
+    }
+
+    %{return: %Return{variables: nil, raw_variables: [distinct_variables]}, params: params}
+  end
+
+  def build([{:distinct, _, _} | _], _env) do
+    raise ArgumentError, "All return data should be in the distinct"
+  end
+
   def build(ast, _env) do
     %{variables: raw_variables, params: params} =
       Enum.map(ast, &do_build/1)
@@ -181,6 +204,10 @@ defmodule Seraph.Query.Builder.Return do
     end
   end
 
+  defp do_check([%Entity.Function{name: :distinct}], _, _) do
+    :ok
+  end
+
   defp do_check([%Entity.Function{alias: nil, name: name} | _], _, _) do
     {:error, "Function `#{inspect(name)}` must be aliased."}
   end
@@ -217,6 +244,10 @@ defmodule Seraph.Query.Builder.Return do
   end
 
   @spec build_variables([Entity.EntityData.t() | Entity.Value.t() | Entity.Function.t()]) :: map
+  defp build_variables([%Entity.Function{name: :distinct, args: raw_variables}]) do
+    build_variables(raw_variables)
+  end
+
   defp build_variables(raw_variables) do
     Enum.reduce(raw_variables, %{}, fn
       %{alias: data_alias} = data, vars when not is_nil(data_alias) ->

@@ -412,6 +412,12 @@ defmodule Seraph.Query do
 
   Note that functions and bare value must be aliased.
 
+  Note that `distinct` has two usages:
+    - At a general level, meaning `RETURN DISTINCT n, n.prop, ...`.
+
+      In this case, all result fields should be arguments of the `distinct` like this: `return: [distinct(n, n.prop, ....)]`.
+    - With aggregate function as other function: `count(distinct(u))`
+
   ## Available functions
     - `min`
     - `max`
@@ -420,7 +426,8 @@ defmodule Seraph.Query do
     - `sum`
     - `st_dev`
     - `percentile_disc`
-    - `distinct` (only to be used with aggregate function)
+
+    - `distinct`
 
     - `collect`
     - `size`
@@ -441,6 +448,10 @@ defmodule Seraph.Query do
         # aliased return
         match [{u, MyApp.User}],
           return: [names: u.firstName, bare_value: 5]
+
+        # distinct return
+        match [{u, MyApp.User}],
+          return: [distinct(u.firstName, u.lastName)]
 
         # return function result
         match [{u, MyApp.User, %{uid: 1}, {p, MyApp.Post}],
