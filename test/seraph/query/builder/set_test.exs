@@ -193,6 +193,19 @@ defmodule Seraph.Query.Builder.SetTest do
       assert {:error, message} = Set.check(set, query_fixtures(params))
       assert String.starts_with?(message, "Property")
     end
+
+    test "fails: Wrong format for label" do
+      ast_quick_fail = quote do: [{u, invalid_label}]
+
+      assert_raise ArgumentError, fn ->
+        Set.build(ast_quick_fail, __ENV__)
+      end
+
+      ast = quote do: [{u, Invalid_label}]
+      %{set: set, params: params} = Set.build(ast, __ENV__)
+      assert {:error, message} = Set.check(set, query_fixtures(params))
+      assert String.starts_with?(message, "[Set] Node label should be CamelCased")
+    end
   end
 
   defp query_fixtures(params) do

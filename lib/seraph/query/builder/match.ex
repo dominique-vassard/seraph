@@ -176,6 +176,8 @@ defmodule Seraph.Query.Builder.Match do
           raise ArgumentError, message
         end
 
+        current_identifiers
+
       {:ok, %Entity.Relationship{}} ->
         raise ArgumentError, "identifier `#{identifier}` is already taken."
     end
