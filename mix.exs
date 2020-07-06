@@ -66,7 +66,8 @@ defmodule Seraph.MixProject do
       "guide/getting.md",
       "guide/setting.md",
       "guide/merging.md",
-      "guide/deleting.md"
+      "guide/deleting.md",
+      "guide/using_query_api.md"
     ]
   end
 
