@@ -59,12 +59,26 @@ defmodule Seraph.Query.Builder.Create do
   def check(create_data, query) do
     result = Match.check(%Match{entities: create_data.raw_entities}, query)
 
-    create_data.raw_entities
-    |> Enum.filter(fn
-      %Entity.Relationship{} -> true
-      _ -> false
-    end)
-    |> do_check_relationship_nodes(query, result)
+    {nodes, relationships} =
+      create_data.raw_entities
+      |> Enum.split_with(fn
+        %Entity.Node{} -> true
+        _ -> false
+      end)
+
+    # relationships =
+    #   create_data.raw_entities
+    #   |> Enum.filter(fn
+    #     %Entity.Relationship{} -> true
+    #     _ -> false
+    #   end)
+    with :ok <- do_check_relationship_nodes(relationships, query, result),
+         :ok <- do_check_node_labels(nodes) do
+      :ok
+    else
+      {:error, _} = error ->
+        error
+    end
   end
 
   @impl true
@@ -192,6 +206,34 @@ defmodule Seraph.Query.Builder.Create do
 
       %Entity.Node{} ->
         :ok
+    end
+  end
+
+  defp do_check_node_labels(nodes) do
+    nodes
+    |> Enum.flat_map(fn %Entity.Node{labels: labels} -> labels end)
+    |> do_check_labels(:ok)
+  end
+
+  defp do_check_labels([], result) do
+    result
+  end
+
+  defp do_check_labels(_, {:error, _} = error) do
+    error
+  end
+
+  defp do_check_labels([label_str | rest], :ok) do
+    result = do_check_label(label_str)
+    do_check_labels(rest, result)
+  end
+
+  defp do_check_label(label_str) do
+    if Regex.match?(~r/^([A-Z]{1}[a-z]*)+$/, label_str) or
+         String.upcase(label_str) == label_str do
+      :ok
+    else
+      {:error, "[CREATE] Node label should be CamelCased"}
     end
   end
 

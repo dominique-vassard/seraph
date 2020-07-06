@@ -2,8 +2,11 @@ defmodule Seraph.Query.Builder.CreateTest do
   use ExUnit.Case, async: true
 
   alias Seraph.Query.Builder.Create
+
   alias Seraph.Test.User
   alias Seraph.Test.UserToPost.Wrote
+
+  alias Seraph.Support.Fixtures
 
   describe "build" do
     test "ok: node identifier - [{u, User, %{firstName: \"John\"}}]" do
@@ -62,6 +65,24 @@ defmodule Seraph.Query.Builder.CreateTest do
       assert 1 == length(built_data.create.raw_entities)
       assert %{} == built_data.identifiers
       assert [create__prop__firstName_0: "John"] == built_data.params
+    end
+
+    test "ok: node with additional labels - [{u, User, %{additionalLabels: [\"New\", \"Register\"]}}]" do
+      ast = quote do: [{u, User, %{additionalLabels: ["New", "Register"]}}]
+
+      node_data = %Seraph.Query.Builder.Entity.Node{
+        alias: nil,
+        identifier: "u",
+        labels: ["User", "New", "Register"],
+        properties: [],
+        queryable: Seraph.Test.User
+      }
+
+      built_data = Create.build(ast, __ENV__)
+      assert [^node_data] = built_data.create.raw_entities
+      assert 1 == length(built_data.create.raw_entities)
+      assert %{"u" => node_data} == built_data.identifiers
+      assert [] == built_data.params
     end
 
     test "ok: nodes identifiers in relationship" do
@@ -176,6 +197,16 @@ defmodule Seraph.Query.Builder.CreateTest do
           Create.build(ast, __ENV__)
         end
       end
+    end
+  end
+
+  describe "check/2" do
+    test "fails: node - wrong label format" do
+      ast = quote do: [{u, User, %{additionalLabels: ["Valid", "invalid_label"]}}]
+
+      %{create: create, params: params} = Create.build(ast, __ENV__)
+      assert {:error, message} = Create.check(create, Fixtures.build_query(params))
+      assert message =~ "[CREATE] Node label should be CamelCased"
     end
   end
 end

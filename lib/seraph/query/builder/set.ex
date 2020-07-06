@@ -122,7 +122,8 @@ defmodule Seraph.Query.Builder.Set do
   defp do_check([%Entity.Label{} = label_data | rest], query, :ok) do
     case Map.fetch(query.identifiers, label_data.node_identifier) do
       {:ok, _} ->
-        do_check(rest, query, :ok)
+        result = do_check_labels(label_data.values, :ok)
+        do_check(rest, query, result)
 
       :error ->
         message =
@@ -158,6 +159,28 @@ defmodule Seraph.Query.Builder.Set do
 
   defp do_check([value | rest], query, :ok) when is_bitstring(value) or is_number(value) do
     do_check(rest, query, :ok)
+  end
+
+  defp do_check_labels([], result) do
+    result
+  end
+
+  defp do_check_labels(_, {:error, _} = error) do
+    error
+  end
+
+  defp do_check_labels([label_str | rest], :ok) do
+    result = do_check_label(label_str)
+    do_check_labels(rest, result)
+  end
+
+  defp do_check_label(label_str) do
+    if Regex.match?(~r/^([A-Z]{1}[a-z]*)+$/, label_str) or
+         String.upcase(label_str) == label_str do
+      :ok
+    else
+      {:error, "[Set] Node label should be CamelCased"}
+    end
   end
 
   @spec build_entity(Macro.t(), Macro.Env.t()) :: Entity.Property.t() | Entity.Label.t()
@@ -205,6 +228,10 @@ defmodule Seraph.Query.Builder.Set do
   # {u, nil}
   defp build_entity({{_node_identifier, _, _}, nil}, _env) do
     raise "Removing all additional labels is not yet supported"
+  end
+
+  defp build_entity({{_node_identifier, _, _}, _new_labels}, _env) do
+    raise ArgumentError, "[Set] Node labels should be CamelCased."
   end
 
   @spec build_value(Macro.t()) :: Entity.EntityData | Entity.Function | any
