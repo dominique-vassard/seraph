@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/dominique-vassard/seraph.svg?branch=master)](https://travis-ci.org/dominique-vassard/seraph)
 
+Docs: https://hexdocs.pm/seraph
+
 Seraph is a tool to use Neo4j in Elixir project in a graph way.  
 It is heavily inspired by Ecto and OGM projects (in Java and python in particular).  
 
