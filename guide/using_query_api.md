@@ -50,7 +50,7 @@ For now, the available keywords are:
   Click on each keyword for more information (inputs, restrictions, etc.)
 
 ### Keyword order
-Keywords can be used in any order in order to give flexibility whne writing queries.  
+Keywords can be used in any order in order to give flexibility when writing queries.  
 But only `match`, `create` and `merge` can be used to start a query.  
    
 ## Query syntax
@@ -146,7 +146,7 @@ create([{u, GraphApp.Blog.User}])
 ```
 
 ## `:relationship_result`
-Relatinship struct holds both start node and end node data and this can be quite a lot of data when retrieving numerous relationships. 
+Relationship struct holds both start node and end node data and this can be quite a lot of data when retrieving numerous relationships. 
 Also sometimes, we just want the complete relationship without having to return the start and end nodes from the query.  
 `:relationship_result` address both this issue with 3 values:
 - `:contextual` (default) - The relationship will be built only using the query result, meaning that if the nodes aren't part of the return, start and end node will be empty
