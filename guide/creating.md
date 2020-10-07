@@ -36,7 +36,7 @@ user = %GraphApp.Blog.User{
  }}
 ```
 
-Notice taht because we use the default :uuid identifier, Seraph generrates it automatically.
+Notice that because we use the default :uuid identifier, Seraph generates it automatically.
 
 A node can also be created with a changeset:
 ```
