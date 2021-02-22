@@ -229,7 +229,7 @@ defmodule Seraph.Query.Builder.Create do
   end
 
   defp do_check_label(label_str) do
-    if Regex.match?(~r/^([A-Z]{1}[a-z]*)+$/, label_str) or
+    if Regex.match?(~r/^([A-Z]{1}[a-z0-9]*)+$/, label_str) or
          String.upcase(label_str) == label_str do
       :ok
     else

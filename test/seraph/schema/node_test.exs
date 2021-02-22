@@ -9,9 +9,18 @@ defmodule Seraph.Schema.NodeTest do
     node "SimpleSchema" do
       property :firstName, :string
       property :lastName, :string
+      property :address, :string
+      property :address2, :string
       property :viewCount, :integer, default: 1
       property :geoloc, :boolean
       property :virtual, :string, virtual: true
+    end
+  end
+
+  defmodule NumberedSchema do
+    use Seraph.Schema.Node
+
+    node "NumberedSchema2" do
     end
   end
 
@@ -22,6 +31,8 @@ defmodule Seraph.Schema.NodeTest do
              :uuid,
              :firstName,
              :lastName,
+             :address,
+             :address2,
              :viewCount,
              :geoloc,
              :virtual
@@ -29,6 +40,8 @@ defmodule Seraph.Schema.NodeTest do
 
     assert SimpleSchema.__schema__(:type, :firstName) == :string
     assert SimpleSchema.__schema__(:type, :lastName) == :string
+    assert SimpleSchema.__schema__(:type, :address) == :string
+    assert SimpleSchema.__schema__(:type, :address2) == :string
     assert SimpleSchema.__schema__(:type, :viewCount) == :integer
     assert SimpleSchema.__schema__(:type, :geoloc) == :boolean
 
@@ -37,6 +50,8 @@ defmodule Seraph.Schema.NodeTest do
              additionalLabels: {:array, :string},
              firstName: :string,
              lastName: :string,
+             address: :string,
+             address2: :string,
              viewCount: :integer,
              geoloc: :boolean,
              virtual: :string
@@ -46,6 +61,8 @@ defmodule Seraph.Schema.NodeTest do
              :uuid,
              :firstName,
              :lastName,
+             :address,
+             :address2,
              :viewCount,
              :geoloc
            ]
