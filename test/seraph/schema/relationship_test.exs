@@ -11,6 +11,7 @@ defmodule Seraph.Schema.RelationshipTest do
       end_node Seraph.Test.User
 
       property :at, :utc_datetime
+      property :from2, :string
       property :virtual, :boolean, virtual: true
     end
   end
@@ -30,7 +31,7 @@ defmodule Seraph.Schema.RelationshipTest do
     assert WroteSimpleSchema.__schema__(:type) == "WROTE"
     assert WroteSimpleSchema.__schema__(:cardinality) == [incoming: :many, outgoing: :one]
 
-    assert WroteSimpleSchema.__schema__(:properties) == [:at, :virtual]
+    assert WroteSimpleSchema.__schema__(:properties) == [:at, :from2, :virtual]
     assert WroteSimpleSchema.__schema__(:type, :at) == :utc_datetime
     assert WroteSimpleSchema.__schema__(:type, :virtual) == :boolean
 
@@ -38,10 +39,11 @@ defmodule Seraph.Schema.RelationshipTest do
              start_node: :map,
              end_node: :map,
              at: :utc_datetime,
+             from2: :string,
              virtual: :boolean
            ]
 
-    assert WroteSimpleSchema.__schema__(:persisted_properties) == [:at]
+    assert WroteSimpleSchema.__schema__(:persisted_properties) == [:at, :from2]
   end
 
   describe "defrelationship/4" do

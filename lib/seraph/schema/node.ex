@@ -178,7 +178,7 @@ defmodule Seraph.Schema.Node do
 
         primary_label = unquote(primary_label)
 
-        if not Regex.match?(~r/^([A-Z]{1}[a-z]*)+$/, primary_label) or
+        if not Regex.match?(~r/^([A-Z]{1}[a-z0-9]*)+$/, primary_label) or
              String.upcase(primary_label) == primary_label do
           raise ArgumentError,
                 "[#{Atom.to_string(__MODULE__)}] node label must be CamelCased. Received: #{
@@ -425,7 +425,10 @@ defmodule Seraph.Schema.Node do
 
     name_str = Atom.to_string(name)
 
-    if not Regex.match?(~r/^(?:[a-z]{1}[a-z0-9]{1,}[A-Z]{1}[a-z0-9]*)+$|^([a-z]*)$/, name_str) do
+    if not Regex.match?(
+         ~r/^(?:[a-z]{1}[a-z0-9]{1,}[A-Z]{1}[a-z0-9]*)+$|^([a-z]{1}[a-z0-9]*)$/,
+         name_str
+       ) do
       raise ArgumentError,
             "[#{Atom.to_string(module)}] property must be camelCased. Received: #{name_str}."
     end
