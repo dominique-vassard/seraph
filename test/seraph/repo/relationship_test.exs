@@ -1736,42 +1736,6 @@ defmodule Seraph.Repo.RelationshipTest do
     end
   end
 
-  describe "Naming convention enforcement" do
-    test "invalid relationship name" do
-      assert_raise ArgumentError, fn ->
-        defmodule WrongRelType do
-          use Seraph.Schema.Relationship
-
-          node "3INVALID_TYPE" do
-            property :name, :string
-          end
-        end
-      end
-
-      assert_raise ArgumentError, fn ->
-        defmodule WrongRelType do
-          use Seraph.Schema.Relationship
-
-          node "INVALID-TYPE" do
-            property :name, :string
-          end
-        end
-      end
-    end
-
-    test "invalid property name" do
-      assert_raise ArgumentError, fn ->
-        defmodule WrongPropertyName do
-          use Seraph.Schema.Relationship
-
-          node "INVALID_PROPERTY" do
-            property :invalid_name, :string
-          end
-        end
-      end
-    end
-  end
-
   defp add_fixtures(fixture_type, data \\ %{})
 
   defp add_fixtures(:start_node, data) do
