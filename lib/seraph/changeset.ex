@@ -87,11 +87,58 @@ defmodule Seraph.Changeset do
   @doc """
   See `Ecto.Changeset.change/2`
   """
-  def change(%{__struct__: entity} = data, changes \\ %{}) do
+  def change(data, changes \\ %{})
+
+  def change({data, types}, changes) when is_map(data) do
+    Ecto.Changeset.change({data, types}, changes)
+    |> map_from_ecto()
+  end
+
+  def change(%Seraph.Changeset{types: nil}, _changes) do
+    raise ArgumentError, "changeset does not have types information"
+  end
+
+  def change(%Seraph.Changeset{changes: changes, types: types} = changeset, new_changes)
+      when is_map(new_changes) or is_list(new_changes) do
+    {changes, errors, valid?} =
+      get_changed(
+        changeset.data,
+        types,
+        changes,
+        new_changes,
+        changeset.errors,
+        changeset.valid?
+      )
+
+    %{changeset | changes: changes, errors: errors, valid?: valid?}
+    # Ecto.Changeset.change(changeset, new_changes)
+    # |> map_from_ecto()
+  end
+
+  def change(%{__struct__: entity} = data, changes) do
     types = entity.__schema__(:changeset_properties) |> Keyword.to_list() |> Enum.into(%{})
 
     Ecto.Changeset.change({data, types}, changes)
     |> map_from_ecto()
+  end
+
+  defp get_changed(data, types, old_changes, new_changes, errors, valid?) do
+    Enum.reduce(new_changes, {old_changes, errors, valid?}, fn
+      {key, value}, {changes, errors, valid?} ->
+        put_change(data, changes, errors, valid?, key, value, Map.get(types, key))
+    end)
+  end
+
+  defp put_change(data, _changes, _errors, _valid?, key, _value, nil) do
+    raise ArgumentError, "unknown field `#{key}` in #{inspect(data)}"
+  end
+
+  defp put_change(data, changes, errors, valid?, key, value, type) do
+    if not Ecto.Type.equal?(type, Map.get(data, key), value) do
+      {Map.put(changes, key, value), errors, valid?}
+    else
+      {Map.delete(changes, key), errors, valid?}
+    end
   end
 
   @doc """

@@ -42,6 +42,12 @@ defmodule Seraph.ChangesetTest do
       assert %Seraph.Changeset{} = Changeset.change(%User{name: "User"})
     end
 
+    test "change/2 with values produces valid Seraph.Changeset" do
+      changeset = Changeset.change(%User{name: "User"})
+
+      assert %Seraph.Changeset{} = Changeset.change(changeset, %{name: "Updated user"})
+    end
+
     test "multiple label valid changeset" do
       data = %{
         name: "John",

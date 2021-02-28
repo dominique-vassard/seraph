@@ -1,3 +1,7 @@
+# v0.2.2
+Bug fix:
+- Seraph.changeset.change/2 works with changesets, not only Schemas
+
 # v0.2.1
 Bug fix:
 - node property like `prop2` is now valid

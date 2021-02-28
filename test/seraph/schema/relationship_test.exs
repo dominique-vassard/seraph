@@ -94,14 +94,51 @@ defmodule Seraph.Schema.RelationshipTest do
     end
   end
 
-  test "Enforce naming convention" do
-    assert_raise ArgumentError, fn ->
-      defmodule InvalidRelType do
-        use Seraph.Schema.Relationship
+  describe "Enforce naming convention" do
+  end
 
-        relationship "invalid" do
-          start_node Seraph.Test.Post
-          end_node Seraph.Test.User
+  describe "Naming convention enforcement" do
+    test "invalid relationship name" do
+      assert_raise ArgumentError, fn ->
+        defmodule WrongRelType do
+          use Seraph.Schema.Relationship
+
+          relationship "3INVALID_TYPE" do
+            property :name, :string
+          end
+        end
+      end
+
+      assert_raise ArgumentError, fn ->
+        defmodule WrongRelType do
+          use Seraph.Schema.Relationship
+
+          relationship "INVALID-TYPE" do
+            property :name, :string
+          end
+        end
+      end
+
+      assert_raise ArgumentError, fn ->
+        defmodule InvalidRelType do
+          use Seraph.Schema.Relationship
+
+          relationship "invalid" do
+            start_node Seraph.Test.Post
+            end_node Seraph.Test.User
+          end
+        end
+      end
+    end
+
+    test "invalid property name" do
+      assert_raise ArgumentError, fn ->
+        defmodule WrongPropertyName do
+          use Seraph.Schema.Relationship
+
+          relationship "INVALID_PROPERTY" do
+            property :invalid_name, :string
+          end
         end
       end
     end
