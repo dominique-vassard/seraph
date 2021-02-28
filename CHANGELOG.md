@@ -1,3 +1,8 @@
+# v0.2.1
+Bug fix:
+- node property like `prop2` is now valid
+- Enforce naming convention on relationship 
+
 # v0.2.0
 - Remove old query builder
 - Add new query builder
