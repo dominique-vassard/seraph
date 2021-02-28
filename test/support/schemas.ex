@@ -18,6 +18,30 @@ defmodule Seraph.Test.UserToPost.Wrote do
   end
 end
 
+defmodule Seraph.Test.UserToPost.Link2 do
+  @moduledoc false
+  use Seraph.Schema.Relationship
+
+  relationship "LINK_2" do
+    start_node Seraph.Test.User
+    end_node Seraph.Test.Post
+
+    property :prop1, :string
+  end
+end
+
+defmodule Seraph.Test.UserToPost.Link3 do
+  @moduledoc false
+  use Seraph.Schema.Relationship
+
+  relationship "LINK3" do
+    start_node Seraph.Test.User
+    end_node Seraph.Test.Post
+
+    property :prop1, :string
+  end
+end
+
 defmodule Seraph.Test.NoPropsRels do
   @moduledoc false
   import Seraph.Schema.Relationship

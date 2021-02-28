@@ -224,9 +224,9 @@ defmodule Seraph.Schema.Relationship do
 
         rel_type = unquote(rel_type)
 
-        if not Regex.match?(~r/^[A-Z_]*$/, rel_type) do
+        if not Regex.match?(~r/^([A-Z]{1}[A-Z0-9_]*)+$/, rel_type) do
           raise ArgumentError,
-                "[#{Atom.to_string(__MODULE__)}] Relationship type must conform the format [A-Z_]* [Received: #{
+                "[#{Atom.to_string(__MODULE__)}] Relationship type must conform the format ^([A-Z]{1}[A-Z0-9_]*)+$ [Received: #{
                   rel_type
                 }]"
         end
@@ -302,6 +302,22 @@ defmodule Seraph.Schema.Relationship do
       type = unquote(type)
 
       Seraph.Schema.Helper.check_property_type!(name, type)
+
+      module = __MODULE__
+
+      name_str = Atom.to_string(name)
+
+      if not Regex.match?(
+           ~r/^(?:[a-z]{1}[a-z0-9]{1,}[A-Z]{1}[a-z0-9]*)+$|^([a-z]{1}[a-z0-9]*)$/,
+           name_str
+         ) do
+        raise ArgumentError,
+              "[#{Atom.to_string(module)}] property must be camelCased. Received: #{name_str}."
+      end
+
+      if List.keyfind(Module.get_attribute(module, :properties), name, 0) do
+        raise ArgumentError, "[#{inspect(module)}] Field #{inspect(name)} already exists."
+      end
 
       Module.put_attribute(__MODULE__, :properties, {name, type})
       Module.put_attribute(__MODULE__, :changeset_properties, {name, type})
