@@ -103,7 +103,7 @@ defmodule Seraph.MixProject do
   defp deps do
     [
       {:bolt_sips, "~> 2.0"},
-      {:ecto, "~>3.2"},
+      {:ecto, "~>3.5"},
       {:uuid, "~> 1.1"},
       {:inflex, "~> 2.0.0"},
       # dev and test only deps
