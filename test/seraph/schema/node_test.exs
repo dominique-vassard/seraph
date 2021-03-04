@@ -161,6 +161,202 @@ defmodule Seraph.Schema.NodeTest do
     assert :used_posts in struct_fields
   end
 
+  describe "Timestamps" do
+    defmodule DefaultTS do
+      @moduledoc false
+      use Seraph.Schema.Node
+
+      node "User" do
+        property :firstName, :string
+        property :lastName, :string
+
+        timestamps()
+      end
+    end
+
+    defmodule UpdatedNameTS do
+      @moduledoc false
+      use Seraph.Schema.Node
+
+      node "User" do
+        property :firstName, :string
+        property :lastName, :string
+
+        timestamps(createdAt: :addedAt, updatedAt: :changedAt)
+      end
+    end
+
+    defmodule UpdatedTypeTS do
+      @moduledoc false
+      use Seraph.Schema.Node
+
+      node "User" do
+        property :firstName, :string
+        property :lastName, :string
+
+        timestamps(type: :naive_datetime)
+      end
+    end
+
+    defmodule ModuleAttributeTS do
+      @moduledoc false
+      use Seraph.Schema.Node
+
+      @timestamps_opts [createdAt: :addedAt, updatedAt: :changedAt, type: :naive_datetime]
+
+      node "User" do
+        property :firstName, :string
+        property :lastName, :string
+
+        timestamps()
+      end
+    end
+
+    test "default" do
+      assert DefaultTS.__schema__(:properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :createdAt,
+               :updatedAt
+             ]
+
+      assert DefaultTS.__schema__(:persisted_properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :createdAt,
+               :updatedAt
+             ]
+
+      assert DefaultTS.__schema__(:changeset_properties) == [
+               uuid: :string,
+               additionalLabels: {:array, :string},
+               firstName: :string,
+               lastName: :string,
+               createdAt: :utc_datetime_usec,
+               updatedAt: :utc_datetime_usec
+             ]
+
+      assert DefaultTS.__schema__(:autogenerate) == [
+               createdAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]},
+               updatedAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]}
+             ]
+
+      assert DefaultTS.__schema__(:autoupdate) == [
+               updatedAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]}
+             ]
+    end
+
+    test "updated timestamps names" do
+      assert UpdatedNameTS.__schema__(:properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :addedAt,
+               :changedAt
+             ]
+
+      assert UpdatedNameTS.__schema__(:persisted_properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :addedAt,
+               :changedAt
+             ]
+
+      assert UpdatedNameTS.__schema__(:changeset_properties) == [
+               uuid: :string,
+               additionalLabels: {:array, :string},
+               firstName: :string,
+               lastName: :string,
+               addedAt: :utc_datetime_usec,
+               changedAt: :utc_datetime_usec
+             ]
+
+      assert UpdatedNameTS.__schema__(:autogenerate) == [
+               addedAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]},
+               changedAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]}
+             ]
+
+      assert UpdatedNameTS.__schema__(:autoupdate) == [
+               changedAt: {Seraph.Schema.Node, :__timestamps__, [:utc_datetime_usec]}
+             ]
+    end
+
+    test "updated timestamps types" do
+      assert UpdatedTypeTS.__schema__(:properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :createdAt,
+               :updatedAt
+             ]
+
+      assert UpdatedTypeTS.__schema__(:persisted_properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :createdAt,
+               :updatedAt
+             ]
+
+      assert UpdatedTypeTS.__schema__(:changeset_properties) == [
+               uuid: :string,
+               additionalLabels: {:array, :string},
+               firstName: :string,
+               lastName: :string,
+               createdAt: :naive_datetime,
+               updatedAt: :naive_datetime
+             ]
+
+      assert UpdatedTypeTS.__schema__(:autogenerate) == [
+               createdAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]},
+               updatedAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]}
+             ]
+
+      assert UpdatedTypeTS.__schema__(:autoupdate) == [
+               updatedAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]}
+             ]
+    end
+
+    test "updated timestamps via module attribute" do
+      assert ModuleAttributeTS.__schema__(:properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :addedAt,
+               :changedAt
+             ]
+
+      assert ModuleAttributeTS.__schema__(:persisted_properties) == [
+               :uuid,
+               :firstName,
+               :lastName,
+               :addedAt,
+               :changedAt
+             ]
+
+      assert ModuleAttributeTS.__schema__(:changeset_properties) == [
+               uuid: :string,
+               additionalLabels: {:array, :string},
+               firstName: :string,
+               lastName: :string,
+               addedAt: :naive_datetime,
+               changedAt: :naive_datetime
+             ]
+
+      assert ModuleAttributeTS.__schema__(:autogenerate) == [
+               addedAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]},
+               changedAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]}
+             ]
+
+      assert ModuleAttributeTS.__schema__(:autoupdate) == [
+               changedAt: {Seraph.Schema.Node, :__timestamps__, [:naive_datetime]}
+             ]
+    end
+  end
+
   describe "Error" do
     test "when duplicating fields" do
       assert_raise ArgumentError, fn ->
