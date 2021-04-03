@@ -35,6 +35,8 @@ defmodule Seraph.Query.Planner do
   @spec raw_query(Seraph.Repo.t(), String.t(), map, Keyword.t()) ::
           {:ok, Bolt.Sips.Response.t() | [Bolt.Sips.Response.t()]} | {:error, Bolt.Sips.Error.t()}
   def raw_query(repo, statement, params \\ %{}, opts \\ []) do
+    opts = Keyword.put_new(opts, :prefix, repo)
+
     Bolt.Sips.query(get_conn(repo, opts), statement, params, opts)
   end
 
@@ -44,6 +46,7 @@ defmodule Seraph.Query.Planner do
   @spec raw_query!(Seraph.Repo.t(), String.t(), map, Keyword.t()) ::
           Bolt.Sips.Response.t() | [Bolt.Sips.Response.t()] | Bolt.Sips.Exception.t()
   def raw_query!(repo, statement, params \\ %{}, opts \\ []) do
+    opts = Keyword.put_new(opts, :prefix, repo)
     Bolt.Sips.query!(get_conn(repo, opts), statement, params, opts)
   end
 

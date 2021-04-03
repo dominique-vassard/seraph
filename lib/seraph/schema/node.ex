@@ -427,14 +427,15 @@ defmodule Seraph.Schema.Node do
       updatedAt = Keyword.get(timestamps, :updatedAt, :updatedAt)
 
       if createdAt do
-        Seraph.Schema.Node.__property__(__MODULE__, createdAt, type, autogenerate: autogen)
+        Seraph.Schema.Node.__property__(__MODULE__, createdAt, type, [])
       end
 
       if updatedAt do
-        Seraph.Schema.Node.__property__(__MODULE__, updatedAt, type,
-          autogenerate: autogen,
-          autoupdate: autogen
-        )
+        Seraph.Schema.Node.__property__(__MODULE__, updatedAt, type, autoupdate: autogen)
+      end
+
+      with [_ | _] = fields <- Enum.filter([createdAt, updatedAt], & &1) do
+        Module.put_attribute(__MODULE__, :autogenerate, {fields, autogen})
       end
     end
   end
@@ -513,11 +514,11 @@ defmodule Seraph.Schema.Node do
     end
 
     if Keyword.get(opts, :autogenerate, false) do
-      Module.put_attribute(module, :autogenerate, {name, Keyword.get(opts, :autogenerate)})
+      Module.put_attribute(module, :autogenerate, {[name], Keyword.get(opts, :autogenerate)})
     end
 
     if Keyword.get(opts, :autoupdate, false) do
-      Module.put_attribute(module, :autoupdate, {name, Keyword.get(opts, :autoupdate)})
+      Module.put_attribute(module, :autoupdate, {[name], Keyword.get(opts, :autoupdate)})
     end
   end
 
