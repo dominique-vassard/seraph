@@ -51,6 +51,47 @@ defmodule Seraph.Repo.NodeTest do
       assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
     end
 
+    test "Node alone (bare, no changeset, nil value)" do
+      user = %User{
+        firstName: "John",
+        lastName: nil,
+        viewCount: 5
+      }
+
+      assert {:ok, created_user} = TestRepo.Node.create(user)
+
+      assert %Seraph.Test.User{
+               firstName: "John",
+               lastName: nil,
+               viewCount: 5
+             } = created_user
+
+      refute is_nil(created_user.__id__)
+      refute is_nil(created_user.uuid)
+
+      cql = """
+      MATCH
+        (u:User)
+      WHERE
+        u.firstName = $firstName
+        AND u.lastName IS NULL
+        AND u.viewCount = $viewCount
+        AND id(u) = $id
+        AND u.uuid = $uuid
+      RETURN
+        COUNT(u) AS nb_result
+      """
+
+      params = %{
+        uuid: created_user.uuid,
+        firstName: "John",
+        viewCount: 5,
+        id: created_user.__id__
+      }
+
+      assert [%{"nb_result" => 1}] = TestRepo.query!(cql, params)
+    end
+
     test "Node alone (changeset invalid)" do
       params = %{
         firstName: :invalid

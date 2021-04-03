@@ -20,7 +20,6 @@ defmodule Seraph.Changeset do
             data: nil,
             params: nil,
             changes: %{},
-            repo_changes: %{},
             errors: [],
             validations: [],
             required: [],
@@ -127,18 +126,6 @@ defmodule Seraph.Changeset do
       {key, value}, {changes, errors, valid?} ->
         put_change(data, changes, errors, valid?, key, value, Map.get(types, key))
     end)
-  end
-
-  defp put_change(data, _changes, _errors, _valid?, key, _value, nil) do
-    raise ArgumentError, "unknown field `#{key}` in #{inspect(data)}"
-  end
-
-  defp put_change(data, changes, errors, valid?, key, value, type) do
-    if not Ecto.Type.equal?(type, Map.get(data, key), value) do
-      {Map.put(changes, key, value), errors, valid?}
-    else
-      {Map.delete(changes, key), errors, valid?}
-    end
   end
 
   @doc """
@@ -266,6 +253,18 @@ defmodule Seraph.Changeset do
     |> map_to_ecto()
     |> Ecto.Changeset.put_change(key, value)
     |> map_from_ecto()
+  end
+
+  defp put_change(data, _changes, _errors, _valid?, key, _value, nil) do
+    raise ArgumentError, "unknown field `#{key}` in #{inspect(data)}"
+  end
+
+  defp put_change(data, changes, errors, valid?, key, value, type) do
+    if not Ecto.Type.equal?(type, Map.get(data, key), value) do
+      {Map.put(changes, key, value), errors, valid?}
+    else
+      {Map.delete(changes, key), errors, valid?}
+    end
   end
 
   @doc """

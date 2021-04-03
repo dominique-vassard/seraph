@@ -257,8 +257,8 @@ defmodule Seraph.Repo.Node.Schema do
           data
       end
       |> Map.from_struct()
-      |> Enum.filter(fn {k, _} ->
-        k in persisted_properties
+      |> Enum.filter(fn {k, v} ->
+        k in persisted_properties and not is_nil(v)
       end)
       |> Enum.into(%{})
       |> Map.put(:additionalLabels, data.additionalLabels)
