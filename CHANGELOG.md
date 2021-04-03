@@ -1,3 +1,8 @@
+# v0.2.3
+Bug fix:
+- Ecto dependency (key :repo_changes not found )
+- Node creation fails if property is nil
+
 # v0.2.2
 Bug fix:
 - Seraph.changeset.change/2 works with changesets, not only Schemas
