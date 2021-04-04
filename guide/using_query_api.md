@@ -61,7 +61,7 @@ Keyword syntax
 import Seraph.Query
 
 query = match [{u, User}],
-  where: [u.firstName == "John"],
+  where: u.firstName == "John",
   return: [u]
 
 GraphApp.Repo.all(query)
@@ -72,7 +72,7 @@ Macro syntax
 import Seraph.Query
 
 match([{u, User}])
-|> where([u.firstName == "John"])
+|> where(u.firstName == "John")
 |> return([u])
 |> GraphApp.Repo.query()
 ```
@@ -83,7 +83,7 @@ import Seraph.Query
 
 first_name = "John"
 match([{u, User}])
-|> where([u.firstName == ^first_name])
+|> where(u.firstName == ^first_name)
 |> return([u])
 |> GraphApp.Repo.query()
 ```
