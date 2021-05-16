@@ -1,3 +1,7 @@
+# v0.2.4
+Bug fix:
+    - Bolt sips compatibility (with changes from timeout management)
+    
 # v0.2.3
 Bug fix:
 - Ecto dependency (key :repo_changes not found )
