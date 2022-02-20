@@ -167,6 +167,11 @@ defmodule Seraph.Repo.Node.Schema do
   def set(repo, changeset, _opts) do
     %{__struct__: queryable} = changeset.data
 
+    changeset =
+      Map.put(changeset, :changes, update_changes(changeset.changes, queryable, :update))
+
+    IO.inspect(changeset)
+
     {:ok, results} =
       Seraph.Repo.Node.Queryable.to_query(queryable, changeset, :match_set)
       |> repo.execute()
@@ -262,6 +267,7 @@ defmodule Seraph.Repo.Node.Schema do
       end)
       |> Enum.into(%{})
       |> Map.put(:additionalLabels, data.additionalLabels)
+      |> update_changes(queryable, :create)
 
     {:ok, [%{"n" => created_node}]} =
       Seraph.Repo.Node.Queryable.to_query(queryable, properties, :create)
@@ -289,6 +295,20 @@ defmodule Seraph.Repo.Node.Schema do
 
     with {:ok, create_changeset} <- build_merge_data(queryable, :on_create, merge_opts),
          {:ok, match_changeset} <- build_merge_data(queryable, :on_match, merge_opts) do
+      create_changeset =
+        Map.put(
+          create_changeset,
+          :changes,
+          update_changes(create_changeset.changes, queryable, :create)
+        )
+
+      match_changeset =
+        Map.put(
+          match_changeset,
+          :changes,
+          update_changes(match_changeset.changes, queryable, :update)
+        )
+
       data = [merge: merge_keys_data, on_create: create_changeset, on_match: match_changeset]
 
       {:ok, [%{"n" => merged_node}]} =
@@ -330,4 +350,22 @@ defmodule Seraph.Repo.Node.Schema do
         {:ok, changeset}
     end
   end
+
+  defp update_changes(original, schema, action) do
+    autogen_fields = action |> action_to_auto() |> schema.__schema__()
+
+    Enum.reduce(autogen_fields, original, fn {fields, {mod, fun, args}}, acc ->
+      case Enum.reject(fields, &Map.has_key?(original, &1)) do
+        [] ->
+          acc
+
+        fields ->
+          generated = apply(mod, fun, args)
+          Enum.reduce(fields, acc, &Map.put(&2, &1, generated))
+      end
+    end)
+  end
+
+  defp action_to_auto(:create), do: :autogenerate
+  defp action_to_auto(:update), do: :autoupdate
 end
