@@ -8,7 +8,7 @@ defmodule Seraph.MixProject do
       name: "Seraph",
       app: :seraph,
       version: @version,
-      elixir: "~> 1.8",
+      elixir: "~> 1.14",
       package: package(),
       description: "A toolkit for data mapping an querying Neo4j database in Elixir",
       start_permanent: Mix.env() == :prod,
@@ -103,14 +103,14 @@ defmodule Seraph.MixProject do
   defp deps do
     [
       {:bolt_sips, "~> 2.0"},
-      {:ecto, "~>3.5"},
+      {:ecto, "~>3.9"},
       {:uuid, "~> 1.1"},
-      {:inflex, "~> 2.0.0"},
+      {:inflex, "~> 2.1"},
       # dev and test only deps
-      {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
-      {:excoveralls, "~> 0.10", only: :test}
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.28.5", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev], runtime: false},
+      {:excoveralls, "~> 0.15.0", only: :test}
     ]
   end
 end
