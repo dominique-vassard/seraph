@@ -74,8 +74,8 @@ defmodule Seraph.Query.Builder.MatchTest do
 
     assert %{identifiers: identifiers, match: match, params: params} = Match.build(ast, __ENV__)
 
-    assert %{"rel" => rel_data, "u" => start_data, "u2" => end_data} = identifiers
-    assert %Match{entities: [rel_data, start_data, end_data]} = match
+    assert %{"rel" => ^rel_data, "u" => ^start_data, "u2" => ^end_data} = identifiers
+    assert %Match{entities: [^rel_data, ^end_data, ^start_data]} = match
     assert [u2_uuid_0: "user-uuid-2", u_uuid_0: "user-uuid-1"] = params
   end
 end

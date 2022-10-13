@@ -265,7 +265,7 @@ defmodule Seraph.IntegrationTest do
         merge {u, User, %{uuid: ^uuid, firstName: "New User"}},
           return: [u]
 
-      assert [result] = TestRepo.all(query)
+      assert [_result] = TestRepo.all(query)
 
       cql_check = """
       MATCH
@@ -286,7 +286,7 @@ defmodule Seraph.IntegrationTest do
           on_create_set: [u.firstName = "New User"],
           return: [u]
 
-      assert [result] = TestRepo.all(query)
+      assert [_result] = TestRepo.all(query)
 
       cql_check = """
       MATCH
@@ -312,7 +312,7 @@ defmodule Seraph.IntegrationTest do
           on_match_set: [u.firstName = "Updated"],
           return: [u]
 
-      assert [result] = TestRepo.all(query)
+      assert [_result] = TestRepo.all(query)
 
       cql_check = """
       MATCH

@@ -9,7 +9,7 @@ defmodule Seraph.Query.Builder.RemoveTest do
 
       assert %Remove{expressions: expressions} = Remove.build(ast, __ENV__)
 
-      assert expressions = [
+      assert ^expressions = [
                %Seraph.Query.Builder.Entity.Label{
                  node_identifier: "u",
                  values: ["OldLabel"]
@@ -22,7 +22,7 @@ defmodule Seraph.Query.Builder.RemoveTest do
 
       assert %Remove{expressions: expressions} = Remove.build(ast, __ENV__)
 
-      assert expressions = [
+      assert ^expressions = [
                %Seraph.Query.Builder.Entity.Label{
                  node_identifier: "u",
                  values: ["OldLabel1", "OldLabel2"]
@@ -34,7 +34,7 @@ defmodule Seraph.Query.Builder.RemoveTest do
       ast = quote do: [u.firstName]
       assert %Remove{expressions: expressions} = Remove.build(ast, __ENV__)
 
-      assert expressions = [
+      assert ^expressions = [
                %Seraph.Query.Builder.Entity.Property{
                  alias: nil,
                  bound_name: nil,

@@ -757,7 +757,7 @@ defmodule Seraph.Repo.RelationshipTest do
       create_date = DateTime.utc_now() |> DateTime.truncate(:second)
       match_date = DateTime.truncate(date, :second)
 
-      assert {:ok, rel_wrote} =
+      assert {:ok, _rel_wrote} =
                TestRepo.Relationship.merge(Wrote, old_rel.start_node, old_rel.end_node,
                  on_create: {%{at: create_date}, &Wrote.changeset/2},
                  on_match: {%{at: match_date}, &Wrote.changeset/2}

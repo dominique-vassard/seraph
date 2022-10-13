@@ -247,7 +247,7 @@ defmodule Seraph.Schema.NodeTest do
           use Seraph.Schema.Node
 
           node "InvalidRelType" do
-            outgoing_relationship "INVALID", Post, :invalid, through: ValidRelationship
+            outgoing_relationship "INVALID", Post, :invalid2, through: ValidRelationship
           end
         end
       end
